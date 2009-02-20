@@ -1,0 +1,15 @@
+[submodule "horde-cvs"]
+	path = horde-cvs
+	url = git@github.com:wrobel/horde-cvs.git
+[submodule "horde"]
+	path = horde
+	url = git@github.com:wrobel/horde.git
+[submodule "horde-hatchery"]
+	path = horde-hatchery
+	url = git@github.com:wrobel/horde-hatchery.git
+[submodule "horde-fw3"]
+	path = horde-fw3
+	url = git@github.com:wrobel/horde-fw3.git
+[submodule "horde-release"]
+	path = horde-release
+	url = git@github.com:wrobel/horde-release.git
