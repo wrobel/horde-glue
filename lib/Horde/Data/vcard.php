@@ -1,0 +1,1 @@
+../../../horde-cvs/framework/Data/Data/vcard.php

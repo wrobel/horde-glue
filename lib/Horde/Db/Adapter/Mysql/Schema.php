@@ -1,0 +1,1 @@
+../../../../../horde/framework/Db/lib/Horde/Db/Adapter/Mysql/Schema.php

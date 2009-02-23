@@ -1,0 +1,1 @@
+../../../horde-cvs/framework/SyncML/SyncML/Device/P800.php

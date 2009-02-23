@@ -1,0 +1,1 @@
+../../../horde-cvs/framework/XML_WBXML/WBXML/DTD.php

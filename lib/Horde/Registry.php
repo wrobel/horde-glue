@@ -1,0 +1,1 @@
+../../horde-cvs/framework/Horde/Horde/Registry.php

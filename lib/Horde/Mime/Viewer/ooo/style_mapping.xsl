@@ -1,0 +1,1 @@
+../../../../../horde/framework/Mime/lib/Horde/Mime/Viewer/ooo/style_mapping.xsl
