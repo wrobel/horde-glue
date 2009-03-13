@@ -15,4 +15,4 @@
 	url = git@github.com:wrobel/horde-release.git
 [submodule "kolab-cvs"]
 	path = kolab-cvs
-	url = git://github.com/wrobel/kolab-cvs.git
+	url = git@github.com:wrobel/kolab-cvs.git
