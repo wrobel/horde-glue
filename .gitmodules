@@ -16,3 +16,6 @@
 [submodule "kolab-cvs"]
 	path = kolab-cvs
 	url = git@github.com:wrobel/kolab-cvs.git
+[submodule "topgit"]
+	path = topgit
+	url = git@github.com:wrobel/topgit.git
