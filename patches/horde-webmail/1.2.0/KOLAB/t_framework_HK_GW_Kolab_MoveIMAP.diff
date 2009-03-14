@@ -1,0 +1,4270 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab/MoveIMAP
+
+Move the IMAP handlers from Kolab_Storage to Kolab_Server.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Deprecated.php       |    4 +-
+ horde-webmail/lib/Horde/Kolab/IMAP.php             |  139 ++++
+ horde-webmail/lib/Horde/Kolab/IMAP/cclient.php     |  778 ++++++++++++++++++++
+ horde-webmail/lib/Horde/Kolab/IMAP/pear.php        |  520 +++++++++++++
+ horde-webmail/lib/Horde/Kolab/IMAP/test.php        |  728 ++++++++++++++++++
+ .../lib/Horde/Kolab/Server/Object/adminrole.php    |    2 +-
+ .../Horde/Kolab/Server/Object/domainmaintainer.php |    2 +-
+ horde-webmail/lib/Horde/Kolab/Server/test.php      |    2 +-
+ horde-webmail/lib/Horde/Kolab/Session.php          |   40 +
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php   |  177 ++---
+ horde-webmail/lib/Horde/Kolab/Storage/IMAP.php     |  139 ----
+ .../lib/Horde/Kolab/Storage/IMAP/pear.php          |  520 -------------
+ .../lib/Horde/Kolab/Storage/IMAP/test.php          |  695 -----------------
+ horde-webmail/lib/Horde/Kolab/Storage/List.php     |   60 +-
+ 14 files changed, 2306 insertions(+), 1500 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Deprecated.php b/horde-webmail/lib/Horde/Kolab/Deprecated.php
+index 6f45013..e2ade05 100644
+--- a/horde-webmail/lib/Horde/Kolab/Deprecated.php
++++ b/horde-webmail/lib/Horde/Kolab/Deprecated.php
+@@ -662,8 +662,8 @@ class Kolab_Storage_Deprecated extends Kolab_Storage {
+             $headers->addHeader($key, $val);
+         }
+ 
+-        $message = Kolab_IMAP::kolabNewlines($headers->toString() .
+-                                             $this->_message->toString(false));
++        $message = Horde_Kolab_IMAP::kolabNewlines($headers->toString() .
++                                                   $this->_message->toString(false));
+ 
+         $result = $this->_imap->appendMessage($message);
+         if (is_a($result, 'PEAR_Error')) {
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP.php b/horde-webmail/lib/Horde/Kolab/IMAP.php
+new file mode 100644
+index 0000000..20a31b2
+--- /dev/null
++++ b/horde-webmail/lib/Horde/Kolab/IMAP.php
+@@ -0,0 +1,139 @@
++<?php
++/**
++ * @package Kolab_Storage
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP.php,v 1.2 2008/08/18 13:32:56 wrobel Exp $
++ */
++
++/**
++ * The Horde_Kolab_IMAP class provides a wrapper around two different Kolab IMAP
++ * connection types.
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP.php,v 1.2 2008/08/18 13:32:56 wrobel Exp $
++ *
++ * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ *
++ * See the enclosed file COPYING for license information (LGPL). If you
++ * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ *
++ * @author  Gunnar Wrobel <wrobel@pardus.de>
++ * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
++ * @package Kolab_Storage
++ */
++class Horde_Kolab_IMAP {
++
++    /**
++     * IMAP server to connect to.
++     *
++     * @var string
++     */
++    var $_server;
++
++    /**
++     * IMAP server port to connect to.
++     *
++     * @var int
++     */
++    var $_port;
++
++    /**
++     * IMAP connection.
++     *
++     * @var mixed
++     */
++    var $_imap;
++
++    /**
++     * Connection reuse detection signature.
++     *
++     * @var string
++     */
++    var $_reuse_detection;
++
++    /**
++     * Constructor.
++     *
++     * @param string     $server   Server to connect to
++     * @param int        $port     Port to connect to
++     */
++    function Horde_Kolab_IMAP($server, $port)
++    {
++        $this->_server = $server;
++        $this->_port   = $port;
++    }
++
++    /**
++     * Attempts to return a reference to a concrete Horde_Kolab_IMAP instance.
++     * It will only create a new instance if no Horde_Kolab_IMAP instance
++     * exists.
++     *
++     * @static
++     *
++     * @param string     $server                Server name
++     * @param int        $port                  Port
++     * @param boolean    $annotation_required   Do we actually need
++     *                                          the annotation calls?
++     *
++     * @return Horde_Kolab_IMAP|PEAR_Error The concrete reference.
++     */
++    function &singleton($server, $port, $annotation_required = true)
++    {
++        static $instances = array();
++
++        /**
++         * There are Kolab specific PHP functions available that make the IMAP
++         * access more efficient. If these are detected, or if they are not
++         * required for the current operation, the PHP IMAP implementation
++         * should be used.
++         *
++         * The c-client Kolab driver provides quicker IMAP routines so is
++         * preferable whenever possible.
++         */
++        if ($annotation_required) {
++            if (function_exists('imap_status_current')
++                && function_exists('imap_getannotation')) {
++                $driver = 'cclient';
++            } else {
++                $driver = 'pear';
++            }
++        } else {
++            $driver = 'cclient';
++        }
++
++        if (isset($GLOBALS['KOLAB_TESTING'])) {
++            $driver = 'test';
++        }
++
++        $signature = "$server|$port|$driver";
++        if (!isset($instances[$signature])) {
++            $instances[$signature] = &Horde_Kolab_IMAP::factory($server, $port, $driver);
++        }
++
++        return $instances[$signature];
++    }
++
++    /**
++     * Attempts to return a concrete Horde_Kolab_IMAP instance based on the
++     * available PHP functionality.
++     *
++     * @param string     $server                Server name.
++     * @param int        $port                  Server port.
++     * @param string     $driver                Which driver should we use?
++     *
++     * @return Horde_Kolab_IMAP|PEAR_Error The newly created concrete
++     *                                     Horde_Kolab_IMAP instance.
++     */
++    function &factory($server, $port, $driver = 'cclient')
++    {
++        @include_once dirname(__FILE__) . '/IMAP/' . $driver . '.php';
++
++        $class = 'Horde_Kolab_IMAP_' . $driver;
++        if (class_exists($class)) {
++            $driver = &new $class($server, $port);
++        } else {
++            return PEAR::raiseError(sprintf(_("Failed to load Kolab IMAP driver %s"), $driver));
++        }
++
++        return $driver;
++    }
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP/cclient.php b/horde-webmail/lib/Horde/Kolab/IMAP/cclient.php
+new file mode 100644
+index 0000000..78aa997
+--- /dev/null
++++ b/horde-webmail/lib/Horde/Kolab/IMAP/cclient.php
+@@ -0,0 +1,778 @@
++<?php
++/**
++ * @package Kolab_Storage
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/cclient.php,v 1.3 2008/10/06 17:22:42 slusarz Exp $
++ */
++
++/**
++ * The Horde_Kolab_IMAP_Connection_cclient class connects to an IMAP server using
++ * the IMAP functionality within PHP.
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/cclient.php,v 1.3 2008/10/06 17:22:42 slusarz Exp $
++ *
++ * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ *
++ * See the enclosed file COPYING for license information (LGPL). If you
++ * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ *
++ * @author  Gunnar Wrobel <wrobel@pardus.de>
++ * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
++ * @package Kolab_Storage
++ */
++class Horde_Kolab_IMAP_cclient extends Horde_Kolab_IMAP {
++
++    /**
++     * Basic IMAP connection string.
++     *
++     * @var string
++     */
++    var $_base_mbox;
++
++    /**
++     * IMAP connection string that includes the folder.
++     *
++     * @var string
++     */
++    var $_mbox;
++
++    /**
++     * The signature of the current connection.
++     *
++     * @var string
++     */
++    var $_signature;
++
++    /**
++     * IMAP user name.
++     *
++     * @var string
++     */
++    var $_login;
++
++    /**
++     * IMAP password.
++     *
++     * @var string
++     */
++    var $_password;
++
++    /**
++     * Connects to the IMAP server.
++     *
++     * @param string $login     The user account name.
++     * @param string $password  The user password.
++     * @param boolean $tls      Should TLS be used for the connection?
++     *
++     * @return boolean|PEAR_Error  True in case the connection was opened
++     *                             successfully.
++     */
++    function connect($login, $password, $tls = false)
++    {
++        $options = '';
++        if (!$tls) {
++            $options = '/notls';
++        }
++
++        $mbox = '{' . $this->_server . ':' . $this->_port
++            . $options . '}';
++
++        $this->_signature = "$mbox|$login|$password";
++        if ($this->_signature == $this->_reuse_detection) {
++            return true;
++        }
++
++        $this->_mbox = $this->_base_mbox = $mbox;
++        $this->_login = $login;
++        $this->_password = $password;
++        $this->_imap = null;
++
++        $this->_reuse_detection = $this->_signature;
++
++        return true;
++    }
++
++    /**
++     * Lazy connect to the IMAP server.
++     *
++     * @return mixed  True in case the connection was opened successfully, a
++     *                PEAR error otherwise.
++     */
++    function _connect()
++    {
++        $result = @imap_open($this->_base_mbox, $this->_login, $this->_password, OP_HALFOPEN);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Server: %s. Error: %s"), $this->_server, @imap_last_error()));
++        }
++        $this->_imap = $result;
++        return true;
++    }
++
++    /**
++     * Disconnects from the IMAP server. If not really necessary this
++     * should not be called. Once the page got served the connections
++     * should be closed anyhow and if there is a chance to reuse the
++     * connection it should be used.
++     *
++     * @return mixed  True in case the connection was closed successfully, a
++     *                PEAR error otherwise.
++     */
++    function disconnect()
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $this->_reuse_detection = null;
++
++        $result = @imap_close($this->_imap);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Server: %s. Error: %s"), $this->_server, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Opens the given folder.
++     *
++     * @param string $folder  The folder to open.
++     *
++     * @return mixed  True in case the folder was opened successfully, a PEAR
++     *                error otherwise.
++     */
++    function select($folder)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $this->_mbox = $this->_base_mbox . $folder;
++
++        $result = @imap_reopen($this->_imap, $this->_mbox);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $folder, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Does the given folder exist?
++     *
++     * @param string $folder  The folder to check.
++     *
++     * @return mixed  True in case the folder exists, false otherwise
++     */
++    function exists($folder)
++    {
++        $folders = $this->getMailboxes();
++        if (is_a($folders, 'PEAR_Error')) {
++            return $folders;
++        }
++        return in_array($folder, $folders);
++    }
++
++    /**
++     * Create the specified folder.
++     *
++     * @param string $folder  The folder to create.
++     *
++     * @return mixed True in case the operation was successfull, a
++     *               PEAR error otherwise.
++     */
++    function create($folder)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $mbox = $this->_base_mbox . $folder;
++        $result = @imap_createmailbox($this->_imap, $mbox);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $folder, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Delete the specified folder.
++     *
++     * @param string $folder  The folder to delete.
++     *
++     * @return mixed True in case the operation was successfull, a
++     *               PEAR error otherwise.
++     */
++    function delete($folder)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $mbox = $this->_base_mbox . $folder;
++        $result = @imap_deletemailbox($this->_imap, $mbox);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $folder, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Rename the specified folder.
++     *
++     * @param string $old  The folder to rename.
++     * @param string $new  The new name of the folder.
++     *
++     * @return mixed True in case the operation was successfull, a
++     *               PEAR error otherwise.
++     */
++    function rename($old, $new)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_renamemailbox($this->_imap,
++                                      $this->_base_mbox . $old,
++                                      $this->_base_mbox . $new);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $old, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Returns the status of the current folder.
++     *
++     * @return array  An array that contains 'uidvalidity' and 'uidnext'.
++     */
++    function status()
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $status = @imap_status_current($this->_imap, SA_MESSAGES | SA_UIDVALIDITY | SA_UIDNEXT);
++        if (!$status) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $this->_mbox, @imap_last_error()));
++        }
++
++        return array('uidvalidity' => $status->uidvalidity,
++                     'uidnext' => $status->uidnext);
++    }
++
++    /**
++     * Returns the uids of the messages in this folder.
++     *
++     * @return mixed  The message ids or a PEAR error in case of an error.
++     */
++    function getUids()
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $uids = @imap_search($this->_imap, 'UNDELETED', SE_UID);
++        if (!is_array($uids)) {
++            $uids = array();
++        }
++
++        return $uids;
++    }
++
++    /**
++     * Searches the current folder using the given list of search criteria.
++     *
++     * @param string $search_list  A list of search criteria.
++     *
++     * @return mixed  The list of matching message ids or a PEAR error in case
++     *                of an error.
++     */
++    function search($search_list)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_search($this->_imap, $search_list, SE_UID);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $this->_mbox, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Searches the headers of the messages. c-client does not allow using
++     * "HEADER" as it is possible with Net/IMAP, so we need a workaround.
++     *
++     * @param string $field  The name of the header field.
++     * @param string $value  The value that field should match.
++     *
++     * @return mixed  The list of matching message ids or a PEAR error in case
++     *                of an error.
++     */
++    function searchHeaders($field, $value)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $uids = $this->getUids();
++        if (is_a($uids, 'PEAR_Error')) {
++            return $uids;
++        }
++
++        $result = array();
++        foreach ($uids as $uid) {
++            $header = $this->getMessageHeader($uid, false);
++            if (is_a($header, 'PEAR_Error')) {
++                return $header;
++            }
++            $header_array = MIME_Headers::parseMIMEHeaders($header);
++            if (isset($header_array[$field]) && $header_array[$field] == $value) {
++                $result[] = $uid;
++            }
++        }
++
++        return $result;
++    }
++
++    /**
++     * Retrieves the message headers for a given message id.
++     *
++     * @param integer $uid            The message id.
++     * @param boolean $peek_for_body  Prefetch the body.
++     *
++     * @return mixed  The message header or a PEAR error in case of an error.
++     */
++    function getMessageHeader($uid, $peek_for_body = true)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $flags = FT_UID;
++        if ($peek_for_body) {
++            $flags |= FT_PREFETCHTEXT;
++        }
++
++        $result = @imap_fetchheader($this->_imap, $uid, $flags);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"), $uid, @imap_last_error()));
++        }
++
++        return $result;
++    }
++
++    /**
++     * Retrieves the message body for a given message id.
++     *
++     * @param integer $uid  The message id.
++     *
++     * @return mixed  The message body or a PEAR error in case of an error.
++     */
++    function getMessageBody($uid)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_body($this->_imap, $uid, FT_UID);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"), $uid, @imap_last_error()));
++        }
++
++        return $result;
++    }
++
++    /**
++     * Retrieves the full message text for a given message id.
++     *
++     * @param integer $uid  The message id.
++     *
++     * @return mixed  The message text or a PEAR error in case of an error.
++     */
++    function getMessage($uid)
++    {
++        $header = $this->getMessageHeader($uid);
++        if (is_a($header, 'PEAR_Error')) {
++            return $header;
++        }
++
++        $body = $this->getMessageBody($uid);
++        if (is_a($body, 'PEAR_Error')) {
++            return $body;
++        }
++
++        return $header . $body;
++    }
++
++    /**
++     * Retrieves a list of mailboxes on the server.
++     *
++     * @return mixed  The list of mailboxes or a PEAR error in case of an
++     *                error.
++     */
++    function getMailboxes()
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $folders = array();
++
++        $result = @imap_list($this->_imap, $this->_base_mbox, '*');
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $this->_base_mbox, @imap_last_error()));
++        }
++
++        $server_len = strlen($this->_base_mbox);
++        foreach ($result as $folder) {
++            if (substr($folder, 0, $server_len) == $this->_base_mbox) {
++                $folders[] = substr($folder, $server_len);
++            }
++        }
++
++        return $folders;
++    }
++
++    /**
++     * Fetches the annotation on a folder.
++     *
++     * @param string $entries        The entry to fetch.
++     * @param string $value          The specific value to fetch.
++     * @param string $mailbox_name   The name of the folder.
++     *
++     * @return mixed  The annotation value or a PEAR error in case of an error.
++     */
++    function getAnnotation($entries, $value, $mailbox_name)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        static $annotations = array();
++
++        $signature = "$this->_signature|$entries|$value|$mailbox_name";
++
++        if (!isset($annotations[$signature])) {
++            $result = @imap_getannotation($this->_imap, $mailbox_name, $entries, $value);
++            if (isset($result[$value])) {
++                $annotations[$signature] = $result[$value];
++            } else {
++                $annotations[$signature] = '';
++            }
++        }
++
++        return $annotations[$signature];
++    }
++
++    /**
++     * Sets the annotation on a folder.
++     *
++     * @param string $entries        The entry to set.
++     * @param array  $values         The values to set
++     * @param string $mailbox_name   The name of the folder.
++     *
++     * @return mixed  True if successfull, a PEAR error otherwise.
++     */
++    function setAnnotation($entries, $values, $mailbox_name)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        foreach ($values as $key => $value) {
++            $result = @imap_setannotation($this->_imap, $mailbox_name, $entries, $key, $value);
++            if (!$result) {
++                return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $mailbox_name, @imap_last_error()));
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Retrieve the access rights from a folder
++     *
++     * @param string $folder  The folder to retrieve the ACLs from.
++     *
++     * @return mixed An array of rights if successfull, a PEAR error
++     * otherwise.
++     */
++    function getACL($folder)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_getacl($this->_imap, $folder);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $folder, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Retrieve the access rights from a folder not owned by the current user
++     *
++     * @param string $folder  The folder to retrieve the ACLs from.
++     *
++     * @return mixed An array of rights if successfull, a PEAR error
++     * otherwise.
++     */
++    function getMyRights($folder)
++    {
++        if (!function_exists('imap_myrights')) {
++            return PEAR::raiseError(sprintf(_("PHP does not support imap_myrights."), $folder, @imap_last_error()));
++        }
++
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_myrights($this->_imap, $folder);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $folder, @imap_last_error()));
++        }
++        return $result;
++
++    }
++
++    /**
++     * Set the access rights for a folder
++     *
++     * @param string $folder  The folder to retrieve the ACLs from.
++     * @param string $user    The user to set the ACLs for
++     * @param string $acl     The ACLs
++     *
++     * @return mixed True if successfull, a PEAR error otherwise.
++     */
++    function setACL($folder, $user, $acl)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_setacl($this->_imap, $folder, $user, $acl);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $folder, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Delete the access rights for a user.
++     *
++     * @param string $folder  The folder that should be modified.
++     * @param string $user    The user that should get the ACLs removed
++     *
++     * @return mixed True if successfull, a PEAR error otherwise.
++     */
++    function deleteACL($folder, $user)
++    {
++        return $this->setACL($folder, $user, '');
++    }
++
++    /**
++     * Appends a message to the current folder.
++     *
++     * @param string $msg  The message to append.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function appendMessage($msg)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_append($this->_imap, $this->_mbox, $msg);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $this->_mbox, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Copies a message to a new folder.
++     *
++     * @param integer $uid        IMAP message id.
++     * @param string $new_folder  Target folder.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function copyMessage($uid, $new_folder)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_mail_copy($this->_imap, $uid, $new_folder, CP_UID);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $new_folder, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Moves a message to a new folder.
++     *
++     * @param integer $uid        IMAP message id.
++     * @param string $new_folder  Target folder.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function moveMessage($uid, $new_folder)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_mail_move($this->_imap, $uid, $new_folder, CP_UID);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Folder: %s. Error: %s"), $new_folder, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Deletes messages from the current folder.
++     *
++     * @param integer $uids  IMAP message ids.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function deleteMessages($uids)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        if (!is_array($uids)) {
++            $uids = array($uids);
++        }
++
++        foreach($uids as $uid) {
++            $result = @imap_delete($this->_imap, $uid, FT_UID);
++            if (!$result) {
++                return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"), $uid, @imap_last_error()));
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Undeletes a message in the current folder.
++     *
++     * @param integer $uid  IMAP message id.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function undeleteMessages($uid)
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_undelete($this->_imap, $uid, FT_UID);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"), $uid, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Expunges messages in the current folder.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function expunge()
++    {
++        if (!isset($this->_imap)) {
++            $result = $this->_connect();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $result = @imap_expunge($this->_imap);
++        if (!$result) {
++            return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"), $this->_mbox, @imap_last_error()));
++        }
++        return $result;
++    }
++
++    /**
++     * Return the currently selected mailbox
++     *
++     * @return string  The mailbox currently selected
++     */
++    function current()
++    {
++        return $this->_mbox;
++    }
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP/pear.php b/horde-webmail/lib/Horde/Kolab/IMAP/pear.php
+new file mode 100644
+index 0000000..d9c2c86
+--- /dev/null
++++ b/horde-webmail/lib/Horde/Kolab/IMAP/pear.php
+@@ -0,0 +1,520 @@
++<?php
++/**
++ * @package Kolab_Storage
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/pear.php,v 1.2 2008/08/18 13:32:56 wrobel Exp $
++ */
++
++/**
++ * The Horde_Kolab library requires version >= 1.0.3 of Net_IMAP (i.e. a
++ * version that includes support for the ANNOTATEMORE IMAP extension). The
++ * latest version of Net_IMAP can be obtained from
++ * http://pear.php.net/get/Net_IMAP
++ */
++require_once 'Net/IMAP.php';
++
++/**
++ * The Horde_Kolab_IMAP_Connection_pear class connects to an IMAP server using the
++ * Net_IMAP PEAR package.
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/pear.php,v 1.2 2008/08/18 13:32:56 wrobel Exp $
++ *
++ * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ *
++ * See the enclosed file COPYING for license information (LGPL). If you
++ * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ *
++ * @author  Gunnar Wrobel <wrobel@pardus.de>
++ * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
++ * @package Kolab_Storage
++ */
++class Horde_Kolab_IMAP_pear extends Horde_Kolab_IMAP {
++
++    /**
++     * The signature of the current connection
++     *
++     * @var string
++     */
++    var $_signature;
++
++    /**
++     * Connects to the IMAP server.
++     *
++     * @param string  $login     The user account name.
++     * @param string  $password  The user password.
++     * @param boolean $tls       Should TLS be used for the connection?
++     *
++     * @return mixed  True in case the connection was opened successfully, a
++     *                PEAR error otherwise.
++     */
++    function connect($login, $password, $tls = false)
++    {
++        $this->_signature = $this->_server . '|' . $this->_port . "|$login|$password|$tls";
++
++        // Reuse existing connection?
++        if ($this->_signature == $this->_reuse_detection) {
++            return true;
++        }
++
++        $this->_imap = &new Net_IMAP($this->_server, $this->_port);
++        $result = $this->_imap->login($login, $password, true, false);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++
++        $this->_reuse_detection = $this->_signature;
++
++        return true;
++    }
++
++    /**
++     * Disconnects from the IMAP server.
++     *
++     * @return mixed  True in case the connection was closed successfully, a
++     *                PEAR error otherwise.
++     */
++    function disconnect()
++    {
++        $this->_reuse_detection = null;
++        return $this->_imap->disconnect();
++    }
++
++    /**
++     * Opens the given folder.
++     *
++     * @param string $folder  The folder to open
++     *
++     * @return mixed  True in case the folder was opened successfully, a PEAR
++     *                error otherwise.
++     */
++    function select($folder)
++    {
++        return $this->_imap->selectMailbox($folder);
++    }
++
++    /**
++     * Does the given folder exist?
++     *
++     * @param string $folder  The folder to check.
++     *
++     * @return mixed True in case the folder exists, false otherwise
++     */
++    function exists($folder)
++    {
++        return $this->_imap->mailboxExist($folder);
++    }
++
++    /**
++     * Create the specified folder.
++     *
++     * @param string $folder  The folder to create.
++     *
++     * @return mixed True in case the operation was successfull, a
++     *               PEAR error otherwise.
++     */
++    function create($folder)
++    {
++        return $this->_imap->createMailbox($folder);
++    }
++
++    /**
++     * Delete the specified folder.
++     *
++     * @param string $folder  The folder to delete.
++     *
++     * @return mixed True in case the operation was successfull, a
++     *               PEAR error otherwise.
++     */
++    function delete($folder)
++    {
++        return $this->_imap->deleteMailbox($folder);
++    }
++
++    /**
++     * Rename the specified folder.
++     *
++     * @param string $old  The folder to rename.
++     * @param string $new  The new name of the folder.
++     *
++     * @return mixed True in case the operation was successfull, a
++     *               PEAR error otherwise.
++     */
++    function rename($old, $new)
++    {
++        return $this->_imap->renameMailbox($old, $new);
++    }
++
++    /**
++     * Returns the status of the current folder.
++     *
++     * @return array  An array that contains 'uidvalidity' and 'uidnext'.
++     */
++    function status()
++    {
++        $result = array();
++
++        $mailbox = $this->_imap->getCurrentMailbox();
++
++        // Net_IMAP is not very efficent here
++        $ret = $this->_imap->cmdStatus($mailbox, 'UIDVALIDITY');
++        $result['uidvalidity'] = $ret['PARSED']['STATUS']['ATTRIBUTES']['UIDVALIDITY'];
++
++        $ret = $this->_imap->cmdStatus($mailbox, 'UIDNEXT');
++        $result['uidnext'] = $ret['PARSED']['STATUS']['ATTRIBUTES']['UIDNEXT'];
++
++        return $result;
++    }
++
++    /**
++     * Returns the message ids of the messages in this folder.
++     *
++     * @return array  The message ids.
++     */
++    function getUids()
++    {
++        $uids = $this->_imap->search('UNDELETED', true);
++        if (!is_array($uids)) {
++            $uids = array();
++        }
++        return $uids;
++    }
++
++    /**
++     * Searches the current folder using the given list of search criteria.
++     *
++     * @param string $search_list  A list of search criteria.
++     *
++     * @return mixed  The list of matching message ids or a PEAR error in case
++     *                of an error.
++     */
++    function search($search_list, $uidSearch = true)
++    {
++        return $this->_imap->search($search_list, $uidSearch);
++    }
++
++    /**
++     * Searches the headers of the messages.
++     *
++     * @param string $field  The name of the header field.
++     * @param string $value  The value that field should match.
++     *
++     * @return mixed  The list of matching message ids or a PEAR error in case
++     *                of an error.
++     */
++    function searchHeaders($field, $value)
++    {
++        return $this->_imap->search('HEADER "' . $field . '" "' . $value . '"', true);
++    }
++
++    /**
++     * Retrieves the message headers for a given message id.
++     *
++     * @param int $uid                The message id.
++     * @param boolean $peek_for_body  Prefetch the body.
++     *
++     * @return mixed  The message header or a PEAR error in case of an error.
++     */
++    function getMessageHeader($uid, $peek_for_body = true)
++    {
++        $ret = $this->_imap->cmdUidFetch($uid, 'BODY[HEADER]');
++        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
++            return PEAR::raiseError(sprintf(_("Failed fetching headers of IMAP message %s. Error was %s"),
++                                            $uid,
++                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
++        }
++
++        if (isset($ret['PARSED'])) {
++            foreach ($ret['PARSED'] as $msg) {
++                if (isset($msg['EXT']['BODY[HEADER]']['CONTENT'])) {
++                    return $msg['EXT']['BODY[HEADER]']['CONTENT'];
++                }
++            }
++        }
++
++        return '';
++    }
++
++    /**
++     * Retrieves the message body for a given message id.
++     *
++     * @param integet $uid  The message id.
++     *
++     * @return mixed  The message body or a PEAR error in case of an error.
++     */
++    function getMessageBody($uid)
++    {
++        $ret = $this->_imap->cmdUidFetch($uid, 'BODY[TEXT]');
++        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
++            return PEAR::raiseError(sprintf(_("Failed fetching body of IMAP message %s. Error was %s"),
++                                            $uid,
++                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
++        }
++
++        if (isset($ret['PARSED'])) {
++            foreach ($ret['PARSED'] as $msg) {
++                if (isset($msg['EXT']['BODY[TEXT]']['CONTENT'])) {
++                    return $msg['EXT']['BODY[TEXT]']['CONTENT'];
++                }
++            }
++        }
++
++        return '';
++    }
++
++    /**
++     * Retrieves the full message text for a given message id.
++     *
++     * @param integer $uid  The message id.
++     *
++     * @return mixed  The message text or a PEAR error in case of an error.
++     */
++    function getMessage($uid)
++    {
++        $ret = $this->_imap->cmdUidFetch($uid, 'RFC822');
++        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
++            return PEAR::raiseError(sprintf(_("Failed fetching IMAP message %s. Error was %s"),
++                                            $uid,
++                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
++        }
++
++        if (isset($ret['PARSED'])) {
++            foreach ($ret['PARSED'] as $msg) {
++                if (isset($msg['EXT']['RFC822']['CONTENT'])) {
++                    return $msg['EXT']['RFC822']['CONTENT'];
++                }
++            }
++        }
++
++        return '';
++    }
++
++    /**
++     * Retrieves a list of mailboxes on the server.
++     *
++     * @return mixed  The list of mailboxes or a PEAR error in case of an
++     *                error.
++     */
++    function getMailboxes()
++    {
++        return $this->_imap->getMailboxes();
++    }
++
++    /**
++     * Fetches the annotation on a folder.
++     *
++     * @param string $entries       The entry to fetch.
++     * @param string $value         The specific value to fetch.
++     * @param string $mailbox_name  The name of the folder.
++     *
++     * @return mixed  The annotation value or a PEAR error in case of an error.
++     */
++    function getAnnotation($entries, $value, $mailbox_name)
++    {
++        static $annotations = array();
++
++        $signature = "$this->_signature|$entries|$value|$mailbox_name";
++
++        if (!isset($annotations[$signature])) {
++            $annotations[$signature] = $this->_imap->getAnnotation($entries, $value, $mailbox_name);
++        }
++
++        return $annotations[$signature];
++    }
++
++    /**
++     * Sets the annotation on a folder.
++     *
++     * @param string $entries        The entry to set.
++     * @param array  $values         The values to set
++     * @param string $mailbox_name   The name of the folder.
++     *
++     * @return mixed  True if successfull, a PEAR error otherwise.
++     */
++    function setAnnotation($entries, $values, $mailbox_name)
++    {
++        return $this->_imap->setAnnotation($entries, $values, $mailbox_name);
++    }
++
++    /**
++     * Retrieve the access rights from a folder
++     *
++     * @param string $folder  The folder to retrieve the ACLs from.
++     *
++     * @return mixed An array of rights if successfull, a PEAR error
++     * otherwise.
++     */
++    function getACL($folder)
++    {
++        $result = $this->_imap->getACL($folder);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++        $acl = array();
++        foreach ($result as $user) {
++            $acl[$user['USER']] = $user['RIGHTS'];
++        }
++        return $acl;
++    }
++
++    /**
++     * Retrieve the access rights on a folder not owned by the current user
++     *
++     * @param string $folder  The folder to retrieve the ACLs from.
++     *
++     * @return mixed An array of rights if successfull, a PEAR error
++     * otherwise.
++     */
++    function getMyRights($folder)
++    {
++        $result = $this->_imap->getMyRights($folder);
++        return $result;
++    }
++
++    /**
++     * Set the access rights for a folder
++     *
++     * @param string $folder  The folder to retrieve the ACLs from.
++     * @param string $user    The user to set the ACLs for
++     * @param string $acl     The ACLs
++     *
++     * @return mixed True if successfull, a PEAR error otherwise.
++     */
++    function setACL($folder, $user, $acl)
++    {
++        return $this->_imap->setACL($folder, $user, $acl);
++    }
++
++    /**
++     * Delete the access rights for a user.
++     *
++     * @param string $folder  The folder that should be modified.
++     * @param string $user    The user that should get the ACLs removed
++     *
++     * @return mixed True if successfull, a PEAR error otherwise.
++     */
++    function deleteACL($folder, $user)
++    {
++        return $this->_imap->deleteACL($folder, $user);
++    }
++
++    /**
++     * Appends a message to the current folder.
++     *
++     * @param string $msg  The message to append.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function appendMessage($msg)
++    {
++        return $this->_imap->appendMessage($msg);
++    }
++
++    /**
++     * Copies a message to a new folder.
++     *
++     * @param integer $uid        IMAP message id.
++     * @param string $new_folder  Target folder.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function copyMessage($uid, $new_folder)
++    {
++        $ret = $this->_imap->cmdUidCopy($uid, $new_folder);
++        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
++            return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"),
++                                            $uid,
++                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
++        }
++        return true;
++    }
++
++    /**
++     * Moves a message to a new folder.
++     *
++     * @param integer $uid        IMAP message id.
++     * @param string $new_folder  Target folder.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function moveMessage($uid, $new_folder)
++    {
++        $result = $this->copyMessage($uid, $new_folder);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++
++        $result = $this->deleteMessages($uid);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++
++        $result = $this->expunge();
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++        return true;
++    }
++
++    /**
++     * Deletes messages from the current folder.
++     *
++     * @param integer $uids  IMAP message ids.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function deleteMessages($uids)
++    {
++        if (!is_array($uids)) {
++            $uids = array($uids);
++        }
++
++        foreach ($uids as $uid) {
++            $ret = $this->_imap->cmdUidStore($uid, '+FLAGS.SILENT', '\Deleted');
++            if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
++                return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"),
++                                                $uid,
++                                                $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
++            }
++        }
++
++        return true;
++    }
++
++    /**
++     * Undeletes a message in the current folder.
++     *
++     * @param integer $uid  IMAP message id.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function undeleteMessages($uid)
++    {
++        $ret = $this->_imap->cmdUidStore($uid, '-FLAGS.SILENT', '\Deleted');
++        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
++            return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"),
++                                            $uid,
++                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
++        }
++        return true;
++    }
++
++    /**
++     * Expunges messages in the current folder.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function expunge()
++    {
++        return $this->_imap->expunge();
++    }
++
++    /**
++     * Return the currently selected mailbox
++     *
++     * @return string  The mailbox currently selected
++     */
++    function current()
++    {
++        return $this->_imap->getCurrentMailbox();
++    }
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP/test.php b/horde-webmail/lib/Horde/Kolab/IMAP/test.php
+new file mode 100644
+index 0000000..ce5609a
+--- /dev/null
++++ b/horde-webmail/lib/Horde/Kolab/IMAP/test.php
+@@ -0,0 +1,728 @@
++<?php
++/**
++ * @package Kolab_Storage
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/test.php,v 1.2 2008/08/18 13:32:56 wrobel Exp $
++ */
++
++/**
++ * Indicate that a mail has been marked as deleted
++ */
++define('KOLAB_IMAP_FLAG_DELETED', 1);
++
++/**
++ * The Horde_Kolab_IMAP_Connection_test class simulates an IMAP server for
++ * testing purposes.
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/test.php,v 1.2 2008/08/18 13:32:56 wrobel Exp $
++ *
++ * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ *
++ * See the enclosed file COPYING for license information (LGPL). If you
++ * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ *
++ * @author  Gunnar Wrobel <wrobel@pardus.de>
++ * @package Kolab_Storage
++ */
++class Horde_Kolab_IMAP_test extends Horde_Kolab_IMAP {
++
++    /**
++     * If we are supposed to be connected this holds the user
++     * credentials and some connection details.
++     *
++     * @var string
++     */
++    var $_connected;
++
++    /**
++     * Login of the current user
++     *
++     * @var string
++     */
++    var $_user;
++
++    /**
++     * The data of the mailbox currently opened
++     *
++     * @var array
++     */
++    var $_mbox = null;
++
++    /**
++     * The name of the mailbox currently opened
++     *
++     * @var array
++     */
++    var $_mboxname = null;
++
++    /**
++     * Prepare the dummy server.
++     *
++     * @param string  $login     The user account name.
++     * @param string  $password  The user password.
++     * @param boolean $tls       Should TLS be used for the connection?
++     *
++     * @return mixed  True in case the connection was opened successfully, a
++     *                PEAR error otherwise.
++     */
++    function connect($login, $password, $tls = false)
++    {
++        if (!is_array($GLOBALS['KOLAB_TESTING'])) {
++            /* Simulate an empty IMAP server */
++            $GLOBALS['KOLAB_TESTING'] = array();
++        }
++
++        $tls = ($tls) ? 'tls' : 'notls';
++        $this->_connected = $login . ':' . $password . ':' . $tls;
++        $this->_user = $login;
++        $this->_mbox = null;
++        $this->_mboxname = null;
++    }
++
++    /**
++     * Disconnects from the IMAP server.
++     *
++     * @return mixed  True in case the connection was closed successfully, a
++     *                PEAR error otherwise.
++     */
++    function disconnect()
++    {
++        $this->_connected = null;
++    }
++
++    function _parseFolder($folder)
++    {
++        if (substr($folder, 0, 5) == 'INBOX') {
++            $user = split('@', $this->_user);
++            return 'user/' . $user[0] . substr($folder, 5);
++        }
++        return $folder;
++    }
++
++    /**
++     * Opens the given folder.
++     *
++     * @param string $folder  The folder to open
++     *
++     * @return mixed  True in case the folder was opened successfully, a PEAR
++     *                error otherwise.
++     */
++    function select($folder)
++    {
++        $folder = $this->_parseFolder($folder);
++        if (!isset($GLOBALS['KOLAB_TESTING'][$folder])) {
++            return PEAR::raiseError(sprintf("IMAP folder %s does not exist!", $folder));
++        }
++        $this->_mbox = &$GLOBALS['KOLAB_TESTING'][$folder];
++        $this->_mboxname = $folder;
++        return true;
++    }
++
++    /**
++     * Does the given folder exist?
++     *
++     * @param string $folder  The folder to check.
++     *
++     * @return mixed True in case the folder exists, false otherwise
++     */
++    function exists($folder)
++    {
++        $folder = $this->_parseFolder($folder);
++        if (!isset($GLOBALS['KOLAB_TESTING'][$folder])) {
++            return false;
++        }
++        return true;
++    }
++
++    /**
++     * Create the specified folder.
++     *
++     * @param string $folder  The folder to create.
++     *
++     * @return mixed True in case the operation was successfull, a
++     *               PEAR error otherwise.
++     */
++    function create($folder)
++    {
++        $folder = $this->_parseFolder($folder);
++        if (isset($GLOBALS['KOLAB_TESTING'][$folder])) {
++            return PEAR::raiseError(sprintf("IMAP folder %s does already exist!", $folder));
++        }
++        $GLOBALS['KOLAB_TESTING'][$folder] = array(
++            'status' => array(
++                'uidvalidity' => time(),
++                'uidnext' => 1),
++            'mails' => array(),
++            'permissions' => array(),
++            'annotations' => array(),
++        );
++        return true;
++    }
++
++    /**
++     * Delete the specified folder.
++     *
++     * @param string $folder  The folder to delete.
++     *
++     * @return mixed True in case the operation was successfull, a
++     *               PEAR error otherwise.
++     */
++    function delete($folder)
++    {
++        $folder = $this->_parseFolder($folder);
++        if (!isset($GLOBALS['KOLAB_TESTING'][$folder])) {
++            return PEAR::raiseError(sprintf("IMAP folder %s does not exist!", $folder));
++        }
++        unset($GLOBALS['KOLAB_TESTING'][$folder]);
++        return true;
++    }
++
++    /**
++     * Rename the specified folder.
++     *
++     * @param string $old  The folder to rename.
++     * @param string $new  The new name of the folder.
++     *
++     * @return mixed True in case the operation was successfull, a
++     *               PEAR error otherwise.
++     */
++    function rename($old, $new)
++    {
++        $old = $this->_parseFolder($old);
++        $new = $this->_parseFolder($new);
++
++        if (!isset($GLOBALS['KOLAB_TESTING'][$old])) {
++            return PEAR::raiseError(sprintf("IMAP folder %s does not exist!", $old));
++        }
++        if (isset($GLOBALS['KOLAB_TESTING'][$new])) {
++            return PEAR::raiseError(sprintf("IMAP folder %s does already exist!", $new));
++        }
++        $GLOBALS['KOLAB_TESTING'][$new] = $GLOBALS['KOLAB_TESTING'][$old];
++        unset($GLOBALS['KOLAB_TESTING'][$old]);
++        return true;
++    }
++
++    /**
++     * Returns the status of the current folder.
++     *
++     * @return array  An array that contains 'uidvalidity' and 'uidnext'.
++     */
++    function status()
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++        return $this->_mbox['status'];
++    }
++
++    /**
++     * Returns the message ids of the messages in this folder.
++     *
++     * @return array  The message ids.
++     */
++    function getUids()
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++        $uids = array();
++        foreach ($this->_mbox['mails'] as $uid => $mail) {
++            if (!($mail['flags'] & KOLAB_IMAP_FLAG_DELETED)) {
++                $uids[] = $uid;
++            }
++        }
++        return $uids;
++    }
++
++    /**
++     * Searches the current folder using the given list of search criteria.
++     *
++     * @param string $search_list  A list of search criteria.
++     *
++     * @return mixed  The list of matching message ids or a PEAR error in case
++     *                of an error.
++     */
++    function search($search_list, $uidSearch = true)
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++        $uids = array();
++        if (substr($search_list, 0, 7) == 'SUBJECT') {
++            $needle = '^Subject: ' . substr($search_list, 8);
++            foreach ($this->_mbox['mails'] as $uid => $mail) {
++                if (preg_match($needle, $mail['header'])) {
++                    $uids[] = $uid;
++                }
++            }
++        } else if (substr($search_list, 0, 6) == 'HEADER') {
++            preg_match('([^ ]*) ([^ ]*)', substr($search_list, 7), $matches);
++            $needle = '^' . $matches[0] . ': ' . $matches[1];
++            foreach ($this->_mbox['mails'] as $uid => $mail) {
++                if (preg_match($needle, $mail['header'])) {
++                    $uids[] = $uid;
++                }
++            }
++
++        }
++        return $uids;
++    }
++
++    /**
++     * Searches the headers of the messages.
++     *
++     * @param string $field  The name of the header field.
++     * @param string $value  The value that field should match.
++     *
++     * @return mixed  The list of matching message ids or a PEAR error in case
++     *                of an error.
++     */
++    function searchHeaders($field, $value)
++    {
++        return $this->search('HEADER "' . $field . '" "' . $value . '"', true);
++    }
++
++    /**
++     * Retrieves the message headers for a given message id.
++     *
++     * @param int $uid                The message id.
++     * @param boolean $peek_for_body  Prefetch the body.
++     *
++     * @return mixed  The message header or a PEAR error in case of an error.
++     */
++    function getMessageHeader($uid, $peek_for_body = true)
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++        if (!isset($this->_mbox['mails'][$uid])) {
++            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
++        }
++        return $this->_mbox['mails'][$uid]['header'];
++    }
++
++    /**
++     * Retrieves the message body for a given message id.
++     *
++     * @param integet $uid  The message id.
++     *
++     * @return mixed  The message body or a PEAR error in case of an error.
++     */
++    function getMessageBody($uid)
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++        if (!isset($this->_mbox['mails'][$uid])) {
++            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
++        }
++        return $this->_mbox['mails'][$uid]['body'];
++    }
++
++    /**
++     * Retrieves the full message text for a given message id.
++     *
++     * @param integer $uid  The message id.
++     *
++     * @return mixed  The message text or a PEAR error in case of an error.
++     */
++    function getMessage($uid)
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++        if (!isset($this->_mbox['mails'][$uid])) {
++            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
++        }
++        return $this->_mbox['mails'][$uid]['header'] . $this->_mbox['mails'][$uid]['body'];
++    }
++
++    /**
++     * Retrieves a list of mailboxes on the server.
++     *
++     * @return mixed  The list of mailboxes or a PEAR error in case of an
++     *                error.
++     */
++    function getMailboxes()
++    {
++        $mboxes = array_keys($GLOBALS['KOLAB_TESTING']);
++        $user = split('@', $this->_user);
++        $pattern = '#^user/' . $user[0] . '#';
++        $result = array();
++        foreach ($mboxes as $mbox) {
++            $result[] = preg_replace($pattern, 'INBOX', $mbox);
++        }
++        return $result;
++    }
++
++    /**
++     * Fetches the annotation on a folder.
++     *
++     * @param string $entries       The entry to fetch.
++     * @param string $value         The specific value to fetch.
++     * @param string $mailbox_name  The name of the folder.
++     *
++     * @return mixed  The annotation value or a PEAR error in case of an error.
++     */
++    function getAnnotation($entries, $value, $mailbox_name)
++    {
++        $mailbox_name = $this->_parseFolder($mailbox_name);
++        $old_mbox = null;
++        if ($mailbox_name != $this->_mboxname) {
++            $old_mbox = $this->_mboxname;
++            $result = $this->select($mailbox_name);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        if (!isset($this->_mbox['annotations'][$entries])
++            || !isset($this->_mbox['annotations'][$entries][$value])) {
++            return false;
++        }
++        $annotation = $this->_mbox['annotations'][$entries][$value];
++        if ($old_mbox) {
++            $this->select($old_mbox);
++        }
++        return $annotation;
++    }
++
++    /**
++     * Sets the annotation on a folder.
++     *
++     * @param string $entries        The entry to set.
++     * @param array  $values         The values to set
++     * @param string $mailbox_name   The name of the folder.
++     *
++     * @return mixed  True if successfull, a PEAR error otherwise.
++     */
++    function setAnnotation($entries, $values, $mailbox_name)
++    {
++        $mailbox_name = $this->_parseFolder($mailbox_name);
++        $old_mbox = null;
++        if ($mailbox_name != $this->_mboxname) {
++            $old_mbox = $this->_mboxname;
++            $result = $this->select($mailbox_name);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        if (!isset($this->_mbox['annotations'][$entries])) {
++            $this->_mbox['annotations'][$entries] = array();
++        }
++        foreach ($values as $key => $value) {
++            $this->_mbox['annotations'][$entries][$key] = $value;
++        }
++        if ($old_mbox) {
++            $result = $this->select($old_mbox);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Retrieve the access rights from a folder
++     *
++     * @param string $folder  The folder to retrieve the ACLs from.
++     *
++     * @return mixed An array of rights if successfull, a PEAR error
++     * otherwise.
++     */
++    function getACL($folder)
++    {
++        $folder = $this->_parseFolder($folder);
++        $old_mbox = null;
++        if ($folder != $this->_mboxname) {
++            $old_mbox = $this->_mboxname;
++            $result = $this->select($folder);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        $acl = $this->_mbox['permissions'];
++        if ($old_mbox) {
++            $result = $this->select($old_mbox);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        return $acl;
++    }
++
++    /**
++     * Retrieve the access rights on a folder not owned by the current user
++     *
++     * @param string $folder  The folder to retrieve the ACLs from.
++     *
++     * @return mixed An array of rights if successfull, a PEAR error
++     * otherwise.
++     */
++    function getMyRights($folder)
++    {
++        $folder = $this->_parseFolder($folder);
++        $old_mbox = null;
++        if ($folder != $this->_mboxname) {
++            $old_mbox = $this->_mboxname;
++            $result = $this->select($folder);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        $acl = '';
++        if (isset($this->_mbox['permissions'][$this->_user])) {
++            $acl = $this->_mbox['permissions'][$this->_user];
++        }
++        if ($old_mbox) {
++            $result = $this->select($old_mbox);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        return $acl;
++    }
++
++    /**
++     * Set the access rights for a folder
++     *
++     * @param string $folder  The folder to retrieve the ACLs from.
++     * @param string $user    The user to set the ACLs for
++     * @param string $acl     The ACLs
++     *
++     * @return mixed True if successfull, a PEAR error otherwise.
++     */
++    function setACL($folder, $user, $acl)
++    {
++        $folder = $this->_parseFolder($folder);
++        $old_mbox = null;
++        if ($folder != $this->_mboxname) {
++            $old_mbox = $this->_mboxname;
++            $result = $this->select($folder);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        $this->_mbox['permissions'][$user] = $acl;
++        if ($old_mbox) {
++            $result = $this->select($old_mbox);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Delete the access rights for a user.
++     *
++     * @param string $folder  The folder that should be modified.
++     * @param string $user    The user that should get the ACLs removed
++     *
++     * @return mixed True if successfull, a PEAR error otherwise.
++     */
++    function deleteACL($folder, $user)
++    {
++        $folder = $this->_parseFolder($folder);
++        $old_mbox = null;
++        if ($folder != $this->_mboxname) {
++            $old_mbox = $this->_mboxname;
++            $result = $this->select($folder);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        unset($this->_mbox['permissions'][$user]);
++        if ($old_mbox) {
++            $result = $this->select($old_mbox);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Appends a message to the current folder.
++     *
++     * @param string $msg  The message to append.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function appendMessage($msg)
++    {
++        $split = strpos('\r\n\r\n', $msg);
++        $mail = array('header' => substr($msg, 0, $split + 2),
++                      'body' => substr($msg, $split + 3));
++        return $this->_appendMessage($mail);
++    }
++
++    /**
++     * Appends a message to the current folder.
++     *
++     * @param array $msg  The message to append.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function _appendMessage($msg)
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++        $mail = array();
++        $mail['flags'] = 0;
++        $mail['header'] = $msg['header'];
++        $mail['body'] = $msg['body'];
++
++
++        $this->_mbox['mails'][$this->_mbox['status']['uidnext']] = $mail;
++        $this->_mbox['status']['uidnext']++;
++        return true;
++    }
++
++    /**
++     * Copies a message to a new folder.
++     *
++     * @param integer $uid        IMAP message id.
++     * @param string $new_folder  Target folder.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function copyMessage($uid, $new_folder)
++    {
++        $new_folder = $this->_parseFolder($new_folder);
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++        if (!isset($this->_mbox['mails'][$uid])) {
++            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
++        }
++        $mail = $this->_mbox['mails'][$uid];
++
++        $old_mbox = null;
++        $result = $this->select($new_folder);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++        $this->_appendMessage($mail);
++        if ($old_mbox) {
++            $result = $this->select($old_mbox);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Moves a message to a new folder.
++     *
++     * @param integer $uid        IMAP message id.
++     * @param string $new_folder  Target folder.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function moveMessage($uid, $new_folder)
++    {
++        $new_folder = $this->_parseFolder($new_folder);
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++        if (!isset($this->_mbox['mails'][$uid])) {
++            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
++        }
++        $mail = $this->_mbox['mails'][$uid];
++        unset($this->_mbox['mails'][$uid]);
++
++        $old_mbox = null;
++        $result = $this->select($new_folder);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++        $this->_appendMessage($mail);
++        if ($old_mbox) {
++            $result = $this->select($old_mbox);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Deletes messages from the current folder.
++     *
++     * @param integer $uids  IMAP message ids.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function deleteMessages($uids)
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++
++        if (!is_array($uids)) {
++            $uids = array($uids);
++        }
++
++        foreach ($uids as $uid) {
++
++            if (!isset($this->_mbox['mails'][$uid])) {
++                return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
++            }
++            $this->_mbox['mails'][$uid]['flags'] |= KOLAB_IMAP_FLAG_DELETED;
++        }
++        return true;
++    }
++
++    /**
++     * Undeletes a message in the current folder.
++     *
++     * @param integer $uid  IMAP message id.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function undeleteMessages($uid)
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++
++        if (!isset($this->_mbox['mails'][$uid])) {
++            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
++        }
++        $this->_mbox['mails'][$uid]['flags'] &= ~KOLAB_IMAP_FLAG_DELETED;
++        return true;
++    }
++
++    /**
++     * Expunges messages in the current folder.
++     *
++     * @return mixed  True or a PEAR error in case of an error.
++     */
++    function expunge()
++    {
++        if (!$this->_mbox) {
++            return PEAR::raiseError("No IMAP folder selected!");
++        }
++
++        $remaining = array();
++        foreach ($this->_mbox['mails'] as $uid => $mail) {
++            if (!($mail['flags'] & KOLAB_IMAP_FLAG_DELETED)) {
++                $remaining[$uid] = $mail;
++            }
++        }
++        $this->_mbox['mails'] = $remaining;
++        return true;
++    }
++
++    /**
++     * Return the currently selected mailbox
++     *
++     * @return string  The mailbox currently selected
++     */
++    function current()
++    {
++        return $this->_mboxname;
++    }
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php b/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
+index 7552e3a..ac1ae87 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
+@@ -124,7 +124,7 @@ class Horde_Kolab_Server_Object_adminrole extends Horde_Kolab_Server_Object {
+         $admins_uid = sprintf('%s,%s', $this->required_group,
+                               $this->_db->getBaseUid());
+ 
+-        $admin_group = $this->_db->fetch($admin_uids, KOLAB_OBJECT_GROUP);
++        $admin_group = $this->_db->fetch($admins_uid, KOLAB_OBJECT_GROUP);
+         if (is_a($admin_group, 'PEAR_Error') || !$admin_group->exists()) {
+ 
+             $members = array($this->_uid);
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php b/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php
+index bb688ad..7fdfd53 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php
+@@ -99,7 +99,7 @@ class Horde_Kolab_Server_Object_domainmaintainer extends Horde_Kolab_Server_Obje
+ 
+             //FIXME: This should be made easier by the group object
+ 
+-            $domain_group = $this->_db->fetch($domain_uids, KOLAB_OBJECT_GROUP);
++            $domain_group = $this->_db->fetch($domain_uid, KOLAB_OBJECT_GROUP);
+             if (is_a($domain_group, 'PEAR_Error')) {
+                 return $domain_group;
+             }
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/test.php b/horde-webmail/lib/Horde/Kolab/Server/test.php
+index 6565bbc..2b07122 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/test.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/test.php
+@@ -136,7 +136,7 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+             if (!$this->_bound) {
+                 return PEAR::raiseError('Incorrect password!');
+             }
+-        } else if ($this->_params['no_anonymous_bind']) {
++        } else if (!empty($this->_params['no_anonymous_bind'])) {
+             $this->_bound = false;
+             return PEAR::raiseError('Anonymous bind is not allowed!');
+         } else {
+diff --git a/horde-webmail/lib/Horde/Kolab/Session.php b/horde-webmail/lib/Horde/Kolab/Session.php
+index 616b285..fa58066 100644
+--- a/horde-webmail/lib/Horde/Kolab/Session.php
++++ b/horde-webmail/lib/Horde/Kolab/Session.php
+@@ -69,6 +69,13 @@ class Horde_Kolab_Session {
+     var $_imap_params;
+ 
+     /**
++     * Our IMAP connection.
++     *
++     * @var Horde_Kolab_IMAP
++     */
++    var $_imap;
++
++    /**
+      * The free/busy server for the current user.
+      *
+      * @var array|PEAR_Error
+@@ -223,6 +230,39 @@ class Horde_Kolab_Session {
+     }
+ 
+     /**
++     * Create an IMAP connection.
++     *
++     * @return Horde_Kolab_IMAP|PEAR_Error The IMAP connection.
++     */
++    function &getImap()
++    {
++        if (!isset($this->_imap)) {
++
++            $params = $this->getImapParams();
++            if (is_a($params, 'PEAR_Error')) {
++                return $params;
++            }
++
++            /** We need the Kolab IMAP library now. */
++            require_once 'Horde/Kolab/IMAP.php';
++
++            $imap = &Horde_Kolab_IMAP::singleton($params['hostspec'],
++                                                 $params['port'], true, false);
++            if (is_a($imap, 'PEAR_Error')) {
++                return $imap;
++            }
++
++            $result = $imap->connect(Auth::getAuth(),
++                                     Auth::getCredential('password'));
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++            $this->_imap = &$imap;
++        }
++        return $this->_imap;
++    }
++
++    /**
+      * Attempts to return a reference to a concrete Horde_Kolab_Session instance.
+      *
+      * It will only create a new instance if no Horde_Kolab_Session instance
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 2769446..f1fd7e7 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -159,13 +159,6 @@ class Kolab_Folder {
+     var $_annotation_data;
+ 
+     /**
+-     * Our IMAP connection.
+-     *
+-     * @var Kolab_IMAP
+-     */
+-    var $_imap;
+-
+-    /**
+      * Indicate that the folder data has been modified from the
+      * outside and all Data handlers need to synchronize.
+      *
+@@ -189,8 +182,6 @@ class Kolab_Folder {
+      */
+     function __wakeup()
+     {
+-        $this->_imap = &$this->getImap();
+-
+         if (!isset($this->_data)) {
+             $this->_data = array();
+         }
+@@ -212,42 +203,12 @@ class Kolab_Folder {
+     function __sleep()
+     {
+         $properties = get_object_vars($this);
+-        unset($properties['_imap'], $properties['_list']);
++        unset($properties['_list']);
+         $properties = array_keys($properties);
+         return $properties;
+     }
+ 
+     /**
+-     * Create an IMAP connection.
+-     *
+-     * @return Kolab_IMAP|PEAR_Error The IMAP connection.
+-     */
+-    function &getImap()
+-    {
+-        $session = &Horde_Kolab_Session::singleton();
+-        $params = &$session->getImapParams();
+-        if (is_a($params, 'PEAR_Error')) {
+-            return $params;
+-        } else {
+-            /** We need the Kolab IMAP library now. */
+-            require_once 'Horde/Kolab/Storage/IMAP.php';
+-
+-            $imap = &Kolab_IMAP::singleton($params['hostspec'],
+-                                           $params['port'], true, false);
+-            if (is_a($imap, 'PEAR_Error')) {
+-                return $imap;
+-            }
+-
+-            $result = $imap->connect(Auth::getAuth(),
+-                                     Auth::getCredential('password'));
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-            return $imap;
+-        }
+-    }
+-
+-    /**
+      * Set the list handler.
+      *
+      * @param Kolab_List $list  The handler for the list of folders.
+@@ -406,10 +367,6 @@ class Kolab_Folder {
+             }
+         }
+ 
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
+-        }
+-
+         /** Handle the folder type */
+         $folder_type = $this->_type . ($this->_default ? '.default' : '');
+         if ($this->_type_annotation != $folder_type) {
+@@ -525,10 +482,6 @@ class Kolab_Folder {
+     function getType()
+     {
+         if (!isset($this->_type)) {
+-            if (is_a($this->_imap, 'PEAR_Error')) {
+-                return $this->_imap;
+-            }
+-
+             $type_annotation = $this->_getAnnotation(KOLAB_ANNOT_FOLDER_TYPE,
+                                                      $this->name);
+             if (is_a($type_annotation, 'PEAR_Error')) {
+@@ -573,10 +526,6 @@ class Kolab_Folder {
+     function getAttribute($attribute)
+     {
+         if (!isset($this->_attributes[$attribute])) {
+-            if (is_a($this->_imap, 'PEAR_Error')) {
+-                return $this->_imap;
+-            }
+-
+             if ($attribute == 'desc') {
+                 $entry = '/comment';
+             } else {
+@@ -607,10 +556,6 @@ class Kolab_Folder {
+     function getKolabAttribute($attribute)
+     {
+         if (!isset($this->_kolab_attributes[$attribute])) {
+-            if (is_a($this->_imap, 'PEAR_Error')) {
+-                return $this->_imap;
+-            }
+-
+             $entry = KOLAB_ANNOT_ROOT . $attribute;
+             $annotation = $this->_getAnnotation($entry, $this->name);
+             if (is_a($annotation, 'PEAR_Error')) {
+@@ -633,11 +578,13 @@ class Kolab_Folder {
+      */
+     function exists()
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+-        $result = $this->_imap->exists($this->name);
++        $result = $imap->exists($this->name);
+         if (is_a($result, 'PEAR_Error')) {
+             return false;
+         }
+@@ -651,11 +598,13 @@ class Kolab_Folder {
+      */
+     function accessible()
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+-        $result = $this->_imap->select($this->name);
++        $result = $imap->select($this->name);
+         if (is_a($result, 'PEAR_Error')) {
+             return false;
+         }
+@@ -710,22 +659,24 @@ class Kolab_Folder {
+      */
+     function deleteMessage($id, $trigger = true)
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+         // Select folder
+-        $result = $this->_imap->select($this->name);
++        $result = $imap->select($this->name);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+ 
+-        $result = $this->_imap->deleteMessages($id);
++        $result = $imap->deleteMessages($id);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+ 
+-        $result = $this->_imap->expunge();
++        $result = $imap->expunge();
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+@@ -752,22 +703,24 @@ class Kolab_Folder {
+      */
+     function moveMessage($id, $folder)
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+         // Select folder
+-        $result = $this->_imap->select($this->name);
++        $result = $imap->select($this->name);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+ 
+-        $result = $this->_imap->moveMessage($id, $folder);
++        $result = $imap->moveMessage($id, $folder);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+ 
+-        $result = $this->_imap->expunge();
++        $result = $imap->expunge();
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+@@ -824,12 +777,14 @@ class Kolab_Folder {
+      */
+     function saveObject(&$object, &$handler, $object_type, $mime_type, $id = null)
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+         // Select folder
+-        $result = $this->_imap->select($this->name);
++        $result = $imap->select($this->name);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+@@ -899,17 +854,17 @@ class Kolab_Folder {
+ 
+         // delete old email?
+         if ($id != null) {
+-            $result = $this->_imap->deleteMessages($id);
++            $result = $imap->deleteMessages($id);
+             if (is_a($result, 'PEAR_Error')) {
+                 return $result;
+             }
+         }
+ 
+         // store new email
+-        $result = $this->_imap->appendMessage($msg);
++        $result = $imap->appendMessage($msg);
+         if (is_a($result, 'PEAR_Error')) {
+             if ($id != null) {
+-                $result = $this->_imap->undeleteMessages($id);
++                $result = $imap->undeleteMessages($id);
+                 if (is_a($result, 'PEAR_Error')) {
+                     return $result;
+                 }
+@@ -919,7 +874,7 @@ class Kolab_Folder {
+ 
+         // remove deleted object
+         if ($id != null) {
+-            $result = $this->_imap->expunge();
++            $result = $imap->expunge();
+             if (is_a($result, 'PEAR_Error')) {
+                 return $result;
+             }
+@@ -969,16 +924,18 @@ class Kolab_Folder {
+      */
+     function _parseMessage($id, $mime_type, $parse_headers = true)
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+-        $raw_headers = $this->_imap->getMessageHeader($id);
++        $raw_headers = $imap->getMessageHeader($id);
+         if (is_a($raw_headers, 'PEAR_Error')) {
+             return $raw_headers;
+         }
+ 
+-        $body = $this->_imap->getMessageBody($id);
++        $body = $imap->getMessageBody($id);
+         if (is_a($body, 'PEAR_Error')) {
+             return $body;
+         }
+@@ -1029,22 +986,24 @@ class Kolab_Folder {
+      */
+     function getStatus()
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+         // Select the folder to update uidnext
+-        $result = $this->_imap->select($this->name);
++        $result = $imap->select($this->name);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+ 
+-        $status = $this->_imap->status();
++        $status = $imap->status();
+         if (is_a($status, 'PEAR_Error')) {
+             return $status;
+         }
+ 
+-        $uids = $this->_imap->getUids();
++        $uids = $imap->getUids();
+         if (is_a($uids, 'PEAR_Error')) {
+             return $uids;
+         }
+@@ -1186,8 +1145,10 @@ class Kolab_Folder {
+     {
+         global $conf;
+ 
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+         if (!empty($conf['kolab']['imap']['no_acl'])) {
+@@ -1196,7 +1157,7 @@ class Kolab_Folder {
+             return $acl;
+         }
+ 
+-        $acl = $this->_imap->getACL($this->name);
++        $acl = $imap->getACL($this->name);
+ 
+         /*
+          * Check if the getPerm comes from the owner in this case we
+@@ -1210,7 +1171,7 @@ class Kolab_Folder {
+                 return $acl;
+             }
+ 
+-            $my_rights = $this->_imap->getMyrights($this->name);
++            $my_rights = $imap->getMyrights($this->name);
+             if (is_a($my_rights, 'PEAR_Error')) {
+                 return $my_rights;
+             }
+@@ -1233,15 +1194,17 @@ class Kolab_Folder {
+     {
+         global $conf;
+ 
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+         if (!empty($conf['kolab']['imap']['no_acl'])) {
+             return true;
+         }
+ 
+-        return $this->_imap->setACL($this->name, $user, $acl);
++        return $imap->setACL($this->name, $user, $acl);
+     }
+ 
+     /**
+@@ -1255,15 +1218,17 @@ class Kolab_Folder {
+     {
+         global $conf;
+ 
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+         if (!empty($conf['kolab']['imap']['no_acl'])) {
+             return true;
+         }
+ 
+-        return $this->_imap->deleteACL($this->name, $user);
++        return $imap->deleteACL($this->name, $user);
+     }
+ 
+ 
+@@ -1291,10 +1256,12 @@ class Kolab_Folder {
+         global $conf;
+ 
+         if (empty($conf['kolab']['imap']['no_annotations'])) {
+-            if (is_a($this->_imap, 'PEAR_Error')) {
+-                return $this->_imap;
++            $session = &Horde_Kolab_Session::singleton();
++            $imap = &$session->getImap();
++            if (is_a($imap, 'PEAR_Error')) {
++                return $imap;
+             }
+-            return $this->_imap->getAnnotation($key, 'value.shared',
++            return $imap->getAnnotation($key, 'value.shared',
+                                                $this->name);
+         }
+ 
+@@ -1326,10 +1293,12 @@ class Kolab_Folder {
+     function _setAnnotation($key, $value)
+     {
+         if (empty($conf['kolab']['imap']['no_annotations'])) {
+-            if (is_a($this->_imap, 'PEAR_Error')) {
+-                return $this->_imap;
++            $session = &Horde_Kolab_Session::singleton();
++            $imap = &$session->getImap();
++            if (is_a($imap, 'PEAR_Error')) {
++                return $imap;
+             }
+-            return $this->_imap->setAnnotation($key,
++            return $imap->setAnnotation($key,
+                                                array('value.shared' => $value),
+                                                $this->name);
+         }
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/IMAP.php b/horde-webmail/lib/Horde/Kolab/Storage/IMAP.php
+deleted file mode 100644
+index 0bd612e..0000000
+--- a/horde-webmail/lib/Horde/Kolab/Storage/IMAP.php
++++ /dev/null
+@@ -1,139 +0,0 @@
+-<?php
+-/**
+- * @package Kolab_Storage
+- *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP.php,v 1.2.2.1 2008/08/18 13:48:57 wrobel Exp $
+- */
+-
+-/**
+- * The Kolab_IMAP class provides a wrapper around two different Kolab
+- * IMAP connection types.
+- *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP.php,v 1.2.2.1 2008/08/18 13:48:57 wrobel Exp $
+- *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
+- *
+- * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+- *
+- * @author  Gunnar Wrobel <wrobel@pardus.de>
+- * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
+- * @package Kolab_Storage
+- */
+-class Kolab_IMAP {
+-
+-    /**
+-     * IMAP server to connect to.
+-     *
+-     * @var string
+-     */
+-    var $_server;
+-
+-    /**
+-     * IMAP server port to connect to.
+-     *
+-     * @var int
+-     */
+-    var $_port;
+-
+-    /**
+-     * IMAP connection.
+-     *
+-     * @var mixed
+-     */
+-    var $_imap;
+-
+-    /**
+-     * Connection reuse detection signature.
+-     *
+-     * @var string
+-     */
+-    var $_reuse_detection;
+-
+-    /**
+-     * Constructor.
+-     *
+-     * @param string     $server   Server to connect to
+-     * @param int        $port     Port to connect to
+-     */
+-    function Kolab_IMAP($server, $port)
+-    {
+-        $this->_server = $server;
+-        $this->_port   = $port;
+-    }
+-
+-    /**
+-     * Attempts to return a reference to a concrete Kolab_IMAP instance.
+-     * It will only create a new instance if no Kolab_IMAP instance
+-     * exists.
+-     *
+-     * @static
+-     *
+-     * @param string     $server                Server name
+-     * @param int        $port                  Port
+-     * @param boolean    $annotation_required   Do we actually need
+-     *                                          the annotation calls?
+-     *
+-     * @return Kolab_IMAP|PEAR_Error The concrete reference.
+-     */
+-    function &singleton($server, $port, $annotation_required = true)
+-    {
+-        static $instances = array();
+-
+-        /**
+-         * There are Kolab specific PHP functions available that make
+-         * the IMAP access more efficient. If these are detected, or
+-         * if they are not required for the current operation, the
+-         * PHP IMAP implementation should be used.
+-         *
+-         * The c-client Kolab driver implements IMAP caching so is
+-         * preferable whenever possible.
+-         */
+-        if ($annotation_required) {
+-            if (function_exists('imap_status_current')
+-                && function_exists('imap_getannotation')) {
+-                $driver = 'cclient';
+-            } else {
+-                $driver = 'pear';
+-            }
+-        } else {
+-            $driver = 'cclient';
+-        }
+-
+-        if (isset($GLOBALS['KOLAB_TESTING'])) {
+-            $driver = 'test';
+-        }
+-
+-        $signature = "$server|$port|$driver";
+-        if (!isset($instances[$signature])) {
+-            $instances[$signature] = &Kolab_IMAP::factory($server, $port, $driver);
+-        }
+-
+-        return $instances[$signature];
+-    }
+-
+-    /**
+-     * Attempts to return a concrete Kolab_IMAP instance
+-     * based on the available PHP functionality.
+-     *
+-     * @param string     $server                Server name.
+-     * @param int        $port                  Server port.
+-     * @param string     $driver                Which driver should we use?
+-     *
+-     * @return Kolab_IMAP|PEAR_Error The newly created concrete
+-     *                               Kolab_IMAP instance.
+-     */
+-    function &factory($server, $port, $driver = 'cclient')
+-    {
+-        @include_once dirname(__FILE__) . '/IMAP/' . $driver . '.php';
+-
+-        $class = 'Kolab_IMAP_' . $driver;
+-        if (class_exists($class)) {
+-            $driver = &new $class($server, $port);
+-        } else {
+-            return PEAR::raiseError(sprintf(_("Failed to load Kolab IMAP driver %s"), $driver));
+-        }
+-
+-        return $driver;
+-    }
+-}
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/IMAP/pear.php b/horde-webmail/lib/Horde/Kolab/Storage/IMAP/pear.php
+deleted file mode 100644
+index 04e7b9e..0000000
+--- a/horde-webmail/lib/Horde/Kolab/Storage/IMAP/pear.php
++++ /dev/null
+@@ -1,520 +0,0 @@
+-<?php
+-/**
+- * @package Kolab_Storage
+- *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/pear.php,v 1.2.2.1 2008/08/18 13:48:58 wrobel Exp $
+- */
+-
+-/**
+- * The Horde_Kolab library requires version >= 1.0.3 of Net_IMAP (i.e. a
+- * version that includes support for the ANNOTATEMORE IMAP extension). The
+- * latest version of Net_IMAP can be obtained from
+- * http://pear.php.net/get/Net_IMAP
+- */
+-require_once 'Net/IMAP.php';
+-
+-/**
+- * The Kolab_IMAP_Connection_pear class connects to an IMAP server using the
+- * Net_IMAP PEAR package.
+- *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/pear.php,v 1.2.2.1 2008/08/18 13:48:58 wrobel Exp $
+- *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
+- *
+- * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+- *
+- * @author  Gunnar Wrobel <wrobel@pardus.de>
+- * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
+- * @package Kolab_Storage
+- */
+-class Kolab_IMAP_pear extends Kolab_IMAP {
+-
+-    /**
+-     * The signature of the current connection
+-     *
+-     * @var string
+-     */
+-    var $_signature;
+-
+-    /**
+-     * Connects to the IMAP server.
+-     *
+-     * @param string  $login     The user account name.
+-     * @param string  $password  The user password.
+-     * @param boolean $tls       Should TLS be used for the connection?
+-     *
+-     * @return mixed  True in case the connection was opened successfully, a
+-     *                PEAR error otherwise.
+-     */
+-    function connect($login, $password, $tls = false)
+-    {
+-        $this->_signature = $this->_server . '|' . $this->_port . "|$login|$password|$tls";
+-
+-        // Reuse existing connection?
+-        if ($this->_signature == $this->_reuse_detection) {
+-            return true;
+-        }
+-
+-        $this->_imap = &new Net_IMAP($this->_server, $this->_port);
+-        $result = $this->_imap->login($login, $password, true, false);
+-        if (is_a($result, 'PEAR_Error')) {
+-            return $result;
+-        }
+-
+-        $this->_reuse_detection = $this->_signature;
+-
+-        return true;
+-    }
+-
+-    /**
+-     * Disconnects from the IMAP server.
+-     *
+-     * @return mixed  True in case the connection was closed successfully, a
+-     *                PEAR error otherwise.
+-     */
+-    function disconnect()
+-    {
+-        $this->_reuse_detection = null;
+-        return $this->_imap->disconnect();
+-    }
+-
+-    /**
+-     * Opens the given folder.
+-     *
+-     * @param string $folder  The folder to open
+-     *
+-     * @return mixed  True in case the folder was opened successfully, a PEAR
+-     *                error otherwise.
+-     */
+-    function select($folder)
+-    {
+-        return $this->_imap->selectMailbox($folder);
+-    }
+-
+-    /**
+-     * Does the given folder exist?
+-     *
+-     * @param string $folder  The folder to check.
+-     *
+-     * @return mixed True in case the folder exists, false otherwise
+-     */
+-    function exists($folder)
+-    {
+-        return $this->_imap->mailboxExist($folder);
+-    }
+-
+-    /**
+-     * Create the specified folder.
+-     *
+-     * @param string $folder  The folder to create.
+-     *
+-     * @return mixed True in case the operation was successfull, a
+-     *               PEAR error otherwise.
+-     */
+-    function create($folder)
+-    {
+-        return $this->_imap->createMailbox($folder);
+-    }
+-
+-    /**
+-     * Delete the specified folder.
+-     *
+-     * @param string $folder  The folder to delete.
+-     *
+-     * @return mixed True in case the operation was successfull, a
+-     *               PEAR error otherwise.
+-     */
+-    function delete($folder)
+-    {
+-        return $this->_imap->deleteMailbox($folder);
+-    }
+-
+-    /**
+-     * Rename the specified folder.
+-     *
+-     * @param string $old  The folder to rename.
+-     * @param string $new  The new name of the folder.
+-     *
+-     * @return mixed True in case the operation was successfull, a
+-     *               PEAR error otherwise.
+-     */
+-    function rename($old, $new)
+-    {
+-        return $this->_imap->renameMailbox($old, $new);
+-    }
+-
+-    /**
+-     * Returns the status of the current folder.
+-     *
+-     * @return array  An array that contains 'uidvalidity' and 'uidnext'.
+-     */
+-    function status()
+-    {
+-        $result = array();
+-
+-        $mailbox = $this->_imap->getCurrentMailbox();
+-
+-        // Net_IMAP is not very efficent here
+-        $ret = $this->_imap->cmdStatus($mailbox, 'UIDVALIDITY');
+-        $result['uidvalidity'] = $ret['PARSED']['STATUS']['ATTRIBUTES']['UIDVALIDITY'];
+-
+-        $ret = $this->_imap->cmdStatus($mailbox, 'UIDNEXT');
+-        $result['uidnext'] = $ret['PARSED']['STATUS']['ATTRIBUTES']['UIDNEXT'];
+-
+-        return $result;
+-    }
+-
+-    /**
+-     * Returns the message ids of the messages in this folder.
+-     *
+-     * @return array  The message ids.
+-     */
+-    function getUids()
+-    {
+-        $uids = $this->_imap->search('UNDELETED', true);
+-        if (!is_array($uids)) {
+-            $uids = array();
+-        }
+-        return $uids;
+-    }
+-
+-    /**
+-     * Searches the current folder using the given list of search criteria.
+-     *
+-     * @param string $search_list  A list of search criteria.
+-     *
+-     * @return mixed  The list of matching message ids or a PEAR error in case
+-     *                of an error.
+-     */
+-    function search($search_list, $uidSearch = true)
+-    {
+-        return $this->_imap->search($search_list, $uidSearch);
+-    }
+-
+-    /**
+-     * Searches the headers of the messages.
+-     *
+-     * @param string $field  The name of the header field.
+-     * @param string $value  The value that field should match.
+-     *
+-     * @return mixed  The list of matching message ids or a PEAR error in case
+-     *                of an error.
+-     */
+-    function searchHeaders($field, $value)
+-    {
+-        return $this->_imap->search('HEADER "' . $field . '" "' . $value . '"', true);
+-    }
+-
+-    /**
+-     * Retrieves the message headers for a given message id.
+-     *
+-     * @param int $uid                The message id.
+-     * @param boolean $peek_for_body  Prefetch the body.
+-     *
+-     * @return mixed  The message header or a PEAR error in case of an error.
+-     */
+-    function getMessageHeader($uid, $peek_for_body = true)
+-    {
+-        $ret = $this->_imap->cmdUidFetch($uid, 'BODY[HEADER]');
+-        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
+-            return PEAR::raiseError(sprintf(_("Failed fetching headers of IMAP message %s. Error was %s"),
+-                                            $uid,
+-                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
+-        }
+-
+-        if (isset($ret['PARSED'])) {
+-            foreach ($ret['PARSED'] as $msg) {
+-                if (isset($msg['EXT']['BODY[HEADER]']['CONTENT'])) {
+-                    return $msg['EXT']['BODY[HEADER]']['CONTENT'];
+-                }
+-            }
+-        }
+-
+-        return '';
+-    }
+-
+-    /**
+-     * Retrieves the message body for a given message id.
+-     *
+-     * @param integet $uid  The message id.
+-     *
+-     * @return mixed  The message body or a PEAR error in case of an error.
+-     */
+-    function getMessageBody($uid)
+-    {
+-        $ret = $this->_imap->cmdUidFetch($uid, 'BODY[TEXT]');
+-        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
+-            return PEAR::raiseError(sprintf(_("Failed fetching body of IMAP message %s. Error was %s"),
+-                                            $uid,
+-                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
+-        }
+-
+-        if (isset($ret['PARSED'])) {
+-            foreach ($ret['PARSED'] as $msg) {
+-                if (isset($msg['EXT']['BODY[TEXT]']['CONTENT'])) {
+-                    return $msg['EXT']['BODY[TEXT]']['CONTENT'];
+-                }
+-            }
+-        }
+-
+-        return '';
+-    }
+-
+-    /**
+-     * Retrieves the full message text for a given message id.
+-     *
+-     * @param integer $uid  The message id.
+-     *
+-     * @return mixed  The message text or a PEAR error in case of an error.
+-     */
+-    function getMessage($uid)
+-    {
+-        $ret = $this->_imap->cmdUidFetch($uid, 'RFC822');
+-        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
+-            return PEAR::raiseError(sprintf(_("Failed fetching IMAP message %s. Error was %s"),
+-                                            $uid,
+-                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
+-        }
+-
+-        if (isset($ret['PARSED'])) {
+-            foreach ($ret['PARSED'] as $msg) {
+-                if (isset($msg['EXT']['RFC822']['CONTENT'])) {
+-                    return $msg['EXT']['RFC822']['CONTENT'];
+-                }
+-            }
+-        }
+-
+-        return '';
+-    }
+-
+-    /**
+-     * Retrieves a list of mailboxes on the server.
+-     *
+-     * @return mixed  The list of mailboxes or a PEAR error in case of an
+-     *                error.
+-     */
+-    function getMailboxes()
+-    {
+-        return $this->_imap->getMailboxes();
+-    }
+-
+-    /**
+-     * Fetches the annotation on a folder.
+-     *
+-     * @param string $entries       The entry to fetch.
+-     * @param string $value         The specific value to fetch.
+-     * @param string $mailbox_name  The name of the folder.
+-     *
+-     * @return mixed  The annotation value or a PEAR error in case of an error.
+-     */
+-    function getAnnotation($entries, $value, $mailbox_name)
+-    {
+-        static $annotations = array();
+-
+-        $signature = "$this->_signature|$entries|$value|$mailbox_name";
+-
+-        if (!isset($annotations[$signature])) {
+-            $annotations[$signature] = $this->_imap->getAnnotation($entries, $value, $mailbox_name);
+-        }
+-
+-        return $annotations[$signature];
+-    }
+-
+-    /**
+-     * Sets the annotation on a folder.
+-     *
+-     * @param string $entries        The entry to set.
+-     * @param array  $values         The values to set
+-     * @param string $mailbox_name   The name of the folder.
+-     *
+-     * @return mixed  True if successfull, a PEAR error otherwise.
+-     */
+-    function setAnnotation($entries, $values, $mailbox_name)
+-    {
+-        return $this->_imap->setAnnotation($entries, $values, $mailbox_name);
+-    }
+-
+-    /**
+-     * Retrieve the access rights from a folder
+-     *
+-     * @param string $folder  The folder to retrieve the ACLs from.
+-     *
+-     * @return mixed An array of rights if successfull, a PEAR error
+-     * otherwise.
+-     */
+-    function getACL($folder)
+-    {
+-        $result = $this->_imap->getACL($folder);
+-        if (is_a($result, 'PEAR_Error')) {
+-            return $result;
+-        }
+-        $acl = array();
+-        foreach ($result as $user) {
+-            $acl[$user['USER']] = $user['RIGHTS'];
+-        }
+-        return $acl;
+-    }
+-
+-    /**
+-     * Retrieve the access rights on a folder not owned by the current user
+-     *
+-     * @param string $folder  The folder to retrieve the ACLs from.
+-     *
+-     * @return mixed An array of rights if successfull, a PEAR error
+-     * otherwise.
+-     */
+-    function getMyRights($folder)
+-    {
+-        $result = $this->_imap->getMyRights($folder);
+-        return $result;
+-    }
+-
+-    /**
+-     * Set the access rights for a folder
+-     *
+-     * @param string $folder  The folder to retrieve the ACLs from.
+-     * @param string $user    The user to set the ACLs for
+-     * @param string $acl     The ACLs
+-     *
+-     * @return mixed True if successfull, a PEAR error otherwise.
+-     */
+-    function setACL($folder, $user, $acl)
+-    {
+-        return $this->_imap->setACL($folder, $user, $acl);
+-    }
+-
+-    /**
+-     * Delete the access rights for a user.
+-     *
+-     * @param string $folder  The folder that should be modified.
+-     * @param string $user    The user that should get the ACLs removed
+-     *
+-     * @return mixed True if successfull, a PEAR error otherwise.
+-     */
+-    function deleteACL($folder, $user)
+-    {
+-        return $this->_imap->deleteACL($folder, $user);
+-    }
+-
+-    /**
+-     * Appends a message to the current folder.
+-     *
+-     * @param string $msg  The message to append.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function appendMessage($msg)
+-    {
+-        return $this->_imap->appendMessage($msg);
+-    }
+-
+-    /**
+-     * Copies a message to a new folder.
+-     *
+-     * @param integer $uid        IMAP message id.
+-     * @param string $new_folder  Target folder.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function copyMessage($uid, $new_folder)
+-    {
+-        $ret = $this->_imap->cmdUidCopy($uid, $new_folder);
+-        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
+-            return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"),
+-                                            $uid,
+-                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Moves a message to a new folder.
+-     *
+-     * @param integer $uid        IMAP message id.
+-     * @param string $new_folder  Target folder.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function moveMessage($uid, $new_folder)
+-    {
+-        $result = $this->copyMessage($uid, $new_folder);
+-        if (is_a($result, 'PEAR_Error')) {
+-            return $result;
+-        }
+-
+-        $result = $this->deleteMessages($uid);
+-        if (is_a($result, 'PEAR_Error')) {
+-            return $result;
+-        }
+-
+-        $result = $this->expunge();
+-        if (is_a($result, 'PEAR_Error')) {
+-            return $result;
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Deletes messages from the current folder.
+-     *
+-     * @param integer $uids  IMAP message ids.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function deleteMessages($uids)
+-    {
+-        if (!is_array($uids)) {
+-            $uids = array($uids);
+-        }
+-
+-        foreach ($uids as $uid) {
+-            $ret = $this->_imap->cmdUidStore($uid, '+FLAGS.SILENT', '\Deleted');
+-            if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
+-                return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"),
+-                                                $uid,
+-                                                $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
+-            }
+-        }
+-
+-        return true;
+-    }
+-
+-    /**
+-     * Undeletes a message in the current folder.
+-     *
+-     * @param integer $uid  IMAP message id.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function undeleteMessages($uid)
+-    {
+-        $ret = $this->_imap->cmdUidStore($uid, '-FLAGS.SILENT', '\Deleted');
+-        if (String::upper($ret['RESPONSE']['CODE']) != 'OK') {
+-            return PEAR::raiseError(sprintf(_("IMAP error. Message: %s. Error: %s"),
+-                                            $uid,
+-                                            $ret['RESPONSE']['CODE'] . ', ' . $ret['RESPONSE']['STR_CODE']));
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Expunges messages in the current folder.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function expunge()
+-    {
+-        return $this->_imap->expunge();
+-    }
+-
+-    /**
+-     * Return the currently selected mailbox
+-     *
+-     * @return string  The mailbox currently selected
+-     */
+-    function current()
+-    {
+-        return $this->_imap->getCurrentMailbox();
+-    }
+-}
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/IMAP/test.php b/horde-webmail/lib/Horde/Kolab/Storage/IMAP/test.php
+deleted file mode 100644
+index e3e9800..0000000
+--- a/horde-webmail/lib/Horde/Kolab/Storage/IMAP/test.php
++++ /dev/null
+@@ -1,695 +0,0 @@
+-<?php
+-/**
+- * @package Kolab_Storage
+- *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/test.php,v 1.2.2.1 2008/08/18 13:48:58 wrobel Exp $
+- */
+-
+-/**
+- * Indicate that a mail has been marked as deleted
+- */
+-define('KOLAB_IMAP_FLAG_DELETED', 1);
+-
+-/**
+- * The Kolab_IMAP_Connection_test class simulates an IMAP server for
+- * testing purposes.
+- *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/test.php,v 1.2.2.1 2008/08/18 13:48:58 wrobel Exp $
+- *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
+- *
+- * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+- *
+- * @author  Gunnar Wrobel <wrobel@pardus.de>
+- * @package Kolab_Storage
+- */
+-class Kolab_IMAP_test extends Kolab_IMAP {
+-
+-    /**
+-     * If we are supposed to be connected this holds the user
+-     * credentials and some connection details.
+-     *
+-     * @var string
+-     */
+-    var $_connected;
+-
+-    /**
+-     * Login of the current user
+-     *
+-     * @var string
+-     */
+-    var $_user;
+-
+-    /**
+-     * The data of the mailbox currently opened
+-     *
+-     * @var array
+-     */
+-    var $_mbox = null;
+-
+-    /**
+-     * The name of the mailbox currently opened
+-     *
+-     * @var array
+-     */
+-    var $_mboxname = null;
+-
+-    /**
+-     * Prepare the dummy server.
+-     *
+-     * @param string  $login     The user account name.
+-     * @param string  $password  The user password.
+-     * @param boolean $tls       Should TLS be used for the connection?
+-     *
+-     * @return mixed  True in case the connection was opened successfully, a
+-     *                PEAR error otherwise.
+-     */
+-    function connect($login, $password, $tls = false)
+-    {
+-        if (!is_array($GLOBALS['KOLAB_TESTING'])) {
+-            /* Simulate an empty IMAP server */
+-            $GLOBALS['KOLAB_TESTING'] = array();
+-        }
+-
+-        $tls = ($tls) ? 'tls' : 'notls';
+-        $this->_connected = $login . ':' . $password . ':' . $tls;
+-        $this->_user = $login;
+-    }
+-
+-    /**
+-     * Disconnects from the IMAP server.
+-     *
+-     * @return mixed  True in case the connection was closed successfully, a
+-     *                PEAR error otherwise.
+-     */
+-    function disconnect()
+-    {
+-        $this->_connected = null;
+-    }
+-
+-    /**
+-     * Opens the given folder.
+-     *
+-     * @param string $folder  The folder to open
+-     *
+-     * @return mixed  True in case the folder was opened successfully, a PEAR
+-     *                error otherwise.
+-     */
+-    function select($folder)
+-    {
+-        if (!isset($GLOBALS['KOLAB_TESTING'][$folder])) {
+-            return PEAR::raiseError(sprintf("IMAP folder %s does not exist!", $folder));
+-        }
+-        $this->_mbox = &$GLOBALS['KOLAB_TESTING'][$folder];
+-        $this->_mboxname = $folder;
+-        return true;
+-    }
+-
+-    /**
+-     * Does the given folder exist?
+-     *
+-     * @param string $folder  The folder to check.
+-     *
+-     * @return mixed True in case the folder exists, false otherwise
+-     */
+-    function exists($folder)
+-    {
+-        if (!isset($GLOBALS['KOLAB_TESTING'][$folder])) {
+-            return false;
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Create the specified folder.
+-     *
+-     * @param string $folder  The folder to create.
+-     *
+-     * @return mixed True in case the operation was successfull, a
+-     *               PEAR error otherwise.
+-     */
+-    function create($folder)
+-    {
+-        if (isset($GLOBALS['KOLAB_TESTING'][$folder])) {
+-            return PEAR::raiseError(sprintf("IMAP folder %s does already exist!", $folder));
+-        }
+-        $GLOBALS['KOLAB_TESTING'][$folder] = array(
+-            'status' => array(
+-                'uidvalidity' => time(),
+-                'uidnext' => 1),
+-            'mails' => array(),
+-            'permissions' => array(),
+-            'annotations' => array(),
+-        );
+-        return true;
+-    }
+-
+-    /**
+-     * Delete the specified folder.
+-     *
+-     * @param string $folder  The folder to delete.
+-     *
+-     * @return mixed True in case the operation was successfull, a
+-     *               PEAR error otherwise.
+-     */
+-    function delete($folder)
+-    {
+-        if (!isset($GLOBALS['KOLAB_TESTING'][$folder])) {
+-            return PEAR::raiseError(sprintf("IMAP folder %s does not exist!", $folder));
+-        }
+-        unset($GLOBALS['KOLAB_TESTING'][$folder]);
+-        return true;
+-    }
+-
+-    /**
+-     * Rename the specified folder.
+-     *
+-     * @param string $old  The folder to rename.
+-     * @param string $new  The new name of the folder.
+-     *
+-     * @return mixed True in case the operation was successfull, a
+-     *               PEAR error otherwise.
+-     */
+-    function rename($old, $new)
+-    {
+-        if (!isset($GLOBALS['KOLAB_TESTING'][$old])) {
+-            return PEAR::raiseError(sprintf("IMAP folder %s does not exist!", $old));
+-        }
+-        if (isset($GLOBALS['KOLAB_TESTING'][$new])) {
+-            return PEAR::raiseError(sprintf("IMAP folder %s does already exist!", $new));
+-        }
+-        $GLOBALS['KOLAB_TESTING'][$new] = $GLOBALS['KOLAB_TESTING'][$old];
+-        unset($GLOBALS['KOLAB_TESTING'][$old]);
+-        return true;
+-    }
+-
+-    /**
+-     * Returns the status of the current folder.
+-     *
+-     * @return array  An array that contains 'uidvalidity' and 'uidnext'.
+-     */
+-    function status()
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-        return $this->_mbox['status'];
+-    }
+-
+-    /**
+-     * Returns the message ids of the messages in this folder.
+-     *
+-     * @return array  The message ids.
+-     */
+-    function getUids()
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-        $uids = array();
+-        foreach ($this->_mbox['mails'] as $uid => $mail) {
+-            if (!($mail['flags'] & KOLAB_IMAP_FLAG_DELETED)) {
+-                $uids[] = $uid;
+-            }
+-        }
+-        return $uids;
+-    }
+-
+-    /**
+-     * Searches the current folder using the given list of search criteria.
+-     *
+-     * @param string $search_list  A list of search criteria.
+-     *
+-     * @return mixed  The list of matching message ids or a PEAR error in case
+-     *                of an error.
+-     */
+-    function search($search_list, $uidSearch = true)
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-        $uids = array();
+-        if (substr($search_list, 0, 7) == 'SUBJECT') {
+-            $needle = '^Subject: ' . substr($search_list, 8);
+-            foreach ($this->_mbox['mails'] as $uid => $mail) {
+-                if (preg_match($needle, $mail['header'])) {
+-                    $uids[] = $uid;
+-                }
+-            }
+-        } else if (substr($search_list, 0, 6) == 'HEADER') {
+-            preg_match('([^ ]*) ([^ ]*)', substr($search_list, 7), $matches);
+-            $needle = '^' . $matches[0] . ': ' . $matches[1];
+-            foreach ($this->_mbox['mails'] as $uid => $mail) {
+-                if (preg_match($needle, $mail['header'])) {
+-                    $uids[] = $uid;
+-                }
+-            }
+-
+-        }
+-        return $uids;
+-    }
+-
+-    /**
+-     * Searches the headers of the messages.
+-     *
+-     * @param string $field  The name of the header field.
+-     * @param string $value  The value that field should match.
+-     *
+-     * @return mixed  The list of matching message ids or a PEAR error in case
+-     *                of an error.
+-     */
+-    function searchHeaders($field, $value)
+-    {
+-        return $this->search('HEADER "' . $field . '" "' . $value . '"', true);
+-    }
+-
+-    /**
+-     * Retrieves the message headers for a given message id.
+-     *
+-     * @param int $uid                The message id.
+-     * @param boolean $peek_for_body  Prefetch the body.
+-     *
+-     * @return mixed  The message header or a PEAR error in case of an error.
+-     */
+-    function getMessageHeader($uid, $peek_for_body = true)
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-        if (!isset($this->_mbox['mails'][$uid])) {
+-            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
+-        }
+-        return $this->_mbox['mails'][$uid]['header'];
+-    }
+-
+-    /**
+-     * Retrieves the message body for a given message id.
+-     *
+-     * @param integet $uid  The message id.
+-     *
+-     * @return mixed  The message body or a PEAR error in case of an error.
+-     */
+-    function getMessageBody($uid)
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-        if (!isset($this->_mbox['mails'][$uid])) {
+-            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
+-        }
+-        return $this->_mbox['mails'][$uid]['body'];
+-    }
+-
+-    /**
+-     * Retrieves the full message text for a given message id.
+-     *
+-     * @param integer $uid  The message id.
+-     *
+-     * @return mixed  The message text or a PEAR error in case of an error.
+-     */
+-    function getMessage($uid)
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-        if (!isset($this->_mbox['mails'][$uid])) {
+-            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
+-        }
+-        return $this->_mbox['mails'][$uid]['header'] . $this->_mbox['mails'][$uid]['body'];
+-    }
+-
+-    /**
+-     * Retrieves a list of mailboxes on the server.
+-     *
+-     * @return mixed  The list of mailboxes or a PEAR error in case of an
+-     *                error.
+-     */
+-    function getMailboxes()
+-    {
+-        return array_keys($GLOBALS['KOLAB_TESTING']);
+-    }
+-
+-    /**
+-     * Fetches the annotation on a folder.
+-     *
+-     * @param string $entries       The entry to fetch.
+-     * @param string $value         The specific value to fetch.
+-     * @param string $mailbox_name  The name of the folder.
+-     *
+-     * @return mixed  The annotation value or a PEAR error in case of an error.
+-     */
+-    function getAnnotation($entries, $value, $mailbox_name)
+-    {
+-        $old_mbox = null;
+-        if ($mailbox_name != $this->_mboxname) {
+-            $old_mbox = $this->_mboxname;
+-            $result = $this->select($mailbox_name);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        if (!isset($this->_mbox['annotations'][$entries])
+-            || !isset($this->_mbox['annotations'][$entries][$value])) {
+-            return false;
+-        }
+-        $annotation = $this->_mbox['annotations'][$entries][$value];
+-        if ($old_mbox) {
+-            $this->select($old_mbox);
+-        }
+-        return $annotation;
+-    }
+-
+-    /**
+-     * Sets the annotation on a folder.
+-     *
+-     * @param string $entries        The entry to set.
+-     * @param array  $values         The values to set
+-     * @param string $mailbox_name   The name of the folder.
+-     *
+-     * @return mixed  True if successfull, a PEAR error otherwise.
+-     */
+-    function setAnnotation($entries, $values, $mailbox_name)
+-    {
+-        $old_mbox = null;
+-        if ($mailbox_name != $this->_mboxname) {
+-            $old_mbox = $this->_mboxname;
+-            $result = $this->select($mailbox_name);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        if (!isset($this->_mbox['annotations'][$entries])) {
+-            $this->_mbox['annotations'][$entries] = array();
+-        }
+-        foreach ($values as $key => $value) {
+-            $annotation = $this->_mbox['annotations'][$entries][$key] = $value;
+-        }
+-        if ($old_mbox) {
+-            $result = $this->select($old_mbox);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Retrieve the access rights from a folder
+-     *
+-     * @param string $folder  The folder to retrieve the ACLs from.
+-     *
+-     * @return mixed An array of rights if successfull, a PEAR error
+-     * otherwise.
+-     */
+-    function getACL($folder)
+-    {
+-        $old_mbox = null;
+-        if ($folder != $this->_mboxname) {
+-            $old_mbox = $this->_mboxname;
+-            $result = $this->select($folder);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        $acl = $this->_mbox['permissions'];
+-        if ($old_mbox) {
+-            $result = $this->select($old_mbox);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        return $acl;
+-    }
+-
+-    /**
+-     * Retrieve the access rights on a folder not owned by the current user
+-     *
+-     * @param string $folder  The folder to retrieve the ACLs from.
+-     *
+-     * @return mixed An array of rights if successfull, a PEAR error
+-     * otherwise.
+-     */
+-    function getMyRights($folder)
+-    {
+-        $old_mbox = null;
+-        if ($folder != $this->_mboxname) {
+-            $old_mbox = $this->_mboxname;
+-            $result = $this->select($folder);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        $acl = '';
+-        if (isset($this->_mbox['permissions'][$this->_user])) {
+-            $acl = $this->_mbox['permissions'][$this->_user];
+-        }
+-        if ($old_mbox) {
+-            $result = $this->select($old_mbox);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        return $acl;
+-    }
+-
+-    /**
+-     * Set the access rights for a folder
+-     *
+-     * @param string $folder  The folder to retrieve the ACLs from.
+-     * @param string $user    The user to set the ACLs for
+-     * @param string $acl     The ACLs
+-     *
+-     * @return mixed True if successfull, a PEAR error otherwise.
+-     */
+-    function setACL($folder, $user, $acl)
+-    {
+-        $old_mbox = null;
+-        if ($folder != $this->_mboxname) {
+-            $old_mbox = $this->_mboxname;
+-            $result = $this->select($folder);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        $this->_mbox['permissions'][$user] = $acl;
+-        if ($old_mbox) {
+-            $result = $this->select($old_mbox);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Delete the access rights for a user.
+-     *
+-     * @param string $folder  The folder that should be modified.
+-     * @param string $user    The user that should get the ACLs removed
+-     *
+-     * @return mixed True if successfull, a PEAR error otherwise.
+-     */
+-    function deleteACL($folder, $user)
+-    {
+-        $old_mbox = null;
+-        if ($folder != $this->_mboxname) {
+-            $old_mbox = $this->_mboxname;
+-            $result = $this->select($folder);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        unset($this->_mbox['permissions'][$user]);
+-        if ($old_mbox) {
+-            $result = $this->select($old_mbox);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Appends a message to the current folder.
+-     *
+-     * @param string $msg  The message to append.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function appendMessage($msg)
+-    {
+-        $split = strpos('\r\n\r\n', $msg);
+-        $mail = array('header' => substr($msg, 0, $split + 2),
+-                      'body' => substr($msg, $split + 3));
+-        return $this->_appendMessage($mail);
+-    }
+-
+-    /**
+-     * Appends a message to the current folder.
+-     *
+-     * @param array $msg  The message to append.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function _appendMessage($msg)
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-        $mail = array();
+-        $mail['flags'] = 0;
+-        $mail['header'] = $msg['header'];
+-        $mail['body'] = $msg['body'];
+-
+-
+-        $this->_mbox['mails'][$this->_mbox['status']['uidnext']] = $mail;
+-        $this->_mbox['status']['uidnext']++;
+-        return true;
+-    }
+-
+-    /**
+-     * Copies a message to a new folder.
+-     *
+-     * @param integer $uid        IMAP message id.
+-     * @param string $new_folder  Target folder.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function copyMessage($uid, $new_folder)
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-        if (!isset($this->_mbox['mails'][$uid])) {
+-            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
+-        }
+-        $mail = $this->_mbox['mails'][$uid];
+-
+-        $old_mbox = null;
+-        $result = $this->select($new_folder);
+-        if (is_a($result, 'PEAR_Error')) {
+-            return $result;
+-        }
+-        $this->_appendMessage($mail);
+-        if ($old_mbox) {
+-            $result = $this->select($old_mbox);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Moves a message to a new folder.
+-     *
+-     * @param integer $uid        IMAP message id.
+-     * @param string $new_folder  Target folder.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function moveMessage($uid, $new_folder)
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-        if (!isset($this->_mbox['mails'][$uid])) {
+-            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
+-        }
+-        $mail = $this->_mbox['mails'][$uid];
+-        unset($this->_mbox['mails'][$uid]);
+-
+-        $old_mbox = null;
+-        $result = $this->select($new_folder);
+-        if (is_a($result, 'PEAR_Error')) {
+-            return $result;
+-        }
+-        $this->_appendMessage($mail);
+-        if ($old_mbox) {
+-            $result = $this->select($old_mbox);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Deletes messages from the current folder.
+-     *
+-     * @param integer $uids  IMAP message ids.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function deleteMessages($uids)
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-
+-        if (!is_array($uids)) {
+-            $uids = array($uids);
+-        }
+-
+-        foreach ($uids as $uid) {
+-
+-            if (!isset($this->_mbox['mails'][$uid])) {
+-                return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
+-            }
+-            $this->_mbox['mails'][$uid]['flags'] |= KOLAB_IMAP_FLAG_DELETED;
+-        }
+-        return true;
+-    }
+-
+-    /**
+-     * Undeletes a message in the current folder.
+-     *
+-     * @param integer $uid  IMAP message id.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function undeleteMessages($uid)
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-
+-        if (!isset($this->_mbox['mails'][$uid])) {
+-            return PEAR::raiseError(sprintf("No IMAP message %s!", $uid));
+-        }
+-        $this->_mbox['mails'][$uid]['flags'] &= ~KOLAB_IMAP_FLAG_DELETED;
+-        return true;
+-    }
+-
+-    /**
+-     * Expunges messages in the current folder.
+-     *
+-     * @return mixed  True or a PEAR error in case of an error.
+-     */
+-    function expunge()
+-    {
+-        if (!$this->_mbox) {
+-            return PEAR::raiseError("No IMAP folder selected!");
+-        }
+-
+-        $remaining = array();
+-        foreach ($this->_mbox['mails'] as $uid => $mail) {
+-            if (!($mail['flags'] & KOLAB_IMAP_FLAG_DELETED)) {
+-                $remaining[$uid] = $mail;
+-            }
+-        }
+-        $this->_mbox['mails'] = $remaining;
+-        return true;
+-    }
+-
+-    /**
+-     * Return the currently selected mailbox
+-     *
+-     * @return string  The mailbox currently selected
+-     */
+-    function current()
+-    {
+-        return $this->_mboxname;
+-    }
+-}
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/List.php b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+index 8cfed66..6e6a16e 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/List.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+@@ -53,13 +53,6 @@ class Kolab_List {
+     var $_types;
+ 
+     /**
+-     * Our Kolab_IMAP object, used to communicate with the IMAP server.
+-     *
+-     * @var Kolab_IMAP
+-     */
+-    var $_imap;
+-
+-    /**
+      * A validity marker.
+      *
+      * @var int
+@@ -81,8 +74,6 @@ class Kolab_List {
+      */
+     function __wakeup()
+     {
+-        $this->_imap = &Kolab_Folder::getImap();
+-
+         if (!isset($this->_folders)) {
+             $this->_folders = array();
+         }
+@@ -93,19 +84,6 @@ class Kolab_List {
+     }
+ 
+     /**
+-     * Returns the properties that need to be serialized.
+-     *
+-     * @return array  List of serializable properties.
+-     */
+-    function __sleep()
+-    {
+-        $properties = get_object_vars($this);
+-        unset($properties['_imap']);
+-        $properties = array_keys($properties);
+-        return $properties;
+-    }
+-
+-    /**
+      * Attempts to return a reference to a concrete Kolab_Folders_List instance.
+      *
+      * It will only create a new instance if no Kolab_Folders instance currently
+@@ -159,12 +137,14 @@ class Kolab_List {
+     function &listFolders()
+     {
+         if (!isset($this->_list)) {
+-            if (is_a($this->_imap, 'PEAR_Error')) {
+-                return $this->_imap;
++            $session = &Horde_Kolab_Session::singleton();
++            $imap = &$session->getImap();
++            if (is_a($imap, 'PEAR_Error')) {
++                return $imap;
+             }
+ 
+             // Obtain a list of all folders the current user has access to
+-            $this->_list = $this->_imap->getMailboxes();
++            $this->_list = $imap->getMailboxes();
+             if (is_a($this->_list, 'PEAR_Error')) {
+                 return $this->_list;
+             }
+@@ -380,11 +360,13 @@ class Kolab_List {
+      */
+     function create(&$folder)
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+-        $result = $this->_imap->exists($folder->new_name);
++        $result = $imap->exists($folder->new_name);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+@@ -393,7 +375,7 @@ class Kolab_List {
+                                             $folder->new_name));
+         }
+ 
+-        $result = $this->_imap->create($folder->new_name);
++        $result = $imap->create($folder->new_name);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+@@ -411,11 +393,13 @@ class Kolab_List {
+      */
+     function rename(&$folder)
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+-        $result = $this->_imap->exists($folder->new_name);
++        $result = $imap->exists($folder->new_name);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+@@ -424,7 +408,7 @@ class Kolab_List {
+                                             $folder->name, $folder->new_name));
+         }
+ 
+-        $result = $this->_imap->rename($folder->name, $folder->new_name);
++        $result = $imap->rename($folder->name, $folder->new_name);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+@@ -444,17 +428,19 @@ class Kolab_List {
+      */
+     function remove(&$folder)
+     {
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
++        $session = &Horde_Kolab_Session::singleton();
++        $imap = &$session->getImap();
++        if (is_a($imap, 'PEAR_Error')) {
++            return $imap;
+         }
+ 
+-        $result = $this->_imap->exists($folder->name);
++        $result = $imap->exists($folder->name);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+ 
+         if ($result === true) {
+-            $result = $this->_imap->delete($folder->name);
++            $result = $imap->delete($folder->name);
+             if (is_a($result, 'PEAR_Error')) {
+                 return $result;
+             }
+-- 
+tg: (9a3fc7a..) t/framework/HK/GW/Kolab/MoveIMAP (depends on: t/framework/HK/GW/Kolab_Server/SafetyCheck)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 69e24b73af698051835806775a1ddacbd543a225
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Jan 31 00:01:58 2009 +0000
+
+    Forgot to remove files
+
+commit 6b9f9868700129d3f12471273613b27f3d7ae7ca
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 23:31:53 2009 +0000
+
+    Added patch release/HK-GW-Kolab-IMAP_Move.patch from the mercurial release queue.

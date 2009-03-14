@@ -1,0 +1,41 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Storage/Foreign_owner.patch
+
+Correctly determine the foreign folder owners.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 408ae54..ab9ecfd 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -420,7 +420,7 @@ class Kolab_Folder {
+     function getOwner()
+     {
+         if (!isset($this->_owner)) {
+-            if (!preg_match(";(shared\.|INBOX[/]?|user/([^/]+)/)([^@]+)(@.*)?;", $this->name, $matches)) {
++            if (!preg_match(";(shared\.|INBOX[/]?|user/([^/]+))([^@]+)(@.*)?;", $this->name, $matches)) {
+                 return PEAR::raiseError(sprintf(_("Owner of folder %s cannot be determined."), $this->name));
+             }
+ 
+-- 
+tg: (6938161..) t/framework/HK/GW/Kolab_Storage/Foreign_owner.patch (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 72fc4db48cc2448f1e5e476b1781c276aab28686
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 20:09:47 2009 +0000
+
+    Added patch description.
+
+commit 555c9aec2a85f9c0d2e2ef62a481590281ca75cb
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 19:56:26 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Storage-ForeignOwner.patch from the mercurial patch queue.

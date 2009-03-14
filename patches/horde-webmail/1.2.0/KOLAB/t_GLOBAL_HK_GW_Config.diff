@@ -1,0 +1,1164 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/GLOBAL/HK/GW/Config
+
+The Horde configuration for Kolab.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/config/conf.php            |  116 ++++++++++++++
+ horde-webmail/config/hooks.php           |   52 +++----
+ horde-webmail/config/kolab.php           |   40 +++++
+ horde-webmail/config/prefs.php           |    4 +-
+ horde-webmail/dimp/config/servers.php    |  255 ++++++++++++++++++++++++++++++
+ horde-webmail/imp/config/conf.php        |   14 +-
+ horde-webmail/imp/config/hooks.php       |    7 +
+ horde-webmail/imp/config/servers.php     |   67 +++++++-
+ horde-webmail/ingo/config/backends.php   |    4 +
+ horde-webmail/ingo/config/conf.php       |    3 +-
+ horde-webmail/kronolith/config/conf.php  |   15 +-
+ horde-webmail/kronolith/config/kolab.php |   13 ++
+ horde-webmail/lib/core.php               |    6 +
+ horde-webmail/log/.htaccess              |    1 +
+ horde-webmail/mnemo/config/conf.php      |    5 +-
+ horde-webmail/nag/config/conf.php        |    4 +-
+ horde-webmail/storage/.htaccess          |    1 +
+ horde-webmail/tmp/.htaccess              |    1 +
+ horde-webmail/turba/config/conf.php      |    4 +-
+ horde-webmail/turba/config/sources.php   |  248 +++++++++++++++++++++++++++++
+ 20 files changed, 799 insertions(+), 61 deletions(-)
+
+diff --git a/horde-webmail/config/conf.php b/horde-webmail/config/conf.php
+new file mode 100644
+index 0000000..f5c85a6
+--- /dev/null
++++ b/horde-webmail/config/conf.php
+@@ -0,0 +1,116 @@
++<?php
++/* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
++// $Horde: horde/config/conf.xml,v 1.74.2.78 2008/09/12 10:01:41 jan Exp $
++$conf['vhosts'] = false;
++$conf['debug_level'] = E_ALL;
++$conf['max_exec_time'] = 0;
++$conf['compress_pages'] = true;
++$conf['secret_key'] = 'abcdefghijklmnopqrstuvwxzy1234567890ABCD';
++$conf['umask'] = 077;
++$conf['tmpdir'] = dirname(__FILE__) . '/../tmp/';
++$conf['use_ssl'] = 2;
++$conf['server']['name'] = $_SERVER['SERVER_NAME'];
++$conf['server']['port'] = $_SERVER['SERVER_PORT'];
++$conf['urls']['token_lifetime'] = 30;
++$conf['urls']['hmac_lifetime'] = 30;
++$conf['urls']['pretty'] = false;
++$conf['safe_ips'] = array();
++$conf['session']['name'] = 'Horde';
++$conf['session']['use_only_cookies'] = true;
++$conf['session']['cache_limiter'] = 'nocache';
++$conf['session']['timeout'] = 0;
++$conf['cookie']['domain'] = $_SERVER['SERVER_NAME'];
++$conf['cookie']['path'] = '/';
++$conf['sql']['database'] = dirname(__FILE__) . '/../storage/horde.db';
++$conf['sql']['mode'] = '0640';
++$conf['sql']['charset'] = 'utf-8';
++$conf['sql']['phptype'] = 'sqlite';
++$conf['auth']['admins'] = array('manager');
++$conf['auth']['checkip'] = true;
++$conf['auth']['checkbrowser'] = true;
++$conf['auth']['alternate_login'] = false;
++$conf['auth']['redirect_on_logout'] = false;
++$conf['auth']['params']['app'] = 'imp';
++$conf['auth']['driver'] = 'application';
++$conf['signup']['allow'] = false;
++$conf['log']['priority'] = PEAR_LOG_DEBUG;
++$conf['log']['ident'] = 'HORDE';
++$conf['log']['params'] = array();
++$conf['log']['name'] = dirname(__FILE__) . '/../log/horde.log';
++$conf['log']['params']['append'] = true;
++$conf['log']['type'] = 'file';
++$conf['log']['enabled'] = true;
++$conf['log_accesskeys'] = false;
++$conf['prefs']['driver'] = 'kolab_imap';
++$conf['alarms']['params']['driverconfig'] = 'horde';
++$conf['alarms']['params']['ttl'] = 300;
++$conf['alarms']['driver'] = 'sql';
++$conf['datatree']['params']['driverconfig'] = 'horde';
++$conf['datatree']['driver'] = 'sql';
++$conf['group']['driver'] = 'kolab';
++$conf['group']['cache'] = false;
++$conf['perms']['driverconfig'] = 'horde';
++$conf['perms']['driver'] = 'sql';
++$conf['share']['no_sharing'] = false;
++$conf['share']['any_group'] = false;
++$conf['share']['cache'] = true;
++$conf['share']['driver'] = 'kolab';
++$conf['cache']['default_lifetime'] = 1800;
++$conf['cache']['params']['dir'] = Horde::getTempDir();
++$conf['cache']['params']['sub'] = 0;
++$conf['cache']['driver'] = 'file';
++$conf['lock']['driver'] = 'none';
++$conf['token']['driver'] = 'none';
++$conf['mailer']['params']['host'] = 'localhost';
++$conf['mailer']['params']['port'] = 25;
++$conf['mailer']['params']['auth'] = true;
++$conf['mailer']['type'] = 'smtp';
++$conf['mailformat']['brokenrfc2231'] = false;
++$conf['vfs']['params']['vfsroot'] = dirname(__FILE__) . '/../storage';
++$conf['vfs']['type'] = 'file';
++$conf['sessionhandler']['type'] = 'none';
++$conf['sessionhandler']['memcache'] = false;
++$conf['image']['convert'] = '/usr/bin/convert';
++$conf['mime']['magic_db'] = '/etc/mime.types';
++$conf['problems']['email'] = 'webmaster@example.com';
++$conf['problems']['maildomain'] = 'example.com';
++$conf['problems']['tickets'] = false;
++$conf['problems']['attachments'] = true;
++$conf['menu']['apps'] = array();
++$conf['menu']['always'] = false;
++$conf['menu']['links']['help'] = 'all';
++$conf['menu']['links']['options'] = 'authenticated';
++$conf['menu']['links']['problem'] = 'all';
++$conf['menu']['links']['login'] = 'all';
++$conf['menu']['links']['logout'] = 'authenticated';
++$conf['hooks']['permsdenied'] = false;
++$conf['hooks']['username'] = false;
++$conf['hooks']['preauthenticate'] = false;
++$conf['hooks']['postauthenticate'] = false;
++$conf['hooks']['authldap'] = false;
++$conf['hooks']['groupldap'] = false;
++$conf['portal']['fixed_blocks'] = array();
++$conf['accounts']['driver'] = 'null';
++$conf['user']['verify_from_addr'] = false;
++$conf['imsp']['enabled'] = false;
++$conf['kolab']['ldap']['server'] = 'localhost';
++$conf['kolab']['ldap']['port'] = 389;
++$conf['kolab']['ldap']['basedn'] = 'dc=example,dc=com';
++$conf['kolab']['ldap']['phpdn'] = 'cn=nobody,cn=internal,dc=example,dc=com';
++$conf['kolab']['ldap']['phppw'] = 'dummy';
++$conf['kolab']['imap']['server'] = 'localhost';
++$conf['kolab']['imap']['port'] = 143;
++$conf['kolab']['imap']['sieveport'] = 2000;
++$conf['kolab']['imap']['maildomain'] = 'example.com';
++$conf['kolab']['imap']['cache_folders'] = true;
++$conf['kolab']['smtp']['server'] = 'localhost';
++$conf['kolab']['smtp']['port'] = 25;
++$conf['kolab']['misc']['multidomain'] = false;
++$conf['kolab']['cache_folders'] = true;
++$conf['kolab']['freebusy']['server'] = 'https://localhost/freebusy';
++$conf['kolab']['enabled'] = true;
++$conf['memcache']['enabled'] = false;
++/* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
++if (file_exists(dirname(__FILE__) . '/kolab.php')) {
++  require_once(dirname(__FILE__) . '/kolab.php');
++}
+diff --git a/horde-webmail/config/hooks.php b/horde-webmail/config/hooks.php
+index 397ea96..1fb2f6e 100644
+--- a/horde-webmail/config/hooks.php
++++ b/horde-webmail/config/hooks.php
+@@ -99,35 +99,29 @@
+ //
+ // If you want to use this code you will need to uncomment it below.
+ 
+-// if (!function_exists('_prefs_hook_from_addr')) {
+-//     function _prefs_hook_from_addr($name = null)
+-//     {
+-//         if (is_null($name)) {
+-//             $name = Auth::getAuth();
+-//         }
+-//         if (!empty($name)) {
+-//             $base_context = 'o=myorg';
+-//             $scope = 'sub';
+-//
+-//             // You will probably need to replace cd= with uid=; this
+-//             // syntax is for Netware 5.1 nldap.
+-//             $cmd  = '/usr/bin/ldapsearch -b ' . $base_context . ' -s ' . $scope . ' cn=';
+-//             $cmd .= escapeShellCmd(Auth::getAuth());
+-//             $cmd .= ' | /usr/bin/grep mail | /usr/bin/awk \'{print $2}\'';
+-//             $mails = `$cmd`;
+-//             $mail_array = explode("\n", $mails);
+-//
+-//             // Send back the first email found, not the whole list.
+-//             $mail = $mail_array['0'];
+-//
+-//             // If no email address is found, then the login name will
+-//             // be used.
+-//             return (empty($mail) ? '' : $mail);
+-//         }
+-//
+-//         return '';
+-//     }
+-// }
++if (!function_exists('_prefs_hook_from_addr')) {
++    function _prefs_hook_from_addr()
++    {
++        require_once 'Horde/Kolab/Session.php';
++        $session = Horde_Kolab_Session::singleton();
++        if (!is_a('PEAR_Error', $session)) {
++            return $session->user_mail;
++        }
++        return '';
++    }
++}
++
++if (!function_exists('_prefs_hook_fullname')) {
++    function _prefs_hook_fullname()
++    {
++        require_once 'Horde/Kolab/Session.php';
++        $session = Horde_Kolab_Session::singleton();
++        if (!is_a('PEAR_Error', $session)) {
++            return $session->user_name;
++        }
++        return '';
++    }
++}
+ 
+ // Here is another way of doing the same thing.
+ 
+diff --git a/horde-webmail/config/kolab.php b/horde-webmail/config/kolab.php
+new file mode 100644
+index 0000000..57a5a43
+--- /dev/null
++++ b/horde-webmail/config/kolab.php
+@@ -0,0 +1,40 @@
++<?php
++/* Add additional admins here */
++$conf['auth']['admins'] = array('manager');
++
++/* Add your servers random secret key here */
++$conf['secret_key'] = 'abcdefghijklmnopqrstuvwxzy1234567890ABCD';
++
++/* Add your horde vhost hostname here */
++$conf['cookie']['domain'] = 'webmail.example.com';
++
++/* Add the path to the vhost install here (the value of the -d switch when you used webapp-config) */
++$conf['cookie']['path'] = '/';
++
++/* The email address of your sys admin */
++$conf['problems']['email'] = 'hostmaster@example.com';
++
++/* Primary mail domain of your Kolab server */
++$conf['problems']['maildomain'] = 'pardus.de';
++
++/* The hostname of your LDAP server (usually the same as the hostname of the Kolab server) */
++$conf['kolab']['ldap']['server'] = 'localhost';
++
++/* Base DN of your LDAP server */
++$conf['kolab']['ldap']['basedn'] = 'dc=example,dc=com';
++
++/* php_dn from your /kolab/etc/kolab/kolab.conf */
++$conf['kolab']['ldap']['phpdn'] = 'cn=nobody,cn=internal,dc=example,dc=com';
++
++/* php_pw from your /kolab/etc/kolab/kolab.conf */
++$conf['kolab']['ldap']['phppw'] = 'MY_SECRET_PASSWORD';
++
++/* Hostname of your IMAP server (usually the same as the hostname of the Kolab server) */
++$conf['kolab']['imap']['server'] = 'localhost';
++
++/* Primary mail domain of your Kolab server */
++$conf['kolab']['imap']['maildomain'] = 'example.com';
++
++if (file_exists(dirname(__FILE__) . '/kolab.local.php')) {
++  require_once(dirname(__FILE__) . '/kolab.local.php');
++}
+diff --git a/horde-webmail/config/prefs.php b/horde-webmail/config/prefs.php
+index d8e4c75..52c7730 100644
+--- a/horde-webmail/config/prefs.php
++++ b/horde-webmail/config/prefs.php
+@@ -225,6 +225,7 @@ $_prefs['fullname'] = array(
+     'value' => '',
+     'locked' => false,
+     'shared' => true,
++    'hook' => true,
+     'type' => 'text',
+     'desc' => _("Your full name:")
+ );
+@@ -236,6 +237,7 @@ $_prefs['from_addr'] = array(
+     'value' => '',
+     'locked' => false,
+     'shared' => true,
++    'hook' => true,
+     'type' => 'text',
+     'desc' =>  _("Your From: address:")
+ );
+@@ -357,7 +359,7 @@ $_prefs['first_week_day'] = array(
+ 
+ // UI theme
+ $_prefs['theme'] = array(
+-    'value' => 'bluewhite',
++    'value' => 'silver',
+     'locked' => false,
+     'shared' => true,
+     'type' => 'select',
+diff --git a/horde-webmail/dimp/config/servers.php b/horde-webmail/dimp/config/servers.php
+new file mode 100644
+index 0000000..30962f3
+--- /dev/null
++++ b/horde-webmail/dimp/config/servers.php
+@@ -0,0 +1,255 @@
++<?php
++/**
++ * $Horde: imp/config/servers.php.dist,v 1.50.2.23 2008/07/03 13:06:15 jan Exp $
++ *
++ * This file is where you specify what mail servers people using your
++ * installation of IMP can log in to.
++ *
++ * Properties that can be set for each server:
++ *
++ * name: This is the plaintext, english name that you want displayed
++ *       to people if you are using the drop down server list.
++ *
++ * server: The hostname of the mail server to connect to.
++ *
++ * hordeauth: If this parameter is present and true, then IMP will attempt
++ *            to use the user's existing credentials (the username/password
++ *            they used to log in to Horde) to log in to this source. If this
++ *            parameter is 'full', the username will be used unmodified;
++ *            otherwise everything after and including the first @ in the
++ *            username will be stripped off before attempting authentication.
++ *
++ * protocol: One of the following strings:
++ *             + 'imap/notls'
++ *             + 'imap/ssl'
++ *             + 'imap/tls'
++ *             + 'pop3/notls'
++ *             + 'pop3/ssl'
++ *             + 'pop3/tls'
++ *
++ *           If using 'pop3/*' you will connect to a POP3 mail server and
++ *           all folder options will be automatically turned off (POP3 does
++ *           not support folders).  If you want folders (and for much
++ *           improved performance) it is HIGHLY RECOMMENDED that IMAP should
++ *           be used instead.
++ *
++ *           NOTE: Due to limitations within PHP, IMP can only support auto-
++ *                 detection of namespace parameters with IMAP TLS connections
++ *                 (e.g 'imap/tls') if using PHP version 5.1.0 or greater.
++ *                 If using a version of PHP less than 5.1.0, the following
++ *                 options are available:
++ *                 1. RECOMMENDED - If a secure IMAP connection is needed, use
++ *                    a direct connection to a SSL enabled IMAP port
++ *                    (e.g. 'imap/ssl').
++ *                 2. If you absolutely must use TLS, then it is REQUIRED to
++ *                    define the 'namespace' parameter (see below).
++ *
++ *           The ssl and tls options will only work if you've compiled PHP
++ *           against a SSL-enabled version of c-client, used the
++ *           --with-imap-ssl and --with-openssl flags when compiling PHP,
++ *           and you have a mail server server which supports SSL.
++ *
++ *           ** The test script can help automatically determine the   **
++ *           ** correct protocol value to use.  See the 'Testing IMP'  **
++ *           ** section of imp/docs/INSTALL for instructions on how to **
++ *           ** access the test script.                                **
++ *
++ *           NOTE - If you are using a self-signed server certificate with
++ *           either imap/ssl, imap/tls, pop3/ssl, or pop3/tls, you MUST add
++ *           '/novalidate-cert' to the end of the protocol string. For imap,
++ *           this would be 'imap/ssl/novalidate-cert' or
++ *           'imap/tls/novalidate-cert', and for pop3 it would be
++ *           'pop3/ssl/novalidate-cert' or 'pop3/tls/novalidate-cert'. This
++ *           is necessary to tell c-client not to complain about the lack of
++ *           a valid CA on the certificate.
++ *
++ * port: The port that the mail service/protocol you selected runs on.
++ *       Default values:
++ *         'pop3'    110
++ *         'pop3s'   995
++ *         'imap'    143
++ *         'imaps'   993
++ *
++ *       ** The test script can help automatically determine the      **
++ *       ** correct port value to use.  See the 'Testing IMP' section **
++ *       ** of imp/docs/INSTALL for instructions on how to access the **
++ *       ** test script.                                              **
++ *
++ * maildomain: What to put after the @ when sending mail. i.e. if you want
++ *             all mail to look like 'From: user@example.com' set
++ *             maildomain to 'example.com'. It is generally useful when
++ *             the sending host is different from the mail receiving host. This
++ *             will also be used to complete unqualified addresses when
++ *             composing mail.
++ *
++ * smtphost: If specified, and $conf['mailer']['type'] is set to 'smtp',
++ *           IMP will use this host for outbound SMTP connections.  This
++ *           value overrides any existing $conf['mailer']['params']['host']
++ *           value at runtime.
++ *
++ * smtpport: If specified, and $conf['mailer']['type'] is set to 'smtp',
++ *           IMP will use this port for outbound SMTP connections.  This value
++ *           overrides any existing $conf['mailer']['params']['port'] value at
++ *           runtime.
++ *
++ * realm: ONLY USE REALM IF YOU ARE USING IMP FOR HORDE AUTHENTICATION,
++ *        AND YOU HAVE MULTIPLE SERVERS AND USERNAMES OVERLAP BETWEEN
++ *        THOSE SERVERS. If you only have one server, or have multiple
++ *        servers with no username clashes, or have full user@example.com
++ *        usernames, you DO NOT need a realm setting. If you set one, an
++ *        '@' symbol plus the realm will be appended to the username that
++ *        users log in to IMP with to create the username that Horde treats
++ *        the user as. So with a realm of 'example.com', the username
++ *        'jane' would be treated by Horde (NOT your IMAP/POP server) as
++ *        'jane@example.com', and the username 'jane@example.com' would be
++ *        treated as 'jane@example.com@example.com' - an occasion where you
++ *        probably don't need a realm setting.
++ *
++ * preferred: Only useful if you want to use the same servers.php file
++ *            for different machines: if the hostname of the IMP machine is
++ *            identical to one of those in the preferred list, then the
++ *            corresponding option in the select box will include SELECTED
++ *            (i.e. it is selected per default). Otherwise the first entry
++ *            in the list is selected.
++ *
++ * quota: Use this if you want to display a users quota status on various
++ *        IMP pages. Set 'driver' equal to the mailserver and 'params'
++ *        equal to any extra parameters needed by the driver (see the
++ *        comments located at the top of imp/lib/Quota/[quotadriver].php
++ *        for the parameters needed for each driver).
++ *
++ *        The optional 'format' parameter is supported by all drivers and
++ *        specifies the formats of the quota messages in the user
++ *        interface. The parameter must be specified as a hash with the four
++ *        possible elements 'long', 'short', 'nolimit_long', and
++ *        'nolimit_short' with according versions of the quota message. The
++ *        strings will be passed through sprintf().
++ *        These are the built-in default values, though they might look
++ *        differently in some translations:
++ *          'long'          -- Quota status: %.2f MB / %.2f MB  (%.2f%%)
++ *          'short'         -- %.0f%% of %.0f MB
++ *          'nolimit_long'  -- Quota status: %.2f MB / NO LIMIT
++ *          'nolimit_short' -- %.0f MB
++ *
++ *        Currently available drivers:
++ *          false        --  Disable quota checking (DEFAULT).
++ *
++ *          'command'    --  Use the UNIX quota command to handle quotas.
++ *          'hook'       --  Use the _imp_hook_quota function to handle quotas.
++ *          'imap'       --  Use the IMAP QUOTA extension to handle quotas.
++ *                           You must be connecting to a IMAP server capable
++ *                           of the QUOTAROOT command to use this driver.
++ *          'logfile'    --  Allow quotas on servers where IMAP Quota
++ *                           commands are not supported, but quota info
++ *                           appears in the servers messages log for the IMAP
++ *                           server.
++ *          'maildir'    --  Use Maildir++ quota files to handle quotas.
++ *          'mdaemon'    --  Use Mdaemon servers to handle quotas.
++ *          'mercury32'  --  Use Mercury/32 servers to handle quotas.
++ *          'sql'        --  Use arbitrary SQL queries to handle quotas.
++ *
++ * admin: Use this if you want to enable mailbox management for administrators
++ *        via Horde's user administration interface.  The mailbox management
++ *        gets enabled if you let IMP handle the Horde authentication with the
++ *        'application' authentication driver.  Your IMAP server needs to
++ *        support mailbox management via IMAP commands.
++ *        Do not define this value if you do not want mailbox management.
++ *
++ * acl: Use this if you want to use Access Control Lists (folder sharing)
++ *      Set 'driver' equal to the type of ACL your server supports and
++ *      'params' to an array containing any additional parameters the
++ *      driver needs. Not all IMAP servers currently support this
++ *      feature.
++ *
++ *      At present the only drivers supported are 'rfc2086' and 'rfc4314' (in
++ *      Horde 3.1+), neither of which require any parameters.
++ *
++ *      SECURITY NOTE: If you do not have the PEAR Auth_SASL module
++ *      installed, the 'rfc2086' driver will send user passwords to the
++ *      IMAP server in plain text when retrieving ACLs.
++ *
++ *
++ * *** The following options should NOT be set unless you REALLY know what ***
++ * *** you are doing! FOR MOST PEOPLE, AUTO-DETECTION OF THESE PARAMETERS  ***
++ * *** (the default if the parameters are not set) SHOULD BE USED!         ***
++ *
++ * namespace: The list of namespaces that exist on the server.  This entry
++ *            must be an array. Example:
++ *            'namespace' => array('#shared/', '#news/', '#ftp/', '#public/')
++ *            This parameter must be set if using a TLS connection.
++ *            Additionally, this parameter may be set if not using a TLS
++ *            connection and you want to allow access to namespaces that may
++ *            not be publicly advertised by the IMAP server (see RFC
++ *            2342 [3]). These additional namespaces will be added to the list
++ *            of available namespaces returned by the server.
++ *
++ * imap_config: Manually set IMAP server configuration information. Please see
++ *              http://wiki.horde.org/ImpImapConfig for information on this
++ *              parameter.  THIS PARAMETER IS NOT OFFICIALLY SUPPORTED BY THE
++ *              HORDE PROJECT.  This entry must be an array with the following
++ *              elements:
++ *              'namespace' - (array) The namespace configuration of the
++ *                            server.  See the return from
++ *                            IMAP_Client::getNamespace() (located in
++ *                            imp/lib/IMAP/Client.php) for the structure of
++ *                            this array.
++ *              'search_charset' - (array) A list of charsets the IMAP server
++ *                                 supports for searches.
++ *
++ * timeout: Manually set server timeouts. This option only works with PHP >=
++ *          4.3.3. This entry must be an array with the following possible
++ *          elements (if an element is missing, the default value is used):
++ *          IMAP_OPENTIMEOUT - (integer) The timeout for open actions.
++ *          IMAP_READTIMEOUT - (integer) The timeout for read actions.
++ *          IMAP_WRITETIMEOUT - (integer) The timeout for write actions.
++ *          IMAP_CLOSETIMEOUT - (integer) The timeout for close actions.
++ *
++ * login_tries: Manually set the number of login tries we make to the server.
++ *              The PHP imap_open() function will try to login 3 times to a
++ *              server before failing.  This value indicates the number of
++ *              times we call imap_open() before IMP fails (we pause one second
++ *              between imap_open() calls). The default value is 3 (meaning IMP
++ *              may attempt to login to the server 9 times).  If you have a
++ *              mail server that will lock out an account if a certain number
++ *              of incorrect login attempts occur within a certain period of
++ *              time, you may want to set this to a lower value.  The minimum
++ *              value for this setting is 1.
++ */
++
++/* Any entries whose key value ('foo' in $servers['foo']) begin with '_'
++ * (an underscore character) will be treated as prompts, and you won't be
++ * able to log in to them. The only property these entries need is 'name'.
++ * This lets you put labels in the list, like this example: */
++$servers['_prompt'] = array(
++    'name' => _("Choose a mail server:")
++);
++
++/* Example configurations: */
++
++if ($GLOBALS['conf']['kolab']['enabled']) {
++    require_once 'Horde/Kolab.php';
++
++    if (!is_callable('Kolab', 'getServer')) {
++        $server = $GLOBALS['conf']['kolab']['imap']['server'];
++    } else {
++        $server = Kolab::getServer('imap');
++    }
++
++    $servers['kolab'] = array(
++        'name' => 'Kolab Cyrus IMAP Server',
++        'server' => $server,
++        'hordeauth' => 'full',
++        'protocol' => 'imap/notls/novalidate-cert',
++        'port' => $GLOBALS['conf']['kolab']['imap']['port'],
++        'maildomain' => $GLOBALS['conf']['kolab']['imap']['maildomain'],
++        'realm' => '',
++        'preferred' => '',
++        'quota' => array(
++            'driver' => 'imap',
++            'params' => array('hide_quota_when_unlimited' => true),
++        ),
++        'acl' => array(
++            'driver' => 'rfc2086',
++        ),
++    );
++}
+diff --git a/horde-webmail/imp/config/conf.php b/horde-webmail/imp/config/conf.php
+index 989e623..3a0f1d6 100644
+--- a/horde-webmail/imp/config/conf.php
++++ b/horde-webmail/imp/config/conf.php
+@@ -1,7 +1,8 @@
+ <?php
+ /* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
+ // $Horde: imp/config/conf.xml,v 1.53.2.39 2008/09/03 18:56:45 slusarz Exp $
+-$conf['spell']['driver'] = '';
++$conf['spell']['driver'] = 'aspell';
++$conf['utils']['gnupg'] = '/usr/bin/gpg';
+ $conf['utils']['gnupg_keyserver'] = array('pgp.mit.edu');
+ $conf['utils']['gnupg_timeout'] = 10;
+ $conf['menu']['apps'] = array();
+@@ -52,16 +53,13 @@ $conf['hooks']['postsent'] = false;
+ $conf['hooks']['signature'] = false;
+ $conf['hooks']['trailer'] = false;
+ $conf['hooks']['fetchmail_filter'] = false;
+-$conf['hooks']['mbox_redirect'] = false;
+-$conf['hooks']['mbox_icon'] = false;
++$conf['hooks']['mbox_redirect'] = true;
++$conf['hooks']['mbox_icon'] = true;
+ $conf['hooks']['spam_bounce'] = false;
+ $conf['hooks']['msglist_format'] = false;
++$conf['hooks']['display_folder'] = true;
+ $conf['maillog']['use_maillog'] = true;
+-$conf['sentmail']['params']['threshold'] = 60;
+-$conf['sentmail']['params']['limit_period'] = 24;
+-$conf['sentmail']['params']['table'] = 'imp_sentmail';
+-$conf['sentmail']['params']['driverconfig'] = 'horde';
+-$conf['sentmail']['driver'] = 'sql';
++$conf['sentmail']['driver'] = 'none';
+ $conf['tasklist']['use_tasklist'] = true;
+ $conf['notepad']['use_notepad'] = true;
+ /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
+diff --git a/horde-webmail/imp/config/hooks.php b/horde-webmail/imp/config/hooks.php
+index 98e429e..3bab14e 100644
+--- a/horde-webmail/imp/config/hooks.php
++++ b/horde-webmail/imp/config/hooks.php
+@@ -493,6 +493,13 @@ if (!empty($GLOBALS['conf']['kolab']['enabled'])) {
+             return $icons;
+         }
+     }
++    if (!function_exists('_imp_hook_display_folder')) {
++        function _imp_hook_display_folder($mailbox)
++        {
++            $type = Kolab::getMailboxType($mailbox);
++            return empty($type) || $type == 'mail';
++        }
++    }
+ }
+ 
+ // Sample function for returning the quota. Uses the PECL ssh2
+diff --git a/horde-webmail/imp/config/servers.php b/horde-webmail/imp/config/servers.php
+index 0e2acc5..1c6e537 100644
+--- a/horde-webmail/imp/config/servers.php
++++ b/horde-webmail/imp/config/servers.php
+@@ -226,10 +226,63 @@ $servers['_prompt'] = array(
+ 
+ /* Example configurations: */
+ 
+-$servers['imap'] = array(
+-    'name' => 'IMAP Server',
+-    'server' => 'localhost',
+-    'hordeauth' => false,
+-    'protocol' => 'imap/notls',
+-    'port' => 143,
+-);
++if ($GLOBALS['conf']['kolab']['enabled']) {
++
++    if (isset($_SESSION['imp']['user']) && isset($_SESSION['imp']['pass'])) {
++        require_once 'Horde/Kolab/Session.php';
++        $session = Horde_Kolab_Session::singleton($_SESSION['imp']['user'],
++                                                  array('password' => Secret::read(Secret::getKey('imp'), $_SESSION['imp']['pass'])));
++        $imapParams = $session->getImapParams();
++        if (is_a($imapParams, 'PEAR_Error')) {
++            $useDefaults = true;
++        } else {
++            $useDefaults = false;
++        }
++        $_SESSION['imp']['uniquser'] = $session->user_mail;
++    } else {
++        $useDefaults = true;
++    }
++
++    if ($useDefaults) {
++        require_once 'Horde/Kolab.php';
++
++        if (is_callable('Kolab', 'getServer')) {
++            $server = Kolab::getServer('imap');
++            if (is_a($server, 'PEAR_Error')) {
++                $useDefaults = true;
++            } else {
++                $useDefaults = false;
++            }
++        } else {
++            $useDefaults = true;
++        }
++
++        if ($useDefaults) {
++            $server = $GLOBALS['conf']['kolab']['imap']['server'];
++        }
++
++        $imapParams = array(
++			'hostspec' => $server,
++			'port'     => $GLOBALS['conf']['kolab']['imap']['port'],
++            'protocol' => $GLOBALS['conf']['auth']['params']['protocol']
++        );
++    }
++
++    $servers['kolab'] = array(
++        'name'       => 'Kolab Cyrus IMAP Server',
++        'hordeauth'  => 'full',
++        'server'     => $imapParams['hostspec'],
++        'port'       => $imapParams['port'],
++        'protocol'   => $imapParams['protocol'],
++        'maildomain' => $GLOBALS['conf']['kolab']['imap']['maildomain'],
++        'realm'      => '',
++        'preferred'  => '',
++        'quota'      => array(
++            'driver' => 'imap',
++            'params' => array('hide_quota_when_unlimited' => true),
++        ),
++        'acl'        => array(
++            'driver' => 'rfc2086',
++        ),
++    );
++}
+diff --git a/horde-webmail/ingo/config/backends.php b/horde-webmail/ingo/config/backends.php
+index 8203ffb..d5e26c1 100644
+--- a/horde-webmail/ingo/config/backends.php
++++ b/horde-webmail/ingo/config/backends.php
+@@ -41,6 +41,8 @@
+  *               feature, you need to set this parameter to true.
+  */
+ 
++if (!$GLOBALS['conf']['kolab']['enabled']) {
++
+ /* IMAP Example */
+ $backends['imap'] = array(
+     'driver' => 'null',
+@@ -297,6 +299,8 @@ $backends['ldapsieve'] = array(
+     'scriptparams' => array()
+ );
+ 
++}
++
+ /* Kolab Example (using Sieve) */
+ if ($GLOBALS['conf']['kolab']['enabled']) {
+     require_once 'Horde/Kolab.php';
+diff --git a/horde-webmail/ingo/config/conf.php b/horde-webmail/ingo/config/conf.php
+index 9f959f6..ffc834a 100644
+--- a/horde-webmail/ingo/config/conf.php
++++ b/horde-webmail/ingo/config/conf.php
+@@ -2,8 +2,7 @@
+ /* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
+ // $Horde: ingo/config/conf.xml,v 1.13.12.1 2007/12/20 14:05:46 jan Exp $
+ $conf['menu']['apps'] = array();
+-$conf['storage']['params']['driverconfig'] = 'horde';
+-$conf['storage']['driver'] = 'sql';
++$conf['storage']['driver'] = 'prefs';
+ $conf['storage']['maxblacklist'] = 0;
+ $conf['storage']['maxwhitelist'] = 0;
+ $conf['rules']['userheader'] = true;
+diff --git a/horde-webmail/kronolith/config/conf.php b/horde-webmail/kronolith/config/conf.php
+index 8bdba83..97453ac 100644
+--- a/horde-webmail/kronolith/config/conf.php
++++ b/horde-webmail/kronolith/config/conf.php
+@@ -1,16 +1,19 @@
+ <?php
+ /* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
+ // $Horde: kronolith/config/conf.xml,v 1.14.10.5 2007/12/20 14:12:23 jan Exp $
+-$conf['calendar']['params']['table'] = 'kronolith_events';
+-$conf['calendar']['params']['driverconfig'] = 'horde';
+-$conf['calendar']['driver'] = 'sql';
+-$conf['storage']['params']['table'] = 'kronolith_storage';
+-$conf['storage']['params']['driverconfig'] = 'horde';
+-$conf['storage']['driver'] = 'sql';
++$conf['calendar']['driver'] = 'kolab';
++$conf['storage']['driver'] = 'kolab';
++$conf['storage']['default_domain'] = '';
++$conf['storage']['freebusy']['protocol'] = 'https';
++$conf['storage']['freebusy']['port'] = 443;
+ $conf['metadata']['keywords'] = false;
+ $conf['autoshare']['shareperms'] = 'none';
+ $conf['holidays']['enable'] = true;
+ $conf['menu']['print'] = true;
+ $conf['menu']['import_export'] = true;
+ $conf['menu']['apps'] = array();
++$conf['authenticated_freebusy'] = true;
+ /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
++if (file_exists(dirname(__FILE__) . '/kolab.php')) {
++  require_once(dirname(__FILE__) . '/kolab.php');
++}
+diff --git a/horde-webmail/kronolith/config/kolab.php b/horde-webmail/kronolith/config/kolab.php
+new file mode 100644
+index 0000000..f6b6d2a
+--- /dev/null
++++ b/horde-webmail/kronolith/config/kolab.php
+@@ -0,0 +1,13 @@
++<?php
++/* Primary mail domain of your Kolab server */
++$conf['storage']['default_domain'] = 'example.com';
++
++/* Hostname of your IMAP server (usually the same as the hostname of the Kolab server) */
++$conf['reminder']['server_name'] = 'localhost';
++
++/* The email address of your sys admin */
++$conf['reminder']['from_addr'] = 'hostmaster@example.com';
++
++if (file_exists(dirname(__FILE__) . '/kolab.local.php')) {
++  require_once(dirname(__FILE__) . '/kolab.local.php');
++}
+diff --git a/horde-webmail/lib/core.php b/horde-webmail/lib/core.php
+index 3ecd9e5..656dae3 100644
+--- a/horde-webmail/lib/core.php
++++ b/horde-webmail/lib/core.php
+@@ -31,6 +31,12 @@ if (ini_get('register_globals')) {
+  * include_path, you must add an ini_set() call here to add their location to
+  * the include_path. */
+ ini_set('include_path', dirname(__FILE__) . PATH_SEPARATOR . dirname(__FILE__) . '/../pear');
++ini_set('log_errors', true);
++ini_set('display_errors', '0');
++ini_set('error_log', dirname(__FILE__) . '/../log/php-errors.log');
++session_save_path(dirname(__FILE__) . '/../tmp/');
++ini_set('upload_tmp_dir', dirname(__FILE__) . '/../tmp/');
++putenv('TMPDIR=' . dirname(__FILE__) . '/../tmp/');
+ 
+ /* PEAR base class. */
+ include_once 'PEAR.php';
+diff --git a/horde-webmail/log/.htaccess b/horde-webmail/log/.htaccess
+new file mode 100644
+index 0000000..2c73686
+--- /dev/null
++++ b/horde-webmail/log/.htaccess
+@@ -0,0 +1 @@
++Deny from All
+\ No newline at end of file
+diff --git a/horde-webmail/mnemo/config/conf.php b/horde-webmail/mnemo/config/conf.php
+index ab8ce96..a4e9764 100644
+--- a/horde-webmail/mnemo/config/conf.php
++++ b/horde-webmail/mnemo/config/conf.php
+@@ -1,9 +1,8 @@
+ <?php
+ /* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
+ // $Horde: mnemo/config/conf.xml,v 1.17.10.1 2007/12/20 14:17:38 jan Exp $
+-$conf['storage']['params']['table'] = 'mnemo_memos';
+-$conf['storage']['params']['driverconfig'] = 'horde';
+-$conf['storage']['driver'] = 'sql';
++$conf['storage']['driver'] = 'kolab';
++$conf['utils']['gnupg'] = '/usr/bin/gpg';
+ $conf['menu']['print'] = true;
+ $conf['menu']['import_export'] = true;
+ $conf['menu']['apps'] = array();
+diff --git a/horde-webmail/nag/config/conf.php b/horde-webmail/nag/config/conf.php
+index 6f9166b..7809067 100644
+--- a/horde-webmail/nag/config/conf.php
++++ b/horde-webmail/nag/config/conf.php
+@@ -1,9 +1,7 @@
+ <?php
+ /* CONFIG START. DO NOT CHANGE ANYTHING IN OR AFTER THIS LINE. */
+ // $Horde: nag/config/conf.xml,v 1.25.10.2 2007/12/20 14:23:06 jan Exp $
+-$conf['storage']['params']['table'] = 'nag_tasks';
+-$conf['storage']['params']['driverconfig'] = 'horde';
+-$conf['storage']['driver'] = 'sql';
++$conf['storage']['driver'] = 'kolab';
+ $conf['menu']['print'] = true;
+ $conf['menu']['import_export'] = true;
+ $conf['menu']['apps'] = array();
+diff --git a/horde-webmail/storage/.htaccess b/horde-webmail/storage/.htaccess
+new file mode 100644
+index 0000000..2c73686
+--- /dev/null
++++ b/horde-webmail/storage/.htaccess
+@@ -0,0 +1 @@
++Deny from All
+\ No newline at end of file
+diff --git a/horde-webmail/tmp/.htaccess b/horde-webmail/tmp/.htaccess
+new file mode 100644
+index 0000000..2c73686
+--- /dev/null
++++ b/horde-webmail/tmp/.htaccess
+@@ -0,0 +1 @@
++Deny from All
+\ No newline at end of file
+diff --git a/horde-webmail/turba/config/conf.php b/horde-webmail/turba/config/conf.php
+index 92bdd03..b83f681 100644
+--- a/horde-webmail/turba/config/conf.php
++++ b/horde-webmail/turba/config/conf.php
+@@ -3,8 +3,8 @@
+ // $Horde: turba/config/conf.xml,v 1.6.2.6 2008/06/25 15:52:54 jan Exp $
+ $conf['menu']['import_export'] = true;
+ $conf['menu']['apps'] = array();
+-$conf['client']['addressbook'] = 'localsql';
+-$conf['shares']['source'] = 'localsql';
++$conf['client']['addressbook'] = 'INBOX%2FClients';
++$conf['shares']['source'] = 'kolab';
+ $conf['comments']['allow'] = true;
+ $conf['documents']['type'] = 'horde';
+ /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
+diff --git a/horde-webmail/turba/config/sources.php b/horde-webmail/turba/config/sources.php
+index b6e453f..083defe 100644
+--- a/horde-webmail/turba/config/sources.php
++++ b/horde-webmail/turba/config/sources.php
+@@ -154,6 +154,8 @@
+  * Here are some example configurations:
+  */
+ 
++if (empty($GLOBALS['conf']['kolab']['enabled'])) {
++
+ /**
+  * A local address book in an SQL database. This implements a private
+  * per-user address book. Sharing of this source with other users may be
+@@ -271,6 +273,252 @@ $cfgSources['localsql'] = array(
+     'alternative_name' => 'company',
+ );
+ 
++}
++
++/* Begin Kolab sources. */
++if (!empty($GLOBALS['conf']['kolab']['enabled'])) {
++
++    /* Only use LDAP if we have that extension in PHP */
++    if (function_exists('ldap_connect')) {
++        require_once 'Horde/Kolab.php';
++
++        if (!is_callable('Kolab', 'getServer')) {
++            $_kolab_server = $GLOBALS['conf']['kolab']['ldap']['server'];
++        } else {
++            $_kolab_server = Kolab::getServer('ldap');
++        }
++
++        /* A global address book for a Kolab Server. This is typically a
++         * read-only public directory, stored in the default Kolab LDAP server.
++         * The user accessing this should have read permissions to the shared
++         * directory in LDAP. */
++        $cfgSources['kolab_global'] = array(
++            'title' => _("Global Address Book"),
++            'type' => 'ldap',
++            'params' => array(
++                'server' => $_kolab_server,
++                'port' => $GLOBALS['conf']['kolab']['ldap']['port'],
++                'tls' => false,
++                'root' => $GLOBALS['conf']['kolab']['ldap']['basedn'],
++                'sizelimit' => 200,
++                'dn' => array('cn'),
++                'objectclass' => array(
++                    'inetOrgPerson'
++                ),
++                'scope' => 'sub',
++                'charset' => 'utf-8',
++                'version' => 3,
++                'bind_dn' => '',
++                'bind_password' => '',
++            ),
++            'map' => array(
++                '__key'             => 'dn',
++                'name'              => 'cn',
++                'firstname'         => 'givenName',
++                'lastname'          => 'sn',
++                'email'             => 'mail',
++                'alias'             => 'alias',
++                'title'             => 'title',
++                'company'           => 'o',
++                'workStreet'        => 'street',
++                'workCity'          => 'l',
++                'workProvince'      => 'st',
++                'workPostalCode'    => 'postalCode',
++                'workCountry'       => 'c',
++                'homePhone'         => 'homePhone',
++                'workPhone'         => 'telephoneNumber',
++                'cellPhone'         => 'mobile',
++                'fax'               => 'fax',
++                'notes'             => 'description',
++                'kolabHomeServer'   => 'kolabHomeServer',
++                'freebusyUrl'       => array('fields' => array('kolabHomeServer', 'email'),
++                                             'format' => 'https://%s/freebusy/%s.xfb'),
++            ),
++            'search' => array(
++                'name',
++                'firstname',
++                'lastname',
++                'email',
++                'title',
++                'company',
++                'workAddress',
++                'workCity',
++                'workProvince',
++                'workPostalCode',
++                'workCountry',
++                'homePhone',
++                'workPhone',
++                'cellPhone',
++                'fax',
++                'notes',
++            ),
++            'strict' => array(
++                'dn',
++            ),
++            'export' => true,
++            'browse' => true,
++        );
++    }
++
++    /**
++     * The local address books for a Kolab user. These are stored in specially
++     * flagged contact folder within the users Cyrus IMAP mailbox.
++     *
++     * Still missing attributes are:
++     *
++     *   picture, sensitivity
++     */
++
++    $cfgSources['kolab'] = array(
++        'title' => _("Contacts"),
++        'type' => 'kolab',
++        'params' => array(
++            'charset' => 'utf-8',
++        ),
++        'list_name_field' => 'lastname',
++        'map' => array(
++            '__key' => 'uid',
++            '__uid' => 'uid',
++            '__type' => '__type',
++            '__members' => '__members',
++            /* Personal */
++            'name' => array('fields' => array('firstname', 'middlenames', 'lastname'),
++                            'format' => '%s %s %s',
++                            'parse' => array(
++                                array('fields' => array('firstname', 'middlenames',
++                                                        'lastname'),
++                                      'format' => '%s %s %s'),
++                                array('fields' => array( 'lastname', 'firstname'),
++                                      'format' => '%s, %s'),
++                                array('fields' => array('firstname', 'lastname'),
++                                      'format' => '%s %s'),
++                            )),
++            'firstname'         => 'given-name',
++            'lastname'          => 'last-name',
++            'middlenames'       => 'middle-names',
++            'namePrefix'        => 'prefix',
++            'nameSuffix'        => 'suffix',
++            'initials'          => 'initials',
++            'nickname'          => 'nick-name',
++            'photo'             => 'photo',
++            'phototype'         => 'phototype',
++            'gender'            => 'gender',
++            'birthday'          => 'birthday',
++            'spouse'            => 'spouse-name',
++            'anniversary'       => 'anniversary',
++            'children'          => 'children',
++            /* Location */
++            'workStreet'        => 'addr-business-street',
++            'workCity'          => 'addr-business-locality',
++            'workProvince'      => 'addr-business-region',
++            'workPostalCode'    => 'addr-business-postal-code',
++            'workCountry'       => 'addr-business-country',
++            'homeStreet'        => 'addr-home-street',
++            'homeCity'          => 'addr-home-locality',
++            'homeProvince'      => 'addr-home-region',
++            'homePostalCode'    => 'addr-home-postal-code',
++            'homeCountry'       => 'addr-home-country',
++            /* Communications */
++            'emails'            => 'emails',
++            'homePhone'         => 'phone-home1',
++            'workPhone'         => 'phone-business1',
++            'cellPhone'         => 'phone-mobile',
++            'fax'               => 'phone-businessfax',
++            'instantMessenger'  => 'im-address',
++            /* Organization */
++            'title'             => 'job-title',
++            'role'              => 'profession',
++            'company'           => 'organization',
++            'department'        => 'department',
++            'office'            => 'office-location',
++            'manager'           => 'manager-name',
++            'assistant'         => 'assistant',
++            /* Other */
++            'category'          => 'categories',
++            'notes'             => 'body',
++            'website'           => 'web-page',
++            'freebusyUrl'       => 'free-busy-url',
++            'language'          => 'language',
++            'latitude'          => 'latitude',
++            'longitude'         => 'longitude',
++            /* Invisible */
++            'email'             => 'email',
++            'pgpPublicKey'      => 'pgp-publickey',
++        ),
++        'tabs' => array(
++            _("Personal") => array('name', 'firstname', 'lastname', 'middlenames',
++                                   'namePrefix', 'nameSuffix', 'initials', 'nickname',
++                                   'photo', 'gender', 'birthday', 'spouse', 'anniversary',
++                                   'children'),
++            _("Location") => array('homeStreet', 'homeCity', 'homeProvince',
++                                   'homePostalCode', 'homeCountry', 'workStreet',
++                                   'workCity', 'workProvince', 'workPostalCode',
++                                   'workCountry'),
++            _("Communications") => array('emails', 'homePhone', 'workPhone',
++                                         'cellPhone', 'fax', 'instantMessenger'),
++            _("Organization") => array('title', 'role', 'company', 'department',
++                                       'office', 'manager', 'assistant'),
++            _("Other") => array('category', 'notes', 'website', 'freebusyUrl',
++                                'language', 'latitude', 'longitude'),
++        ),
++        'search' => array(
++            /* Personal */
++            'name',
++            'firstname',
++            'lastname',
++            'middlenames',
++            'namePrefix',
++            'nameSuffix',
++            'initials',
++            'nickname',
++            'gender',
++            'birthday',
++            'spouse',
++            'anniversary',
++            'children',
++            /* Location */
++            'workStreet',
++            'workCity',
++            'workProvince',
++            'workPostalCode',
++            'workCountry',
++            'homeStreet',
++            'homeCity',
++            'homeProvince',
++            'homePostalCode',
++            'homeCountry',
++            /* Communications */
++            'emails',
++            'homePhone',
++            'workPhone',
++            'cellPhone',
++            'fax',
++            'instantMessenger',
++            /* Organization */
++            'title',
++            'role',
++            'company',
++            'department',
++            'office',
++            'manager',
++            'assistant',
++            /* Other */
++            'category',
++            'notes',
++            'website',
++            'language',
++        ),
++        'strict' => array(
++            'uid',
++        ),
++        'export' => true,
++        'browse' => true,
++        'use_shares' => true,
++        'shares_only' => true,
++    );
++}
++/* End Kolab sources. */
++
+ /**
+  * An address book based on message recipients. This will always be private and
+  * read-only. The address book content is provided by the
+-- 
+tg: (6938161..) t/GLOBAL/HK/GW/Config (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 5c96f93758b697b2d3ceaa4840e2543cc208b111
+Author: root <root@domU-12-31-38-01-B8-13.compute-1.amazonaws.com>
+Date:   Fri Feb 20 10:26:45 2009 +0000
+
+    Add missing newline.
+
+commit 2d9e3780b7f9ae8ba3ac0542df935826c5eb175a
+Author: root <root@ec2-174-129-182-10.compute-1.amazonaws.com>
+Date:   Fri Feb 20 04:47:54 2009 +0000
+
+    Do not display the dimp link in the menu.
+
+commit f56e948d54056bf0ce67c22c242d824558dd3ca5
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Feb 9 08:43:19 2009 +0000
+
+    Switch to authentication via imp to allow direct selection of DIMP.
+
+commit 50dd615257e47a4592f985c2bc744d055a7fbd3f
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Feb 9 08:42:58 2009 +0000
+
+    Switch to authentication via imp to allow direct selection of DIMP.
+
+commit 85d406d86c124d48ba5f58b014a59042984547bb
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 8 21:08:46 2009 +0000
+
+    Allow local kolab.php configuration files.
+
+commit 6f3d56d64443a9d456b03ba364506c61dc609b1c
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Feb 2 00:03:06 2009 +0000
+
+    Use only cookies for session management.
+
+commit 58c0d2b40ea52c6c7a143efeaaaf87619d105b12
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 22:17:11 2009 +0000
+
+    Added patch release/HK-GW-Config.patch  from the mercurial release queue.

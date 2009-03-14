@@ -1,0 +1,390 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/COPYRIGHT2
+
+Syncs the Kolab_Server module in the kolab-webclient with horde-fw3.
+
+STATUS: MERGED
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/IMAP.php             |    4 +-
+ horde-webmail/lib/Horde/Kolab/IMAP/cclient.php     |    4 +-
+ horde-webmail/lib/Horde/Kolab/IMAP/pear.php        |    4 +-
+ horde-webmail/lib/Horde/Kolab/IMAP/test.php        |    4 +-
+ horde-webmail/lib/Horde/Kolab/Server.php           |    4 +-
+ horde-webmail/lib/Horde/Kolab/Server/Object.php    |    4 +-
+ .../lib/Horde/Kolab/Server/Object/address.php      |    4 +-
+ .../Horde/Kolab/Server/Object/administrator.php    |    4 +-
+ .../lib/Horde/Kolab/Server/Object/adminrole.php    |    4 +-
+ .../lib/Horde/Kolab/Server/Object/distlist.php     |    4 +-
+ .../Horde/Kolab/Server/Object/domainmaintainer.php |    4 +-
+ .../lib/Horde/Kolab/Server/Object/group.php        |    4 +-
+ .../lib/Horde/Kolab/Server/Object/maintainer.php   |    4 +-
+ .../lib/Horde/Kolab/Server/Object/server.php       |    4 +-
+ .../lib/Horde/Kolab/Server/Object/sharedfolder.php |    4 +-
+ .../lib/Horde/Kolab/Server/Object/user.php         |    4 +-
+ horde-webmail/lib/Horde/Kolab/Server/ldap.php      |    4 +-
+ horde-webmail/lib/Horde/Kolab/Server/test.php      |    4 +-
+ horde-webmail/lib/Horde/Kolab/Session.php          |   23 +++++++++++++------
+ 19 files changed, 52 insertions(+), 43 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP.php b/horde-webmail/lib/Horde/Kolab/IMAP.php
+index 20a31b2..a7cf592 100644
+--- a/horde-webmail/lib/Horde/Kolab/IMAP.php
++++ b/horde-webmail/lib/Horde/Kolab/IMAP.php
+@@ -9,9 +9,9 @@
+  * The Horde_Kolab_IMAP class provides a wrapper around two different Kolab IMAP
+  * connection types.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP.php,v 1.2 2008/08/18 13:32:56 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/IMAP.php,v 1.1.2.2 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP/cclient.php b/horde-webmail/lib/Horde/Kolab/IMAP/cclient.php
+index 78aa997..e31cd08 100644
+--- a/horde-webmail/lib/Horde/Kolab/IMAP/cclient.php
++++ b/horde-webmail/lib/Horde/Kolab/IMAP/cclient.php
+@@ -9,9 +9,9 @@
+  * The Horde_Kolab_IMAP_Connection_cclient class connects to an IMAP server using
+  * the IMAP functionality within PHP.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/cclient.php,v 1.3 2008/10/06 17:22:42 slusarz Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/IMAP/cclient.php,v 1.1.2.2 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP/pear.php b/horde-webmail/lib/Horde/Kolab/IMAP/pear.php
+index d9c2c86..8afff30 100644
+--- a/horde-webmail/lib/Horde/Kolab/IMAP/pear.php
++++ b/horde-webmail/lib/Horde/Kolab/IMAP/pear.php
+@@ -17,9 +17,9 @@ require_once 'Net/IMAP.php';
+  * The Horde_Kolab_IMAP_Connection_pear class connects to an IMAP server using the
+  * Net_IMAP PEAR package.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/pear.php,v 1.2 2008/08/18 13:32:56 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/IMAP/pear.php,v 1.1.2.2 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP/test.php b/horde-webmail/lib/Horde/Kolab/IMAP/test.php
+index b6f1e49..5a804af 100644
+--- a/horde-webmail/lib/Horde/Kolab/IMAP/test.php
++++ b/horde-webmail/lib/Horde/Kolab/IMAP/test.php
+@@ -14,9 +14,9 @@ define('KOLAB_IMAP_FLAG_DELETED', 1);
+  * The Horde_Kolab_IMAP_Connection_test class simulates an IMAP server for
+  * testing purposes.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/IMAP/test.php,v 1.2 2008/08/18 13:32:56 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/IMAP/test.php,v 1.1.2.3 2009/02/23 23:02:30 wrobel Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server.php b/horde-webmail/lib/Horde/Kolab/Server.php
+index fea438a..bf251f5 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server.php
++++ b/horde-webmail/lib/Horde/Kolab/Server.php
+@@ -28,9 +28,9 @@ define('KOLAB_SERVER_RESULT_MANY',   3);
+  * This class provides methods to deal with Kolab objects stored in
+  * the Kolab object db.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server.php,v 1.2.2.3 2008/09/22 12:22:33 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server.php,v 1.2.2.8 2009/01/08 09:33:35 wrobel Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object.php b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+index e3b38e0..2e5ada2 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+@@ -71,9 +71,9 @@ define('KOLAB_UT_RESOURCE',           3);
+  * This class provides methods to deal with Kolab objects stored in
+  * the Kolab db.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object.php,v 1.2.2.3 2008/09/22 16:20:59 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object.php,v 1.2.2.8 2009/01/08 21:07:32 wrobel Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/address.php b/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
+index 8f3aac2..98ed518 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
+@@ -17,9 +17,9 @@
+  * This class provides methods to deal with global address book
+  * entries for Kolab.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/address.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/address.php,v 1.2.2.5 2009/01/08 21:07:32 wrobel Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/administrator.php b/horde-webmail/lib/Horde/Kolab/Server/Object/administrator.php
+index f03ac86..2566c51 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/administrator.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/administrator.php
+@@ -19,9 +19,9 @@ require_once 'Horde/Kolab/Server/Object/adminrole.php';
+  * This class provides methods to deal with administrator
+  * entries for Kolab.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/administrator.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/administrator.php,v 1.2.2.4 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php b/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
+index ac1ae87..aea4410 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
+@@ -16,9 +16,9 @@
+ /**
+  * This class provides methods to deal with administrator object types.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/maintainer.php,v 1.3 2008/08/01 07:49:26 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/adminrole.php,v 1.1.2.3 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php b/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php
+index 945c047..7965e0d 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php
+@@ -18,9 +18,9 @@ require_once 'Horde/Kolab/Server/Object/group.php';
+ /**
+  * This class provides methods to deal with distribution lists for Kolab.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/group.php,v 1.3 2008/08/01 07:49:26 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/distlist.php,v 1.1.2.2 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php b/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php
+index 7fdfd53..a76070c 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php
+@@ -18,9 +18,9 @@ require_once 'Horde/Kolab/Server/Object/adminrole.php';
+ /**
+  * This class provides methods associated to Kolab domain maintainers.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/domainmaintainer.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/domainmaintainer.php,v 1.2.2.5 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/group.php b/horde-webmail/lib/Horde/Kolab/Server/Object/group.php
+index 1b4163c..91c1bd2 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/group.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/group.php
+@@ -16,9 +16,9 @@
+ /**
+  * This class provides methods to deal with groups for Kolab.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/group.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/group.php,v 1.2.2.4 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/maintainer.php b/horde-webmail/lib/Horde/Kolab/Server/Object/maintainer.php
+index 485ae2d..d93a64e 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/maintainer.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/maintainer.php
+@@ -19,9 +19,9 @@ require_once 'Horde/Kolab/Server/Object/adminrole.php';
+  * This class provides methods to deal with maintainer
+  * entries for Kolab.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/maintainer.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/maintainer.php,v 1.2.2.4 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/server.php b/horde-webmail/lib/Horde/Kolab/Server/Object/server.php
+index 5db7261..965eb84 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/server.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/server.php
+@@ -16,9 +16,9 @@
+ /**
+  * This class provides methods to deal with Kolab server configuration.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/server.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/server.php,v 1.2.2.4 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php b/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php
+index c909c05..3b68862 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php
+@@ -17,9 +17,9 @@
+  * This class provides methods to deal with shared folders
+  * entries for Kolab.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/sharedfolder.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/sharedfolder.php,v 1.2.2.4 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+index 99b5975..d4e57a0 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+@@ -17,9 +17,9 @@
+  * This class provides methods to deal with Kolab users stored in
+  * the Kolab db.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/user.php,v 1.2.2.3 2008/09/12 16:52:07 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/user.php,v 1.2.2.10 2009/01/08 21:07:32 wrobel Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/ldap.php b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+index 87d6b1b..a50ba2c 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/ldap.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+@@ -20,9 +20,9 @@ require_once 'Horde/LDAP.php';
+  * This class provides methods to deal with Kolab objects stored in
+  * the standard Kolab LDAP db.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/ldap.php,v 1.2.2.2 2008/08/01 07:56:19 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/ldap.php,v 1.2.2.10 2009/02/24 07:39:47 wrobel Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/test.php b/horde-webmail/lib/Horde/Kolab/Server/test.php
+index 2b07122..47f985a 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/test.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/test.php
+@@ -19,9 +19,9 @@ require_once 'Horde/Kolab/Server/ldap.php';
+ /**
+  * This class provides a class for testing the Kolab Server DB.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/test.php,v 1.2.2.2 2008/08/01 07:56:19 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/test.php,v 1.2.2.7 2009/01/06 15:23:15 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Session.php b/horde-webmail/lib/Horde/Kolab/Session.php
+index bcbda7e..135bcb5 100644
+--- a/horde-webmail/lib/Horde/Kolab/Session.php
++++ b/horde-webmail/lib/Horde/Kolab/Session.php
+@@ -1,8 +1,17 @@
+ <?php
+ /**
+- * @package Kolab_Server
++ * The Horde_Kolab_Session class holds additional user details for the current
++ * session.
++ *
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Session.php,v 1.1.2.11 2009/02/07 14:09:56 wrobel Exp $
++ *
++ * PHP version 4
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Session.php,v 1.4 2008/09/22 16:15:51 wrobel Exp $
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /** We need the Auth library */
+@@ -18,9 +27,9 @@ require_once 'Horde/Auth.php';
+  * relevant for the user session should be accessed via the Horde_Kolab_Session
+  * class.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Session.php,v 1.4 2008/09/22 16:15:51 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Session.php,v 1.1.2.11 2009/02/07 14:09:56 wrobel Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+@@ -287,14 +296,14 @@ class Horde_Kolab_Session {
+     {
+         if (!isset($this->_imap)) {
+ 
+-            /** We need the Kolab IMAP library now. */
+-            require_once 'Horde/Kolab/IMAP.php';
+-
+             $params = $this->getImapParams();
+             if (is_a($params, 'PEAR_Error')) {
+                 return $params;
+             }
+ 
++            /** We need the Kolab IMAP library now. */
++            require_once 'Horde/Kolab/IMAP.php';
++
+             $imap = &Horde_Kolab_IMAP::singleton($params['hostspec'],
+                                                  $params['port'], true, false);
+             if (is_a($imap, 'PEAR_Error')) {
+-- 
+tg: (7a64fc0..) t/COPYRIGHT2 (depends on: t/Kolab_Server/HK/GW/FixNotics)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 31b74193f0fce276c94a91cdc9a2c34e7f450cce
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 22:36:28 2009 +0000
+
+    Remove stray files.
+
+commit 9e9b402b7dd46a893a57fe12b46834fdf46cdd74
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 05:14:36 2009 +0000
+
+    Sync the kolab-webclient Kolab_Server module with fw3.

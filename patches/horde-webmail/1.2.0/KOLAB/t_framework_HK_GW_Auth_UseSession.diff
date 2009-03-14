@@ -1,0 +1,202 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Auth/UseSession
+
+Switches Kolab authentication to use the Kolab_Session handler.
+This effectively switches from IMAP based authentication to LDAP 
+based authentication.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Auth/kolab.php |  130 +++++++-------------------------
+ 1 files changed, 28 insertions(+), 102 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Auth/kolab.php b/horde-webmail/lib/Horde/Auth/kolab.php
+index fda2d9b..55dcb6e 100644
+--- a/horde-webmail/lib/Horde/Auth/kolab.php
++++ b/horde-webmail/lib/Horde/Auth/kolab.php
+@@ -21,18 +21,6 @@ require_once 'Horde/Auth/imap.php';
+ class Auth_kolab extends Auth_imap {
+ 
+     /**
+-     * Constructs a new Kolab authentication object.
+-     *
+-     * @param array $params  A hash containing connection parameters.
+-     */
+-    function Auth_kolab($params = array())
+-    {
+-        $params['protocol'] = 'imap/notls/novalidate-cert';
+-
+-        parent::Auth_imap($params);
+-    }
+-
+-    /**
+      * Find out if a set of login credentials are valid.
+      *
+      * @access private
+@@ -47,17 +35,26 @@ class Auth_kolab extends Auth_imap {
+     {
+         global $conf;
+ 
+-        /**
+-         * Determine the IMAP server for the user and update the
+-         * connection parameters */
+-        $result = $this->_getImapServer($userId);
+-        if (is_a($result, 'PEAR_Error')) {
+-            $this->_setAuthError(AUTH_REASON_MESSAGE, $result->getMessage());
+-            return false;
++        $params = array();
++
++        @include_once 'Horde/Kolab/Session.php';
++
++        if (class_exists('Horde_Kolab_Session')) {
++            $session = &Horde_Kolab_Session::singleton($userId);
++            $userId = $session->user_mail;
++            $params = $session->getImapParams();
++            if (is_a($params, 'PEAR_Error')) {
++                $this->_setAuthError(AUTH_REASON_MESSAGE, $params->getMessage());
++                return false;
++            }
+         } else {
+-            $this->_setParams($result);
++            $this->_setAuthError(AUTH_REASON_MESSAGE,
++                                 'The class Horde_Kolab_Session is required for the Kolab auth driver but it is missing!');
++            return false;
+         }
+ 
++        $this->_setParams($params);
++
+         $login_ok = parent::_authenticate($userId, $credentials);
+ 
+         if ($conf['auth']['params']['login_block'] != 1) {
+@@ -108,11 +105,13 @@ class Auth_kolab extends Auth_imap {
+                 $new_history_list[] = $entry;
+ 
+                 // Write back history.
+-                $history->log($history_identifier, array('action' => 'add', 'who' => $userId,
+-                                                         'history_list' => $new_history_list), true);
++                $history->log($history_identifier,
++                              array('action' => 'add', 'who' => $userId,
++                                    'history_list' => $new_history_list), true);
+ 
+                 if ($count > $max_count) {
+-                    $this->_setAuthError(AUTH_REASON_MESSAGE, _("Too many invalid logins during the last minutes."));
++                    $this->_setAuthError(AUTH_REASON_MESSAGE,
++                                         _("Too many invalid logins during the last minutes."));
+                 } else {
+                     $this->_setAuthError(AUTH_REASON_BADLOGIN);
+                 }
+@@ -125,73 +124,11 @@ class Auth_kolab extends Auth_imap {
+     }
+ 
+     /**
+-     * Identify the IMAP server we should authenticate against.
+-     *
+-     * @access private
+-     *
+-     * @param string $userId      The userId to check.
+-     * @param array $credentials  An array of login credentials. For Kolab,
+-     *                            this must contain a password entry.
+-     *
+-     * @return boolean  Whether or not the credentials are valid.
+-     */
+-    function _getImapServer($userId)
+-    {
+-        $params = array();
+-
+-        @include_once 'Horde/Kolab/Server.php';
+-
+-        if (class_exists('Horde_Kolab_Server')) {
+-            $db = Horde_Kolab_Server::singleton();
+-            if (is_a($db, 'PEAR_Error')) {
+-                return $db;
+-            }
+-            $dn = $db->dnForUidOrMail($userId);
+-            if (is_a($dn, 'PEAR_Error')) {
+-                return $dn;
+-            }
+-            $user = $db->fetch($dn);
+-            if (is_a($user, 'PEAR_Error')) {
+-                return $user;
+-            }
+-
+-            global $conf;
+-
+-            if (empty($conf['kolab']['misc']['allow_special'])
+-                && !is_a($user, 'Horde_Kolab_Server_Object_user')) {
+-                return PEAR::raiseError(_('User is not a standard Kolab user.'));
+-            }
+-            $result = $user->getServer('imap');
+-            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
+-                $server = explode(':', $result, 2);
+-                if (!empty($server[0])) {
+-                    $params['hostspec'] = $server[0];
+-                }
+-                if (!empty($server[1])) {
+-                    $params['port'] = $server[1];
+-                }
+-            }
+-        }
+-
+-        if (empty($params['hostspec'])
+-            && isset($conf['kolab']['imap']['server'])) {
+-            $params['hostspec'] = $conf['kolab']['imap']['server'];
+-        }
+-
+-        if (!isset($params['port'])
+-            && isset($conf['kolab']['imap']['port'])) {
+-            $params['port'] = $conf['kolab']['imap']['port'];
+-        }
+-
+-        return $params;
+-    }
+-    
+-    /**
+      * Sets a variable in the session saying that authorization has succeeded,
+      * note which userId was authorized, and note when the login took place.
+      *
+      * The kolab driver rewrites UIDs into the correct mail addresses that
+-     * need to be used to log into the system.
++     * need to be used to log into the IMAP server.
+      *
+      * @param string $userId            The userId who has been authorized.
+      * @param array $credentials        The credentials of the user.
+@@ -201,22 +138,11 @@ class Auth_kolab extends Auth_imap {
+      */
+     function setAuth($userId, $credentials, $realm = null, $changeRequested = false)
+     {
+-        @include_once 'Horde/Kolab/Server.php';
+-
+-        if (class_exists('Horde_Kolab_Server')) {
+-            $db = Horde_Kolab_Server::singleton();
+-            if (!is_a($db, 'PEAR_Error')) {
+-                $userMail = $db->mailForUidOrMail($userId);
+-                if (is_a($userMail, 'PEAR_Error')) {
+-                    Horde::logMessage(sprintf("Error while fetching the Kolab ID: %s",
+-                                              $userMail->getMessage()),
+-                                      __FILE__, __LINE__, PEAR_LOG_ERR);
+-                } else {
+-                    if (!empty($userMail)) {
+-                        $userId = $userMail;
+-                    }
+-                }
+-            }
++        @include_once 'Horde/Kolab/Session.php';
++
++        if (class_exists('Horde_Kolab_Session')) {
++            $session = &Horde_Kolab_Session::singleton($userId);
++            $userId = $session->user_mail;
+         }
+ 
+         return parent::setAuth($userId, $credentials, $realm, $changeRequested);
+-- 
+tg: (ef1f7b1..) t/framework/HK/GW/Auth/UseSession (depends on: t/framework/HK/GW/Kolab_Server/Session)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 6b1cf18d426950b48f589787255085f2deed89a2
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 20:30:29 2009 +0000
+
+    Added patch release/HK-GW-Auth-SessionMove.patch from the mercurial release queue.

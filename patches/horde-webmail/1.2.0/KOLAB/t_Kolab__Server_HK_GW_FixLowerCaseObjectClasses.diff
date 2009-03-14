@@ -1,0 +1,59 @@
+From: root <root@domU-12-31-38-01-B8-13.compute-1.amazonaws.com>
+Subject: [PATCH] t/Kolab_Server/HK/GW/FixLowerCaseObjectClasses
+
+Fixed objectClass evaluation to respect case-insensitivity (Bug: #7694)
+
+http://bugs.horde.org/ticket/7694
+
+STATUS: MERGED
+
+http://cvs.horde.org/diff.php/framework/Kolab_Server/lib/Horde/Kolab/Server/ldap.php?sa=1&r1=1.2.2.5&r2=1.2.2.6
+
+Signed-off-by: root <wrobel@pardus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server/ldap.php |    9 +++++----
+ 1 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/ldap.php b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+index 5ff4786..055174c 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/ldap.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+@@ -570,13 +570,13 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         }
+ 
+         // Not a user type?
+-        if (!in_array('kolabInetOrgPerson', $oc)) {
++        if (!in_array('kolabinetorgperson', $oc)) {
+             // Is it a group?
+-            if (in_array('kolabGroupOfNames', $oc)) {
++            if (in_array('kolabgroupofnames', $oc)) {
+                 return KOLAB_OBJECT_GROUP;
+             }
+             // Is it a shared Folder?
+-            if (in_array('kolabSharedFolder', $oc)) {
++            if (in_array('kolabsharedfolder', $oc)) {
+                 return KOLAB_OBJECT_SHAREDFOLDER;
+             }
+             return PEAR::raiseError(sprintf(_("Unkown Kolab object type for DN %s."),
+@@ -626,7 +626,8 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         }
+         unset($object['count']);
+         unset($object['objectClass']['count']);
+-        return $object['objectClass'];
++        $result = array_map('strtolower', $object['objectClass']);
++        return $result;
+     }
+ 
+     /**
+-- 
+tg: (a3542e3..) t/Kolab_Server/HK/GW/FixLowerCaseObjectClasses (depends on: t/COPYRIGHT)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit d3af838ddf2055eddb27316024ffe98f6e6c8e1f
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 04:59:05 2009 +0000
+
+    Merged fix for http://bugs.horde.org/ticket/7694 into the kolab-webclient.

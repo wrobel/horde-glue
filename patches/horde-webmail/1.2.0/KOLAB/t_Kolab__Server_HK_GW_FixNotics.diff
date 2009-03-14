@@ -1,0 +1,52 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Server/HK/GW/FixNotics
+
+Merged upstream patch to fix Kolab_Server notices into the kolab-webclient.
+
+STATUS: MERGED
+
+http://cvs.horde.org/diff.php/framework/Kolab_Server/lib/Horde/Kolab/Server/diff.php?sa=1&f=framework%2FKolab_Server%2Flib%2FHorde%2FKolab%2FServer%2Fldap.php&r1=1.2.2.9&r2=1.2.2.10&t=unified
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server/ldap.php |    8 ++++++--
+ 1 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/ldap.php b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+index 055174c..87d6b1b 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/ldap.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+@@ -519,7 +519,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+ 
+             $result = array();
+             foreach ($attrs as $attr) {
+-                if ($entry[$attr]['count'] > 0) {
++                if (isset($entry[$attr]) && $entry[$attr]['count'] > 0) {
+                     unset($entry[$attr]['count']);
+                     $result[$attr] = $entry[$attr];
+                 }
+@@ -728,7 +728,11 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+-        $addrs = array_merge((array) $result['mail'], (array) $result['alias']);
++        if (isset($result['alias'])) {
++            $addrs = array_merge((array) $result['mail'], (array) $result['alias']);
++        } else {
++            $addrs = $result['mail'];
++        }
+         $mail  = $result['mail'][0];
+ 
+         $filter = '(&(objectClass=kolabInetOrgPerson)(kolabDelegate='
+-- 
+tg: (d3af838..) t/Kolab_Server/HK/GW/FixNotics (depends on: t/Kolab_Server/HK/GW/FixLowerCaseObjectClasses)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 7a64fc01eb5d94557ac5fa8e44ea135094b1e8b6
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 05:02:38 2009 +0000
+
+    Merged missing upstream patch into Kolab-Filter.

@@ -1,0 +1,38 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Storage/ShareIdFix
+
+Fix deriving share id for default folders.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 1da391b..6596559 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -265,8 +265,9 @@ class Kolab_Folder {
+      */
+     function getShareId()
+     {
+-        if ($this->isDefault()) {
+-            return Auth::getAuth();
++        $current_user = Auth::getAuth();
++        if ($this->isDefault() && $this->getOwner() == $current_user) {
++            return $current_user;
+         }
+         return rawurlencode($this->name);
+     }
+-- 
+tg: (1f4cc03..) t/framework/HK/GW/Kolab_Storage/ShareIdFix (depends on: t/framework/HK/GW/DB/SqliteErrorChecking)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 7b70f82b05f55cd3e8e450ade6848c33e6c6fc9c
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:54:22 2009 +0000
+
+    Added patch framework/HK-GW-Kolab_Storage-Shared_default_folders.patch from the mercurial release queue.

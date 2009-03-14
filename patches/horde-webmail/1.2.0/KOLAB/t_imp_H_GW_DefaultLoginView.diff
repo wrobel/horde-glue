@@ -1,0 +1,77 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/imp/H/GW/DefaultLoginView
+
+Allow to configure the default imp view shown to the user.
+
+STATUS: SUBMIT
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/imp/config/conf.php |    1 +
+ horde-webmail/imp/config/conf.xml |    8 ++++++++
+ horde-webmail/imp/login.php       |    3 ++-
+ 3 files changed, 11 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/imp/config/conf.php b/horde-webmail/imp/config/conf.php
+index 3a0f1d6..6cea64b 100644
+--- a/horde-webmail/imp/config/conf.php
++++ b/horde-webmail/imp/config/conf.php
+@@ -13,6 +13,7 @@ $conf['user']['allow_resume_all'] = false;
+ $conf['user']['allow_view_source'] = true;
+ $conf['user']['alternate_login'] = false;
+ $conf['user']['redirect_on_logout'] = false;
++$conf['user']['default_view'] = 'dimp';
+ $conf['user']['select_view'] = true;
+ $conf['server']['change_server'] = false;
+ $conf['server']['change_port'] = false;
+diff --git a/horde-webmail/imp/config/conf.xml b/horde-webmail/imp/config/conf.xml
+index 517556e..92171b7 100644
+--- a/horde-webmail/imp/config/conf.xml
++++ b/horde-webmail/imp/config/conf.xml
+@@ -103,6 +103,14 @@
+      </configenum>
+     </case>
+    </configswitch>
++   <configenum name="default_view" desc="Which application view should be the
++   suggested default on the login page?">imp
++    <values>
++     <value desc="IMP">imp</value>
++     <value desc="DIMP">dimp</value>
++     <value desc="MIMP">mimp</value>
++    </values>
++   </configenum>
+   </configsection>
+  </configtab>
+ 
+diff --git a/horde-webmail/imp/login.php b/horde-webmail/imp/login.php
+index e6cd3c9..4644e93 100644
+--- a/horde-webmail/imp/login.php
++++ b/horde-webmail/imp/login.php
+@@ -257,7 +257,8 @@ if (!empty($conf['user']['select_view'])) {
+     $apps = $registry->listApps(null, true);
+     $view_cookie = isset($_COOKIE['default_imp_view'])
+         ? $_COOKIE['default_imp_view']
+-        : ($browser->isMobile() && isset($apps['mimp']) ? 'mimp' : 'imp');
++        : ($browser->isMobile() && isset($apps['mimp']) ? 'mimp' 
++           : isset($conf['user']['default_view']) ? $conf['user']['default_view'] : 'imp');
+     if (isset($apps['dimp']) || isset($apps['mimp'])) {
+         $views[] = array('sel' => $view_cookie == 'imp',
+                          'val' => 'imp', 'name' => _("Traditional"));
+-- 
+tg: (3a70f58..) t/imp/H/GW/DefaultLoginView (depends on: t/imp/H/JS/bug7739)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit e2430d5bafced289bb0b8ac9d073fca9a4e9bb4a
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 20:09:33 2009 +0000
+
+    Add the conf.xml part of the new configuration variable.
+
+commit df4a014051b707ab4bf5ded96264c3b4f3b62ac4
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 08:14:20 2009 +0000
+
+    Allow to configure the default view for imp.

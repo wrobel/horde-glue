@@ -1,0 +1,82 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/kronolith/HK/GW/CalendarRenaming
+
+Fix the renaming of calendars.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/kronolith/lib/Forms/EditCalendar.php |    9 +++++----
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php   |   11 ++++++-----
+ 2 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/horde-webmail/kronolith/lib/Forms/EditCalendar.php b/horde-webmail/kronolith/lib/Forms/EditCalendar.php
+index 0a76c57..bef123d 100644
+--- a/horde-webmail/kronolith/lib/Forms/EditCalendar.php
++++ b/horde-webmail/kronolith/lib/Forms/EditCalendar.php
+@@ -49,11 +49,12 @@ class Kronolith_EditCalendarForm extends Horde_Form {
+     function execute()
+     {
+         $original_name = $this->_calendar->get('name');
+-        $this->_calendar->set('name', $this->_vars->get('name'));
++        $new_name = $this->_vars->get('name');
++        $this->_calendar->set('name', $new_name);
+         $this->_calendar->set('desc', $this->_vars->get('description'));
+ 
+-        if ($original_name != $this->_vars->get('name')) {
+-            $result = $GLOBALS['kronolith_driver']->rename($original_name, $this->_vars->get('name'));
++        if ($original_name != $new_name) {
++            $result = $GLOBALS['kronolith_driver']->rename($original_name, $new_name);
+             if (is_a($result, 'PEAR_Error')) {
+                 return PEAR::raiseError(sprintf(_("Unable to rename \"%s\": %s"), $original_name, $result->getMessage()));
+             }
+@@ -61,7 +62,7 @@ class Kronolith_EditCalendarForm extends Horde_Form {
+ 
+         $result = $this->_calendar->save();
+         if (is_a($result, 'PEAR_Error')) {
+-            return PEAR::raiseError(sprintf(_("Unable to save calendar \"%s\": %s"), $id, $result->getMessage()));
++            return PEAR::raiseError(sprintf(_("Unable to save calendar \"%s\": %s"), $new_name, $result->getMessage()));
+         }
+         return true;
+     }
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 64a438b..a668a24 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -323,6 +323,7 @@ class Kolab_Folder {
+ 
+             if (isset($attributes['default'])) {
+                 $this->_default = $attributes['default'];
++                unset($attributes['default']);
+             } else {
+                 $this->_default = $this->isDefault();
+             }
+@@ -335,12 +336,12 @@ class Kolab_Folder {
+                     return $result;
+                 }
+ 
++                /**
++                 * Trigger the old folder name but ignore the error this will
++                 * elicit.  While we get an error because of the missing folder
++                 * the corresponding cache value will get purged.
++                 */
+                 $result = $this->trigger();
+-                if (is_a($result, 'PEAR_Error')) {
+-                    Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
+-                                              $this->name, $result->getMessage()),
+-                                      __FILE__, __LINE__, PEAR_LOG_ERR);
+-                }
+ 
+                 $this->name     = $this->new_name;
+                 $this->new_name = null;
+-- 
+tg: (1b6a9e5..) t/kronolith/HK/GW/CalendarRenaming (depends on: t/framework/HK/GW/Kolab_Server/FixGetGroups)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 3179737578e80232c88ff68099839a9d720212ac
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:27:18 2009 +0000
+
+    Added patch kronolith/HK-GW-Renaming_fix.patch from the mercurial release queue.

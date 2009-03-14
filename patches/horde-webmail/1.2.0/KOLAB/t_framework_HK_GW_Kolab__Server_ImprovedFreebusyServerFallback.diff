@@ -1,0 +1,35 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/ImprovedFreebusyServerFallback
+
+An improved fallback value for the Free/Busy server.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Session.php |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Session.php b/horde-webmail/lib/Horde/Kolab/Session.php
+index d7c56d8..2ac507a 100644
+--- a/horde-webmail/lib/Horde/Kolab/Session.php
++++ b/horde-webmail/lib/Horde/Kolab/Session.php
+@@ -186,7 +186,7 @@ class Horde_Kolab_Session {
+             if (isset($conf['kolab']['freebusy']['server'])) {
+                 $this->freebusy_server = $conf['kolab']['freebusy']['server'];
+             } else {
+-                $this->freebusy_server = 'localhost';
++                $this->freebusy_server = 'https://localhost/freebusy';
+             }
+         }
+     }
+-- 
+tg: (8ab103d..) t/framework/HK/GW/Kolab_Server/ImprovedFreebusyServerFallback (depends on: t/turba/HK/GW/PhotoSupport)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 6c4eda4dc0b4658fe17034bb540bc5829bfa4fcd
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Jan 31 00:21:26 2009 +0000
+
+    Added patch /framework/HK-GW-Fix_freebusy_server_fallback.patch from the mercurial release queue.

@@ -1,0 +1,99 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/imp/H/JS/bug7739
+
+[#7739] Folders tree not updated after an add (new) folder action
+
+http://bugs.horde.org/ticket/7739
+
+STATUS: MERGED
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/imp/lib/IMAP/Tree.php |    9 ++++++++-
+ horde-webmail/imp/lib/Search.php    |   17 +++++++++++------
+ 2 files changed, 19 insertions(+), 7 deletions(-)
+
+diff --git a/horde-webmail/imp/lib/IMAP/Tree.php b/horde-webmail/imp/lib/IMAP/Tree.php
+index e249c1c..1fb857c 100644
+--- a/horde-webmail/imp/lib/IMAP/Tree.php
++++ b/horde-webmail/imp/lib/IMAP/Tree.php
+@@ -1584,7 +1584,14 @@ class IMP_Tree {
+         }
+ 
+         foreach (array_keys($id) as $key) {
+-            $adds[] = IMPTREE_VFOLDER_KEY . $this->_delimiter . $key;
++            $id_key = IMPTREE_VFOLDER_KEY . $this->_delimiter . $key;
++            if (!isset($this->_tree[$id_key])) {
++                $adds[] = $id_key;
++            }
++        }
++
++        if (empty($adds)) {
++            return;
+         }
+ 
+         $this->insert($adds);
+diff --git a/horde-webmail/imp/lib/Search.php b/horde-webmail/imp/lib/Search.php
+index ddb86e5..f14a8e4 100644
+--- a/horde-webmail/imp/lib/Search.php
++++ b/horde-webmail/imp/lib/Search.php
+@@ -204,12 +204,15 @@ class IMP_Search {
+     /**
+      * Deletes an IMAP search query.
+      *
+-     * @param string $id  The search query id to use (by default, will use
+-     *                    the current ID set in the object).
++     * @param string $id          The search query id to use (by default, will
++     *                            use the current ID set in the object).
++     * @param boolean $no_delete  Don't delete the entry in the tree object.
++     *
++     *
+      *
+      * @return string  Returns the search query id.
+      */
+-    function deleteSearchQuery($id = null)
++    function deleteSearchQuery($id = null, $no_delete = false)
+     {
+         $id = $this->_strip($id);
+         $is_vfolder = !empty($_SESSION['imp']['search']['q'][$id]['vfolder']);
+@@ -219,7 +222,9 @@ class IMP_Search {
+             $vfolders = $this->_getVFolderList();
+             unset($vfolders[$id]);
+             $this->_saveVFolderList($vfolders);
+-            $this->_updateIMPTree('delete', $id);
++            if (!$no_delete) {
++                $this->_updateIMPTree('delete', $id);
++            }
+         }
+     }
+ 
+@@ -355,7 +360,7 @@ class IMP_Search {
+         /* Delete the current Virtual Trash folder, if it exists. */
+         $vtrash_id = $GLOBALS['prefs']->getValue('vtrash_id');
+         if (!empty($vtrash_id)) {
+-            $this->deleteSearchQuery($vtrash_id);
++            $this->deleteSearchQuery($vtrash_id, true);
+         }
+ 
+         if (!$GLOBALS['prefs']->getValue('use_vtrash')) {
+@@ -418,7 +423,7 @@ class IMP_Search {
+         /* Delete the current Virtual Inbox folder, if it exists. */
+         $vinbox_id = $GLOBALS['prefs']->getValue('vinbox_id');
+         if (!empty($vinbox_id)) {
+-            $this->deleteSearchQuery($vinbox_id);
++            $this->deleteSearchQuery($vinbox_id, true);
+         }
+ 
+         if (!$GLOBALS['prefs']->getValue('use_vinbox')) {
+-- 
+tg: (38b4949..) t/imp/H/JS/bug7739 (depends on: t/imp/H/MS/bug7438)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 1a74763ee823d7cc74b9b2f8585bcd71963c805e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 07:56:27 2009 +0000
+
+    Merged [#7739] Folders tree not updated after an add (new) folder action.

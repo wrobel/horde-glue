@@ -1,0 +1,56 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/AdditionalGetFeeBusyServerFixes
+
+Another fix to the getServer('freebusy') call.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ .../lib/Horde/Kolab/Server/Object/user.php         |    3 +++
+ horde-webmail/lib/Horde/Kolab/Session.php          |    8 --------
+ 2 files changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+index 556933f..62b71e8 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+@@ -208,6 +208,9 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+             if (empty($server)) {
+                 $server = $_SERVER['SERVER_NAME'];
+             }
++            if (isset($conf['kolab']['freebusy']['server'])) {
++                return $conf['kolab']['freebusy']['server'];
++            }
+             if (isset($conf['kolab']['server']['freebusy_url_format'])) {
+                 return sprintf($conf['kolab']['server']['freebusy_url_format'],
+                                $server);
+diff --git a/horde-webmail/lib/Horde/Kolab/Session.php b/horde-webmail/lib/Horde/Kolab/Session.php
+index 2ac507a..a0e3cf3 100644
+--- a/horde-webmail/lib/Horde/Kolab/Session.php
++++ b/horde-webmail/lib/Horde/Kolab/Session.php
+@@ -181,14 +181,6 @@ class Horde_Kolab_Session {
+         }
+ 
+         $this->_imap_params['protocol'] = 'imap/notls/novalidate-cert';
+-
+-        if (!isset($this->freebusy_server)) {
+-            if (isset($conf['kolab']['freebusy']['server'])) {
+-                $this->freebusy_server = $conf['kolab']['freebusy']['server'];
+-            } else {
+-                $this->freebusy_server = 'https://localhost/freebusy';
+-            }
+-        }
+     }
+ 
+     /**
+-- 
+tg: (3e0f3f4..) t/framework/HK/GW/Kolab_Server/AdditionalGetFeeBusyServerFixes (depends on: t/framework/HK/GW/Kolab_Storage/FixTriggerOnFolderCreation)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit f2d30e95bea6393624c2f298e45be176e275aecc
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:38:40 2009 +0000
+
+    Added patch framework/HK-GW-Kolab_Server-Another_get_freebusy_server.patch from the mercurial release queue.

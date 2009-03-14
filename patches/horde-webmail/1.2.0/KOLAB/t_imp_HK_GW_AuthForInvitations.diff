@@ -1,0 +1,78 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/imp/HK/GW/AuthForInvitations
+
+Correctly authenticate to the SMTP server when responding to invitations.
+
+FIXME: I believe this was solved with slight modifications upstream. Adapt this patch.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/imp/lib/MIME/Viewer/itip.php |   29 ++++++++++++++++++++++++++-
+ 1 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/imp/lib/MIME/Viewer/itip.php b/horde-webmail/imp/lib/MIME/Viewer/itip.php
+index 1f8fe1e..4f6beab 100644
+--- a/horde-webmail/imp/lib/MIME/Viewer/itip.php
++++ b/horde-webmail/imp/lib/MIME/Viewer/itip.php
+@@ -87,6 +87,29 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+         // Get the iCalendar file components.
+         $components = $vCal->getComponents();
+ 
++        $mailer_driver = $GLOBALS['conf']['mailer']['type'];
++        $mailer_params = $GLOBALS['conf']['mailer']['params'];
++
++        /* Force the SMTP host and port value to the current SMTP server if
++         * one has been selected for this connection. */
++        if (!empty($_SESSION['imp']['smtphost'])) {
++            $mailer_params['host'] = $_SESSION['imp']['smtphost'];
++        }
++        if (!empty($_SESSION['imp']['smtpport'])) {
++            $mailer_params['port'] = $_SESSION['imp']['smtpport'];
++        }
++
++        /* If SMTP authentication has been requested, use either the username
++         * and password provided in the configuration or populate the username
++         * and password fields based on the current values for the user. Note
++         * that we assume that the username and password values from the
++         * current IMAP / POP3 connection are valid for SMTP authentication as
++         * well. */
++        if (!empty($mailer_params['auth']) && empty($mailer_params['username'])) {
++            $mailer_params['username'] = $_SESSION['imp']['user'];
++            $mailer_params['password'] = Secret::read(Secret::getKey('imp'), $_SESSION['imp']['pass']);
++        }
++
+         // Handle the action requests.
+         $actions = Util::getFormData('action', array());
+         foreach ($actions as $key => $action) {
+@@ -332,7 +355,8 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+                     $msg_headers->addMIMEHeaders($mime);
+ 
+                     // Send the reply.
+-                    $status = $mime->send($organizerEmail, $msg_headers);
++                    $status = $mime->send($organizerEmail, $msg_headers,
++                                          $mailer_driver, $mailer_params);
+                     if (is_a($status, 'PEAR_Error')) {
+                         $this->_msgs[$key][] = array('error', sprintf(_("Error sending reply: %s."), $status->getMessage()));
+                     } else {
+@@ -435,7 +459,8 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+                     $msg_headers->addMIMEHeaders($mime);
+ 
+                     // Send the reply.
+-                    $status = $mime->send($organizerEmail, $msg_headers);
++                    $status = $mime->send($organizerEmail, $msg_headers,
++                                          $mailer_driver, $mailer_params);
+                     if (is_a($status, 'PEAR_Error')) {
+                         $this->_msgs[$key][] = array('error', sprintf(_("Error sending reply: %s."), $status->getMessage()));
+                     } else {
+-- 
+tg: (066c7a2..) t/imp/HK/GW/AuthForInvitations (depends on: t/Kolab_Server/HK/GW/UserMailAndFullname)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 7bddd3610cfadd4c16b624018d6ccd77e3e908b5
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 18:09:57 2009 +0000
+
+    Added patch release/HK-GW-Auth_for_invitations.patch from the mercurial release queue.

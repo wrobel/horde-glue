@@ -1,0 +1,35 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Auth/InvalidCheck
+
+Remove an obsolete check.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Auth/kolab.php |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Auth/kolab.php b/horde-webmail/lib/Horde/Auth/kolab.php
+index ae846c8..7fbc55b 100644
+--- a/horde-webmail/lib/Horde/Auth/kolab.php
++++ b/horde-webmail/lib/Horde/Auth/kolab.php
+@@ -101,7 +101,7 @@ class Auth_kolab extends Auth {
+ 
+             $max_count = $conf['auth']['params']['login_block_count'];
+ 
+-            if ($count > $max_count || !$login_ok) {
++            if ($count > $max_count) {
+                 // Add entry for current failed login.
+                 $entry = array();
+                 $entry[ 'timestamp' ] = time();
+-- 
+tg: (493930b..) t/framework/HK/GW/Auth/InvalidCheck (depends on: t/framework/HK/GW/Kolab_Server/RequireIMAP)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit c01dce5512d9422c0a2aa907b6201f65ba2330db
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Jan 31 00:06:59 2009 +0000
+
+    Added patch framework/HK-GW-Auth-Typo_fix.patch from the mercurial release queue.

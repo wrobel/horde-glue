@@ -1,0 +1,182 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Server/HK/GW/DenyLogin
+
+Allow/Deny login to specific Kolab user groups.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server.php      |   39 ++++++++++++++++++++++--
+ horde-webmail/lib/Horde/Kolab/Server/ldap.php |   18 +++++++++++
+ horde-webmail/lib/Horde/Kolab/Session.php     |   30 +++++++++++++++++++
+ 3 files changed, 83 insertions(+), 4 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server.php b/horde-webmail/lib/Horde/Kolab/Server.php
+index 7954b21..fea438a 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server.php
++++ b/horde-webmail/lib/Horde/Kolab/Server.php
+@@ -414,7 +414,7 @@ class Horde_Kolab_Server {
+     }
+ 
+     /**
+-     * Identify the UID for the first object found using a specified
++     * Identify the UID for the first user found using a specified
+      * attribute value.
+      *
+      * @param string $attr     The name of the attribute used for searching.
+@@ -431,6 +431,23 @@ class Horde_Kolab_Server {
+     }
+ 
+     /**
++     * Identify the GID for the first group found using a specified
++     * attribute value.
++     *
++     * @param string $attr     The name of the attribute used for searching.
++     * @param string $value    The desired value of the attribute.
++     * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
++     *
++     * @return mixed|PEAR_Error The GID or false if there was no result.
++     */
++    function gidForAttr($attr, $value,
++                        $restrict = KOLAB_SERVER_RESULT_SINGLE)
++    {
++        /* In the default class we just return false */
++        return false;
++    }
++
++    /**
+      * Is the given UID member of the group with the given mail address?
+      *
+      * @param string $uid  UID of the user.
+@@ -460,20 +477,34 @@ class Horde_Kolab_Server {
+     }
+ 
+     /**
+-     * Identify the UID for the first object found with the given mail.
++     * Identify the UID for the first user found with the given mail.
+      *
+-     * @param string $mail     Search for objects with this mail address.
++     * @param string $mail     Search for users with this mail address.
+      * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
+      *
+      * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+     function uidForMail($mail,
+-                      $restrict = KOLAB_SERVER_RESULT_SINGLE)
++                        $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+         return $this->uidForAttr('mail', $mail);
+     }
+ 
+     /**
++     * Identify the GID for the first group found with the given mail.
++     *
++     * @param string $mail     Search for groups with this mail address.
++     * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
++     *
++     * @return mixed|PEAR_Error The GID or false if there was no result.
++     */
++    function gidForMail($mail,
++                        $restrict = KOLAB_SERVER_RESULT_SINGLE)
++    {
++        return $this->gidForAttr('mail', $mail);
++    }
++
++    /**
+      * Identify the UID for the first object found with the given ID or mail.
+      *
+      * @param string $id Search for objects with this uid/mail.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/ldap.php b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+index a09f74d..d4079b8 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/ldap.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+@@ -784,6 +784,24 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     }
+ 
+     /**
++     * Identify the GID for the first group found using a specified
++     * attribute value.
++     *
++     * @param string $attr     The name of the attribute used for searching.
++     * @param string $value    The desired value of the attribute.
++     * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
++     *
++     * @return mixed|PEAR_Error The GID or false if there was no result.
++     */
++    function gidForAttr($attr, $value,
++                       $restrict = KOLAB_SERVER_RESULT_SINGLE)
++    {
++        $filter = '(&(objectClass=kolabGroupOfNames)(' . $attr .
++            '=' . Horde_LDAP::quote($value) . '))';
++        return $this->_dnForFilter($filter, $restrict);
++    }
++
++    /**
+      * Is the given UID member of the group with the given mail address?
+      *
+      * @param string $uid  UID of the user.
+diff --git a/horde-webmail/lib/Horde/Kolab/Session.php b/horde-webmail/lib/Horde/Kolab/Session.php
+index a0e3cf3..d47f8b0 100644
+--- a/horde-webmail/lib/Horde/Kolab/Session.php
++++ b/horde-webmail/lib/Horde/Kolab/Session.php
+@@ -123,6 +123,32 @@ class Horde_Kolab_Session {
+                     if (empty($conf['kolab']['imap']['allow_special_users'])
+                         && !is_a($user_object, 'Horde_Kolab_Server_Object_user')) {
+                         $this->auth = PEAR::raiseError(_('Access to special Kolab users is denied.'));
++                    } else if (isset($conf['kolab']['server']['deny_group'])) {
++                        $dn = $server->gidForMail($conf['kolab']['server']['deny_group']);
++                        if (is_a($dn, 'PEAR_Error')) {
++                            $this->auth = $dn;
++                        } else if (empty($dn)) {
++                            Horde::logMessage('The Kolab configuratin setting $conf[\'kolab\'][\'server\'][\'deny_group\'] holds a non-existing group!',
++                                              __FILE__, __LINE__, PEAR_LOG_WARNING);
++                            $this->auth = true;
++                        } else if (in_array($dn, $user_object->getGroups())) {
++                            $this->auth = PEAR::raiseError(_('You are member of a group that may not login on this server.'));
++                        } else {
++                            $this->auth = true;
++                        }
++                    } else if (isset($conf['kolab']['server']['allow_group'])) {
++                        $dn = $server->gidForMail($conf['kolab']['server']['allow_group']);
++                        if (is_a($dn, 'PEAR_Error')) {
++                            $this->auth = $dn;
++                        } else if (empty($dn)) {
++                            Horde::logMessage('The Kolab configuratin setting $conf[\'kolab\'][\'server\'][\'allow_group\'] holds a non-existing group!',
++                                              __FILE__, __LINE__, PEAR_LOG_WARNING);
++                            $this->auth = true;
++                        } else if (!in_array($dn, $user_object->getGroups())) {
++                            $this->auth = PEAR::raiseError(_('You are no member of a group that may login on this server.'));
++                        } else {
++                            $this->auth = true;
++                        }
+                     } else {
+                         /**
+                          * At this point we can be certain the user is an
+@@ -131,6 +157,10 @@ class Horde_Kolab_Session {
+                         $this->auth = true;
+                     }
+ 
++                    if (empty($this->auth) || is_a($this->auth, 'PEAR_Error')) {
++                        return;
++                    }
++
+                     $result = $user_object->get(KOLAB_ATTR_MAIL);
+                     if (!empty($result) && !is_a($result, 'PEAR_Error')) {
+                         $this->user_mail = $result;
+-- 
+tg: (f425aea..) t/Kolab_Server/HK/GW/DenyLogin (depends on: t/framework/HK/GW/iCalendar/QuotedParameters)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 553b6a6a3b5f42bcc314b3ccb8dc271c094739d4
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 23:39:21 2009 +0000
+
+    Remove patch remains.
+
+commit ec2569d9f53c41b19c033cc8cdeceb5169e18106
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 17:54:16 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Server-Deny_login.patch from the mercurial release queue.

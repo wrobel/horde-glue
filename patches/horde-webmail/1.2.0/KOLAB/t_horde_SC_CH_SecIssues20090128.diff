@@ -1,0 +1,48 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/horde/SC/CH/SecIssues20090128
+
+Security issues that were patched on 20090128.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Image.php              |    1 +
+ horde-webmail/services/portal/cloud_search.php |    2 +-
+ 2 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Image.php b/horde-webmail/lib/Horde/Image.php
+index 2d48777..1288ef5 100644
+--- a/horde-webmail/lib/Horde/Image.php
++++ b/horde-webmail/lib/Horde/Image.php
+@@ -551,6 +551,7 @@ class Horde_Image {
+             list($app, $driver) = $driver;
+         }
+ 
++        $driver = basename($driver);
+         $class = 'Horde_Image_' . $driver;
+         if (!class_exists($class)) {
+             if (!empty($app)) {
+diff --git a/horde-webmail/services/portal/cloud_search.php b/horde-webmail/services/portal/cloud_search.php
+index 0d0bc53..7e22aa6 100644
+--- a/horde-webmail/services/portal/cloud_search.php
++++ b/horde-webmail/services/portal/cloud_search.php
+@@ -28,7 +28,7 @@ $results = $registry->call('images/searchTags', array(array($tag)));
+ $results = array_merge($results, $registry->call('news/searchTags',
+                                                  array(array($tag))));
+ echo '<div class="control"><strong>'
+-    . sprintf(_("Results for %s"), '<span style="font-style:italic">' . $tag . '</span>')
++    . sprintf(_("Results for %s"), '<span style="font-style:italic">' . htmlspecialchars($tag) . '</span>')
+     . '</strong>'
+     . Horde::link('#', '', '', '', '$(\'cloudsearch\').hide();', '', '', array('style' => 'font-size:75%;'))
+     . '(' . _("Hide Results") . ')</a></span></div><ul class="linedRow">';
+-- 
+tg: (6938161..) t/horde/SC/CH/SecIssues20090128 (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 360162337f2e7e5e65a6e19d46a0fbb7a0a091c0
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Feb 6 06:57:28 2009 +0000
+
+    Security fixes from 20090128.

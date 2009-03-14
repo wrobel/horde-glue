@@ -1,0 +1,43 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Storage/CatchPossibleError
+
+Catch a possible error in Kolab_Storage.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 2ee6983..2769446 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -667,12 +667,15 @@ class Kolab_Folder {
+      *
+      * @param Kolab_List $list  The handler for the list of folders.
+      *
+-     * @return Kolab_Data  The data handler.
++     * @return Kolab_Data|PEAR_Error  The data handler.
+      */
+     function &getData($object_type = null, $data_version = 1)
+     {
+         if (empty($object_type)) {
+             $object_type = $this->getType();
++            if (is_a($object_type, 'PEAR_Error')) {
++                return $object_type;
++            }
+         }
+ 
+         if ($this->tainted) {
+-- 
+tg: (324e066..) t/framework/HK/GW/Kolab_Storage/CatchPossibleError (depends on: t/framework/HK/GW/Kolab_Server/RewriteExtend)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit c5b10e7b77b6cc89480ed7c3ff90954fa286a41e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 23:15:19 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Storage-Catch_Error.patch from the mercurial release queue.

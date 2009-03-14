@@ -1,0 +1,36 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/GLOBAL/HK/GW/ConfigOpenPKG
+
+Specific OpenPKG configuration bits.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/config/conf.php |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/config/conf.php b/horde-webmail/config/conf.php
+index f5c85a6..ae2acef 100644
+--- a/horde-webmail/config/conf.php
++++ b/horde-webmail/config/conf.php
+@@ -41,7 +41,8 @@ $conf['log']['params']['append'] = true;
+ $conf['log']['type'] = 'file';
+ $conf['log']['enabled'] = true;
+ $conf['log_accesskeys'] = false;
+-$conf['prefs']['driver'] = 'kolab_imap';
++$conf['prefs']['driver'] = 'file';
++$conf['prefs']['params']['directory'] = dirname(__FILE__) . '/../storage/';
+ $conf['alarms']['params']['driverconfig'] = 'horde';
+ $conf['alarms']['params']['ttl'] = 300;
+ $conf['alarms']['driver'] = 'sql';
+-- 
+tg: (5c96f93..) t/GLOBAL/HK/GW/ConfigOpenPKG (depends on: t/GLOBAL/HK/GW/Config)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 0a7bb75c1aa1f659664a8e3ae5d18f0f1e680ebd
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 22:31:59 2009 +0000
+
+    Added patch release/HK-GW-Config_OpenPKG.patch  from the mercurial release queue.

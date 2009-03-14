@@ -1,0 +1,61 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Storage/FixTriggerOnFolderRename
+
+Fix folder triggering on folder rename.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |   27 ++++++++++++++++++---
+ 1 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index a668a24..df6e967 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -337,11 +337,30 @@ class Kolab_Folder {
+                 }
+ 
+                 /**
+-                 * Trigger the old folder name but ignore the error this will
+-                 * elicit.  While we get an error because of the missing folder
+-                 * the corresponding cache value will get purged.
++                 * Trigger the old folder on an empty IMAP folder.
+                  */
+-                $result = $this->trigger();
++                $session = &Horde_Kolab_Session::singleton();
++                $imap = &$session->getImap();
++                if (!is_a($imap, 'PEAR_Error')) {
++                    $result = $imap->create($this->name);
++                    if (is_a($result, 'PEAR_Error')) {
++                        Horde::logMessage(sprintf('Failed creating dummy folder: %s!',
++                                                  $result->getMessage()),
++                                          __FILE__, __LINE__, PEAR_LOG_ERR);
++                    }
++                    $result = $this->trigger();
++                    if (is_a($result, 'PEAR_Error')) {
++                        Horde::logMessage(sprintf('Failed triggering dummy folder: %s!',
++                                                  $result->getMessage()),
++                                          __FILE__, __LINE__, PEAR_LOG_ERR);
++                    }
++                    $result = $imap->delete($this->name);
++                    if (is_a($result, 'PEAR_Error')) {
++                        Horde::logMessage(sprintf('Failed deleting dummy folder: %s!',
++                                                  $result->getMessage()),
++                                          __FILE__, __LINE__, PEAR_LOG_ERR);
++                    }
++                }
+ 
+                 $this->name     = $this->new_name;
+                 $this->new_name = null;
+-- 
+tg: (ba404b5..) t/framework/HK/GW/Kolab_Storage/FixTriggerOnFolderRename (depends on: t/kronolith/HK/GW/CalendarRenaming)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 911c0394af77c700df40dc632e636b861c049a6c
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:33:08 2009 +0000
+
+    Added patch framework/HK-GW-Kolab_Storage-Fix_rename_trigger.patch from the mercurial release queue.

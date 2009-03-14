@@ -1,0 +1,77 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Auth/ListUsers
+
+Implement listing users in the Kolab Auth driver.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Auth/kolab.php |   33 ++++++++++++++++++++++++++++++++
+ 1 files changed, 33 insertions(+), 0 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Auth/kolab.php b/horde-webmail/lib/Horde/Auth/kolab.php
+index 55dcb6e..235e72a 100644
+--- a/horde-webmail/lib/Horde/Auth/kolab.php
++++ b/horde-webmail/lib/Horde/Auth/kolab.php
+@@ -21,6 +21,18 @@ require_once 'Horde/Auth/imap.php';
+ class Auth_kolab extends Auth_imap {
+ 
+     /**
++     * An array of capabilities, so that the driver can report which
++     * operations it supports and which it doesn't.
++     *
++     * @var array
++     */
++    var $capabilities = array('add'           => false,
++                              'update'        => false,
++                              'resetpassword' => false,
++                              'remove'        => false,
++                              'list'          => true,
++                              'transparent'   => false);
++    /**
+      * Find out if a set of login credentials are valid.
+      *
+      * @access private
+@@ -148,4 +160,25 @@ class Auth_kolab extends Auth_imap {
+         return parent::setAuth($userId, $credentials, $realm, $changeRequested);
+     }
+ 
++    /**
++     * List Users
++     *
++     * @return array  List of Users
++     */
++    function listUsers()
++    {
++        @include_once 'Horde/Kolab/Server.php';
++
++        if (class_exists('Horde_Kolab_Server')) {
++            $server = Horde_Kolab_Server::singleton();
++            $users = $server->listObjects(KOLAB_OBJECT_USER);
++            $mails = array();
++            foreach ($users as $user) {
++                $mails[] = $user->get(KOLAB_ATTR_MAIL);
++            }
++            return $mails;
++        } else {
++            return PEAR::raiseError("The class \"Horde_Kolab_Server\" is not available.");
++        }
++    }
+ }
+-- 
+tg: (d75006c..) t/framework/HK/GW/Auth/ListUsers (depends on: t/framework/HK/GW/Kolab_Server/ListObjects)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 4bb7043665e636375b842317dfd6f8685ba4c5ac
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 23:21:05 2009 +0000
+
+    Removed patch remains.
+
+commit d84a437b9d2acb9fdca37070a5c22ff5d7d69934
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 22:48:42 2009 +0000
+
+    Added patch release/HK-GW-Auth-KolabUserList.patch from the mercurial release queue.

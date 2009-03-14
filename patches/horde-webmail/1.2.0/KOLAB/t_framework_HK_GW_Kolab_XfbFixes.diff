@@ -1,0 +1,89 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab/XfbFixes
+
+Fixes to support the extended free/busy concept.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |   19 ++++++++++++++++++-
+ horde-webmail/lib/Horde/Share/kolab.php          |    9 +++++----
+ 2 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 36844f9..1da391b 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -406,6 +406,22 @@ class Kolab_Folder {
+                 $attributes = array($attributes);
+             }
+             foreach ($attributes as $key => $value) {
++                if ($key == 'params') {
++                    $params = unserialize($value);
++                    if (isset($params['xfbaccess'])) {
++                        $result = $this->setXfbAccess($params['xfbaccess']);
++                        if (is_a($result, 'PEAR_Error')) {
++                            return $result;
++                        }
++                    }
++                    if (isset($params['fbrelevance'])) {
++                        $result = $this->setFbrelevance(join(' ', $params['fbrelevance']));
++                        if (is_a($result, 'PEAR_Error')) {
++                            return $result;
++                        }
++                    }
++                }
++
+                 // setAnnotation apparently does not suppoort UTF-8 nor any special characters
+                 $store = base64_encode($value);
+                 if ($key == 'desc') {
+@@ -1614,7 +1630,8 @@ class Kolab_Folder {
+      */
+     function setXfbaccess($access)
+     {
++        $value = join(' ', $access);
+         return $this->_setAnnotation(KOLAB_ANNOT_ROOT . 'pxfb-readable-for',
+-                                     $access);
++                                     $value);
+     }
+ }
+diff --git a/horde-webmail/lib/Horde/Share/kolab.php b/horde-webmail/lib/Horde/Share/kolab.php
+index 10ac08f..43ae960 100644
+--- a/horde-webmail/lib/Horde/Share/kolab.php
++++ b/horde-webmail/lib/Horde/Share/kolab.php
+@@ -526,10 +526,10 @@ class Horde_Share_Object_kolab extends Horde_Share_Object {
+                              'default' => $this->get('default'),
+                              'name' => $this->get('name'));
+             $type = $this->get('type');
+-            if (!is_a($type, 'PEAR_Error') && $type[0] == 'event') {
++            if (!is_a($type, 'PEAR_Error') && $type == 'event') {
+                 $default = array_merge($default, array(
+-                                           'fbrelevance' => $this->getFbrelevance(),
+-                                           'xfbaccess'   => $this->getXfbaccess()
++                                           'fbrelevance' => $this->_folder->getFbrelevance(),
++                                           'xfbaccess'   => $this->_folder->getXfbaccess()
+                                        ));
+             }
+             if (is_a($params, 'PEAR_Error') || $params == '') {
+@@ -584,8 +584,9 @@ class Horde_Share_Object_kolab extends Horde_Share_Object {
+             $value = unserialize($value);
+             if (isset($value['default'])) {
+                 $this->_data['default'] = $value['default'];
++                unset($value['default']);
+             }
+-            break;
++            $value = serialize($value);
+ 
+         default:
+             $this->_data[$attribute] = $value;
+-- 
+tg: (84604ae..) t/framework/HK/GW/Kolab/XfbFixes (depends on: t/framework/HK/GW/Kolab_Fbview/XfbConcept)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 07447788c136353d40cc6c5b4d9f1d1f0d13ef76
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:49:49 2009 +0000
+
+    Added patch framework/HK-GW-Kolab-XFB_access_fixes.patch from the mercurial release queue.

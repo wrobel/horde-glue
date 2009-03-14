@@ -1,0 +1,88 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/pear/HK/GW/AddNetIMAP
+
+Adds the PEAR Net_IMAP library in case the user does not have a PHP patched for Kolab.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/kronolith/config/prefs.php |   20 +++++++++++++++++++-
+ horde-webmail/kronolith/lib/FBView.php   |    4 ++--
+ 2 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/horde-webmail/kronolith/config/prefs.php b/horde-webmail/kronolith/config/prefs.php
+index 22c08c3..357aebc 100644
+--- a/horde-webmail/kronolith/config/prefs.php
++++ b/horde-webmail/kronolith/config/prefs.php
+@@ -11,7 +11,7 @@ $prefGroups['view'] = array(
+     'desc' => _("Select confirmation options, how to display the different views and choose default view."),
+     'members' => array('confirm_delete', 'defaultview',
+                        'time_between_days', 'week_start_monday',
+-                       'day_hour_start', 'day_hour_end', 'day_hour_force',
++                       'day_hour_start', 'day_hour_end', 'day_hour_force', 'fb_day_hour_start', 'fb_day_hour_end',
+                        'slots_per_hour', 'show_icons', 'show_time', 'show_location',
+                        'show_legend', 'show_panel', 'show_fb_legend', 'show_shared_side_by_side', 'show_external_colors'),
+ );
+@@ -147,6 +147,24 @@ $_prefs['day_hour_force'] = array(
+     'desc' => _("Restrict day and week views to these time slots, even if there <strong>are</strong> earlier or later events?"),
+ );
+ 
++// start of the time range in day/week views:
++$_prefs['fb_day_hour_start'] = array(
++    'value' => 16,
++    'locked' => false,
++    'shared' => false,
++    'type' => 'select',
++    'desc' => _("What time should the free/busy day and week views start?")
++);
++
++// end of the time range in day/week views:
++$_prefs['fb_day_hour_end'] = array(
++    'value' => 48,
++    'locked' => false,
++    'shared' => false,
++    'type' => 'select',
++    'desc' => _("What time should the free/busy day and week views end?")
++);
++
+ // number of slots in each hour:
+ $_prefs['slots_per_hour'] = array(
+     'value' => 1,
+diff --git a/horde-webmail/kronolith/lib/FBView.php b/horde-webmail/kronolith/lib/FBView.php
+index db402d3..153d7fb 100644
+--- a/horde-webmail/kronolith/lib/FBView.php
++++ b/horde-webmail/kronolith/lib/FBView.php
+@@ -40,8 +40,8 @@ class Kronolith_FreeBusy_View {
+     {
+         global $prefs;
+ 
+-        $this->_startHour = floor($prefs->getValue('day_hour_start') / 2);
+-        $this->_endHour = floor(($prefs->getValue('day_hour_end') + 1) / 2);
++        $this->_startHour = floor($prefs->getValue('fb_day_hour_start') / 2);
++        $this->_endHour = floor(($prefs->getValue('fb_day_hour_end') + 1) / 2);
+ 
+         $this->_render($day);
+ 
+-- 
+tg: (9378f1d..) t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView (depends on: t/KOLAB)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit e59f898bdd1328cbad986f88707f0de7a128e1a7
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Mar 13 12:47:11 2009 +0000
+
+    Create a second set of day_hour_start/end preferences specifically for the free/busy view.
+
+commit a80e8995ca1e5bd800b7d9d519849054ed24a521
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Mar 9 06:25:23 2009 +0000
+
+    Fix patch hierarchy.
+
+commit 49fad3b2f6b4695da346984b5f72e50702558cbd
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 09:10:51 2009 +0000
+
+    A config change so that the user gets less confused.

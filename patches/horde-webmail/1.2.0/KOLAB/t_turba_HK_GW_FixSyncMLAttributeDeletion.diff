@@ -1,0 +1,42 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/turba/HK/GW/FixSyncMLAttributeDeletion
+
+Fix the deletion of contact attributes when using SyncML.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/turba/lib/Driver.php |    3 ---
+ 1 files changed, 0 insertions(+), 3 deletions(-)
+
+diff --git a/horde-webmail/turba/lib/Driver.php b/horde-webmail/turba/lib/Driver.php
+index 248e5d3..efc61f8 100644
+--- a/horde-webmail/turba/lib/Driver.php
++++ b/horde-webmail/turba/lib/Driver.php
+@@ -1466,9 +1466,6 @@ class Turba_Driver {
+         $hash = array();
+         $attr = $vcard->getAllAttributes();
+         foreach ($attr as $item) {
+-            if (empty($item['value'])) {
+-                continue;
+-            }
+ 
+             switch ($item['name']) {
+             case 'FN':
+-- 
+tg: (6938161..) t/turba/HK/GW/FixSyncMLAttributeDeletion (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 3e71b03529030111cea5a55dbe3b4e2cbd98a6b0
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Feb 2 00:16:42 2009 +0000
+
+    Remove patch remains.
+
+commit a3ce2f6066fe85019312ff354f5bca6ba5e3d2ab
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 23:50:06 2009 +0000
+
+    Added patch turba/HK-GW-SyncML_delete_attributes.patch from the mercurial release queue.

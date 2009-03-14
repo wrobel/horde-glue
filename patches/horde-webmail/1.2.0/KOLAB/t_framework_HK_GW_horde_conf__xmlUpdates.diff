@@ -1,0 +1,61 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/horde/conf_xmlUpdates
+
+Adapt the Kolab configuration to recent changes in the Kolab modules.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/config/conf.xml |   21 +++++++++++++++------
+ 1 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/horde-webmail/config/conf.xml b/horde-webmail/config/conf.xml
+index 34a340c..f9f44cd 100644
+--- a/horde-webmail/config/conf.xml
++++ b/horde-webmail/config/conf.xml
+@@ -1803,8 +1803,8 @@
+       <configinteger name="sieveport" desc="Sieve port:">2000</configinteger>
+       <configstring name="maildomain" desc="Default
+       maildomain:">example.com</configstring>
+-      <configboolean name="virtdomains" desc="Virtual
+-      domains:">true</configboolean>
++      <configboolean name="cache_folders" desc="Cache IMAP folders:"
++       required="true">true</configboolean>
+      </configsection>
+      <configheader>Kolab SMTP Server Settings</configheader>
+      <configsection name="smtp">
+@@ -1812,10 +1812,19 @@
+       address:">localhost</configstring>
+       <configinteger name="port" desc="Server port:">25</configinteger>
+      </configsection>
+-     <configheader>Kolab Misc</configheader>
+-     <configsection name="misc">
+-      <configboolean name="multidomain" desc="Enable multi domain
+-      support:" required="false">false</configboolean>
++     <configheader>Kolab Free/Busy Application Settings</configheader>
++     <configsection name="freebusy">
++       <configdescription>
++	 Enter the leading part of the URL to the Kolab Free/Busy
++	 application here. This will usually be
++	 "https://localhost/freebusy" but if you installed it so that
++	 you reach the application at "https://freebusy.example.org"
++	 then you would enter "https://freebusy.example.org". The URL
++	 "https://freebusy.example.org/freebusy" would thus need the
++	 setting "https://freebusy.example.org/freebusy".
++       </configdescription>
++      <configstring name="server" desc="Application
++      address:">https://localhost/freebusy</configstring>
+      </configsection>
+     </case>
+    </configswitch>
+-- 
+tg: (6938161..) t/framework/HK/GW/horde/conf_xmlUpdates (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 1feb7eb8d50a04ed097834f1d46fc4ba4f170e58
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 21:47:20 2009 +0000
+
+    Added patch horde/HK-GW-conf_xml_kolab.patch from the mercurial release queue.

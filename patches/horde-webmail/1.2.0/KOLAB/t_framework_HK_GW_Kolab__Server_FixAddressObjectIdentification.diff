@@ -1,0 +1,44 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/FixAddressObjectIdentification
+
+Fix the identification of address objects.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server/ldap.php |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/ldap.php b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+index 7b52476..a09f74d 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/ldap.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+@@ -601,7 +601,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             }
+         }
+ 
+-        if (strpos($dn, 'cn=internal') !== false) {
++        if (strpos($dn, 'cn=external') !== false) {
+             return KOLAB_OBJECT_ADDRESS;
+         }
+ 
+@@ -930,7 +930,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+                 return sprintf('cn=%s,%s', $id, $this->_base_dn);
+             }
+         case KOLAB_OBJECT_ADDRESS:
+-            return sprintf('cn=%s,cn=internal,%s', $id, $this->_base_dn);
++            return sprintf('cn=%s,cn=external,%s', $id, $this->_base_dn);
+         case KOLAB_OBJECT_SHAREDFOLDER:
+         case KOLAB_OBJECT_ADMINISTRATOR:
+         case KOLAB_OBJECT_MAINTAINER:
+-- 
+tg: (72d0535..) t/framework/HK/GW/Kolab_Server/FixAddressObjectIdentification (depends on: t/framework/HK/GW/Kolab_Server/AdditionalGetFeeBusyServerFixes)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 7eddb3186e0bbb13420e3fd3ee55bbb940e83e2e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:40:40 2009 +0000
+
+    Added patch framework/HK-GW-Kolab_Server-Fix_address_identification.patch from the mercurial release queue.

@@ -1,0 +1,52 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Storage/HK/GW/SuppressTriggering
+
+Allow to supress triggering (relevant for testing).
+
+STATUS: MERGED
+
+http://cvs.horde.org/diff.php/framework/Kolab_Storage/lib/Horde/Kolab/Storage/diff.php?sa=1&f=framework%2FKolab_Storage%2Flib%2FHorde%2FKolab%2FStorage%2FFolder.php&r1=1.27&r2=1.28&t=unified
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |    8 ++++++--
+ 1 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 6596559..8c74322 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -1208,8 +1208,6 @@ class Kolab_Folder {
+      */
+     function trigger($name = null)
+     {
+-        global $conf;
+-
+         $type =  $this->getType();
+         if (is_a($type, 'PEAR_Error')) {
+             return $type;
+@@ -1252,6 +1250,12 @@ class Kolab_Folder {
+      */
+     function triggerUrl($url)
+     {
++        global $conf;
++
++        if (!empty($conf['kolab']['no_triggering'])) {
++            return true;
++        }
++
+         $options['method'] = 'GET';
+         $options['timeout'] = 5;
+         $options['allowRedirects'] = true;
+-- 
+tg: (31b7419..) t/Kolab_Storage/HK/GW/SuppressTriggering (depends on: t/COPYRIGHT2)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit d7fd24cc6662987d4887e253e54c4b4e20ea88f1
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 05:38:16 2009 +0000
+
+    Merged missing upstream commit into kolab-webclient.

@@ -1,0 +1,35 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/SafetyCheck
+
+A tiny safety check.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server.php |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server.php b/horde-webmail/lib/Horde/Kolab/Server.php
+index 5be2505..7954b21 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server.php
++++ b/horde-webmail/lib/Horde/Kolab/Server.php
+@@ -194,7 +194,7 @@ class Horde_Kolab_Server {
+         }
+ 
+         $sparam         = $server_params;
+-        $sparam['pass'] = md5($sparam['pass']);
++        $sparam['pass'] = isset($sparam['pass']) ? md5($sparam['pass']) : '';
+         $signature      = serialize(array($driver, $sparam));
+         if (empty($instances[$signature])) {
+             $instances[$signature] = &Horde_Kolab_Server::factory($driver,
+-- 
+tg: (022752c..) t/framework/HK/GW/Kolab_Server/SafetyCheck (depends on: t/framework/HK/GW/Auth/UseKolabServer)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 4618c36aa9740cfa90578aefceaba610d121d9c1
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 23:28:39 2009 +0000
+
+    Added patch release/HK-GW-Share-Testing.patch from the mercurial release queue.

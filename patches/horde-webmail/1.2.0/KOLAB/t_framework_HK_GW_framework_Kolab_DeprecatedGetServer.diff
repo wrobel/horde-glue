@@ -1,0 +1,57 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/framework/Kolab/DeprecatedGetServer
+
+Deprecates the old getServer routines in Horde/Kolab.php.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab.php |   24 +++++++++---------------
+ 1 files changed, 9 insertions(+), 15 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab.php b/horde-webmail/lib/Horde/Kolab.php
+index 4338b8e..9ed8949 100644
+--- a/horde-webmail/lib/Horde/Kolab.php
++++ b/horde-webmail/lib/Horde/Kolab.php
+@@ -794,21 +794,15 @@ class Kolab {
+     {
+         global $conf;
+ 
+-        if (!empty($conf['kolab']['misc']['multidomain']) &&
+-            !empty($_SESSION['kolabHomeserver'])) {
+-            // in multidomain mode we return the kolabHomeserver
+-            return $_SESSION['kolabHomeserver'];
+-        } else {
+-            switch ($server_type) {
+-            case 'imap':
+-                return $conf['kolab']['imap']['server'];
+-            case 'ldap':
+-                return $conf['kolab']['ldap']['server'];
+-            case 'smtp':
+-                return $conf['kolab']['smtp']['server'];
+-            default:
+-                return '';
+-            }
++        switch ($server_type) {
++        case 'imap':
++            return $conf['kolab']['imap']['server'];
++        case 'ldap':
++            return $conf['kolab']['ldap']['server'];
++        case 'smtp':
++            return $conf['kolab']['smtp']['server'];
++        default:
++            return '';
+         }
+     }
+ }
+-- 
+tg: (ca94278..) t/framework/HK/GW/framework/Kolab/DeprecatedGetServer (depends on: t/framework/HK/GW/framework/Kolab/MoveSessionHandler)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit afeb05387ac5e55f1a29dbe129c07c9acc31c42f
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 21:43:43 2009 +0000
+
+    Added patch release/HK-GW-Kolab-DeprecateGetServer.patch from the mercurial release queue.
