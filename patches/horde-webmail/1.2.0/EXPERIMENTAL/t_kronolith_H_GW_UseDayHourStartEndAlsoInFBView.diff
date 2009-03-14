@@ -1,14 +1,21 @@
 From: Gunnar Wrobel <p@rdus.de>
-Subject: [PATCH] t/pear/HK/GW/AddNetIMAP
+Subject: [PATCH] t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView
 
-Adds the PEAR Net_IMAP library in case the user does not have a PHP patched for Kolab.
+Add a separate configuration for the start/end hour of the free/buy view.
+
+kolab/issue3454 (Calendar day start/end hour preference in the kolab web client is confusing)
+https://www.intevation.de/roundup/kolab/issue3454
+
+[#8058] The 'day_hour_start' preference is confusing
+http://bugs.horde.org/ticket/8058
 
 Signed-off-by: Gunnar Wrobel <p@rdus.de>
 
 ---
  horde-webmail/kronolith/config/prefs.php |   20 +++++++++++++++++++-
  horde-webmail/kronolith/lib/FBView.php   |    4 ++--
- 2 files changed, 21 insertions(+), 3 deletions(-)
+ horde-webmail/kronolith/lib/prefs.php    |    8 ++++++++
+ 3 files changed, 29 insertions(+), 3 deletions(-)
 
 diff --git a/horde-webmail/kronolith/config/prefs.php b/horde-webmail/kronolith/config/prefs.php
 index 22c08c3..357aebc 100644
@@ -63,11 +70,42 @@ index db402d3..153d7fb 100644
  
          $this->_render($day);
  
+diff --git a/horde-webmail/kronolith/lib/prefs.php b/horde-webmail/kronolith/lib/prefs.php
+index 9bac73e..310311f 100644
+--- a/horde-webmail/kronolith/lib/prefs.php
++++ b/horde-webmail/kronolith/lib/prefs.php
+@@ -145,6 +145,14 @@ if (!$prefs->isLocked('day_hour_start') || !$prefs->isLocked('day_hour_end')) {
+     $day_hour_end_options = $day_hour_start_options;
+ }
+ 
++if (!$prefs->isLocked('fb_day_hour_start') || !$prefs->isLocked('fb_day_hour_end')) {
++    $fb_day_hour_start_options = array();
++    for ($i = 0; $i <= 48; ++$i) {
++        $fb_day_hour_start_options[$i] = date(($prefs->getValue('twentyFour')) ? 'G:i' : 'g:ia', mktime(0, $i * 30, 0));
++    }
++    $fb_day_hour_end_options = $fb_day_hour_start_options;
++}
++
+ /**
+  * Do anything that we need to do as a result of certain preferences
+  * changing.
 -- 
-tg: (9378f1d..) t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView (depends on: t/KOLAB)
+tg: (f372fd5..) t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView (depends on: t/KOLAB)
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 46e51a0b3ac05f99f061b583877d591fe159610b
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Mar 14 01:09:28 2009 +0000
+
+    Provide the possible options for the new settings.
+
+commit b38d16500bec5590fac1979e1adca5f36d62a39b
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Mar 14 01:05:24 2009 +0000
+
+    Fix description.
 
 commit e59f898bdd1328cbad986f88707f0de7a128e1a7
 Author: Gunnar Wrobel <p@rdus.de>
