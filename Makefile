@@ -3,6 +3,9 @@ SYMLINK = horde-cvs/framework/devtools/horde-fw-symlinks.php
 TEST_PKGS = Auth Kolab_Format Kolab_Server Kolab_Storage Kolab_FreeBusy Kolab_Filter Date Share iCalendar VFS
 TEST_APPS = turba kronolith
 
+REVCMP = Kolab_Format Kolab_Server Kolab_Storage Kolab_Filter Kolab_FreeBusy
+REVBIN = ./horde-rev-cmp.sh
+
 .PHONY:lib
 lib:
 	@php -c php.ini -q $(SYMLINK) --src horde-cvs/framework --dest lib > /dev/null
@@ -56,3 +59,16 @@ $(TEST_PKGS:%=test-%): lib
 	  fi; \
 	fi
 
+.PHONY: revcmp-kolab
+revcmp-kolab:
+	for MODULE in $(REVCMP); \
+	do                       \
+	  $(REVBIN) horde-release/horde-webmail/lib/ horde-fw3/framework/$$MODULE/lib/ | grep -v "Nur in"; \
+	done
+
+.PHONY: revcmp-horde
+revcmp-horde:
+	for MODULE in $(REVCMP); \
+	do                       \
+	  $(REVBIN) horde-fw3/framework/$$MODULE/ horde-cvs/framework/$$MODULE/; \
+	done
