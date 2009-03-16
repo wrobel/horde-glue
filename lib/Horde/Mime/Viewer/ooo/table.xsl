@@ -1,1 +1,0 @@
-../../../../../horde/framework/Mime/lib/Horde/Mime/Viewer/ooo/table.xsl

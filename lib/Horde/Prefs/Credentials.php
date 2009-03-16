@@ -1,1 +1,0 @@
-../../../horde-cvs/framework/Prefs/Prefs/Credentials.php

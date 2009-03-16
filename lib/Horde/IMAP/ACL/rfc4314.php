@@ -1,1 +1,0 @@
-../../../../horde-cvs/framework/IMAP/IMAP/ACL/rfc4314.php

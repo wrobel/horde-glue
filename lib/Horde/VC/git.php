@@ -1,1 +1,0 @@
-../../../horde-cvs/framework/VC/VC/git.php

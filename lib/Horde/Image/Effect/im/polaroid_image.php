@@ -1,1 +1,0 @@
-../../../../../horde-cvs/framework/Image/Image/Effect/im/polaroid_image.php

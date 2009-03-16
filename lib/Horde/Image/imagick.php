@@ -1,1 +1,0 @@
-../../../horde-cvs/framework/Image/Image/imagick.php

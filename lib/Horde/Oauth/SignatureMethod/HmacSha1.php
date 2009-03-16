@@ -1,1 +1,0 @@
-../../../../horde/framework/Oauth/lib/Horde/Oauth/SignatureMethod/HmacSha1.php

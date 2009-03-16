@@ -1,1 +1,0 @@
-../../../horde-cvs/framework/Net_SMS/SMS/vodafoneitaly_smtp.php

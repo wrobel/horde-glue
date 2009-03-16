@@ -1,1 +1,0 @@
-../../../../horde-cvs/framework/Text_Filter/Filter/xss.php

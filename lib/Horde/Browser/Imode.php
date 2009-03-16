@@ -1,1 +1,0 @@
-../../../horde/framework/Browser/lib/Horde/Browser/Imode.php

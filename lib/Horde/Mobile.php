@@ -1,1 +1,0 @@
-../../horde-cvs/framework/Mobile/Mobile.php

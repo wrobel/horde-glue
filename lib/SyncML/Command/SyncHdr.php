@@ -1,1 +1,0 @@
-../../../horde-cvs/framework/SyncML/SyncML/Command/SyncHdr.php

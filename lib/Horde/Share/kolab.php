@@ -1,1 +1,0 @@
-../../../horde-cvs/framework/Share/Share/kolab.php

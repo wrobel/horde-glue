@@ -1,1 +1,0 @@
-../../../../../horde/framework/Mime/lib/Horde/Mime/Viewer/ooo/style_header.xsl

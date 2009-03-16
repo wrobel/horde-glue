@@ -1,1 +1,0 @@
-../../../horde/framework/Support/lib/Horde/Support/Stub.php

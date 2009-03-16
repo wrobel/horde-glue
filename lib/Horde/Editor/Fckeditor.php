@@ -1,1 +1,0 @@
-../../../horde/framework/Editor/lib/Horde/Editor/Fckeditor.php

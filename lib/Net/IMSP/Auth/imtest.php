@@ -1,1 +1,0 @@
-../../../../horde-cvs/framework/Net_IMSP/IMSP/Auth/imtest.php

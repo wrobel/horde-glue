@@ -1,1 +1,0 @@
-../../horde-cvs/framework/SpellChecker/SpellChecker.php

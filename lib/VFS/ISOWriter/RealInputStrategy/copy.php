@@ -1,1 +1,0 @@
-../../../../horde-cvs/framework/VFS_ISOWriter/ISOWriter/RealInputStrategy/copy.php

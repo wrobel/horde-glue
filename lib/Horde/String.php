@@ -1,1 +1,0 @@
-../../horde-cvs/framework/Util/String.php
