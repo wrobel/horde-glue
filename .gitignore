@@ -1,7 +1,10 @@
 log/*
 tmp/*
+lib/*
+storage/*
 .#*
 *~
 *.orig
 *.rej
 p.p
+CVS
