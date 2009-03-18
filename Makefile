@@ -15,17 +15,14 @@ lib:
 
 .PHONY: test-HEAD
 test-HEAD: clean-test $(TEST_HEAD_PKGS:%=test-HEAD-%) $(TEST_CVS_PKGS:%=test-CVS-%)
+	@echo " -> All done."
 
 .PHONY: clean-test
 clean-test:
-	rm -f log/test*.log
+	@rm -f log/test*.log
 
 .PHONY: $(TEST_HEAD_PKGS:%=test-HEAD-%)
 $(TEST_HEAD_PKGS:%=test-HEAD-%): lib
-	@echo
-	@echo "TESTING framework/$(@:test-HEAD-%=%)"
-	@echo "===================================="
-	@echo
 	@PHP_FILES=`find horde/framework/$(@:test-HEAD-%=%)/ -name '*.php'`; \
 	if [ -n "$$PHP_FILES" ]; then \
 	  rm -f log/$@-HEAD-syntax.log; \
@@ -33,16 +30,17 @@ $(TEST_HEAD_PKGS:%=test-HEAD-%): lib
 	    php -l -f $$TEST | tee -a log/$@-HEAD-syntax.log | grep "^No syntax errors detected in" > /dev/null || SYNTAX="$$SYNTAX $$TEST"; \
 	  done; \
 	  if [ -n "$$SYNTAX" ]; then \
-	    echo "FAIL: Syntax errors in files: $$SYNTAX"; \
+	    echo; \
+	    echo "FAIL (framework/$(@:test-CVS-%=%)): Syntax errors in files: $$SYNTAX"; \
 	  else \
-	    echo "OK: Syntax checks."; \
+	    echo -n "."; \
 	  fi; \
 	fi
 	@SIMPLE_TESTS=`find horde/framework/$(@:test-HEAD-%=%)/ -name '*.phpt' | xargs -L 1 -r dirname | sort | uniq`; \
 	if [ -n "$$SIMPLE_TESTS" ]; then \
 	  rm -f log/$@-HEAD-simple.log; \
 	  for TEST in $$SIMPLE_TESTS; do \
-	    pear -c lib/.pearrc run-tests $$TEST/*.phpt | tee -a log/$@-HEAD-simple.log | grep "^FAIL " | sed -e 's/FAIL.*\(\[.*\]\)/FAIL: \1/'; \
+	    pear -c .pearrc run-tests $$TEST/*.phpt | tee -a log/$@-HEAD-simple.log | grep "^FAIL " | sed -e 's/FAIL.*\(\[.*\]\)/FAIL: \1/'; \
 	  done; \
 	fi
 	@ALL_TESTS=`find horde/framework/$(@:test-HEAD-%=%)/ -name AllTests.php | xargs -L 1 -r dirname | sort | uniq`; \
@@ -54,18 +52,15 @@ $(TEST_HEAD_PKGS:%=test-HEAD-%): lib
 	    cd $$CWD; \
 	  done; \
 	  if [ -n "$$PHPUNIT" ]; then \
-	    echo "FAIL: Some phpunit tests failed!"; \
+	    echo; \
+	    echo "FAIL (framework/$(@:test-CVS-%=%)): Some phpunit tests failed!"; \
 	  else \
-	    echo "OK: PHPUnit checks."; \
+	    echo -n "."; \
 	  fi; \
 	fi
 
 .PHONY: $(TEST_CVS_PKGS:%=test-CVS-%)
 $(TEST_CVS_PKGS:%=test-CVS-%): lib
-	@echo
-	@echo "TESTING framework/$(@:test-CVS-%=%)"
-	@echo "===================================="
-	@echo
 	@PHP_FILES=`find horde-cvs/framework/$(@:test-CVS-%=%)/ -name '*.php'`; \
 	if [ -n "$$PHP_FILES" ]; then \
 	  rm -f log/$@-CVS-syntax.log; \
@@ -73,16 +68,17 @@ $(TEST_CVS_PKGS:%=test-CVS-%): lib
 	    php -l -f $$TEST | tee -a log/$@-CVS-syntax.log | grep "^No syntax errors detected in" > /dev/null || SYNTAX="$$SYNTAX $$TEST"; \
 	  done; \
 	  if [ -n "$$SYNTAX" ]; then \
-	    echo "FAIL: Syntax errors in files: $$SYNTAX"; \
+	    echo; \
+	    echo "FAIL (framework/$(@:test-CVS-%=%)): Syntax errors in files: $$SYNTAX"; \
 	  else \
-	    echo "OK: Syntax checks."; \
+	    echo -n "."; \
 	  fi; \
 	fi
 	@SIMPLE_TESTS=`find horde-cvs/framework/$(@:test-CVS-%=%)/ -name '*.phpt' | xargs -L 1 -r dirname | sort | uniq`; \
 	if [ -n "$$SIMPLE_TESTS" ]; then \
 	  rm -f log/$@-CVS-simple.log; \
 	  for TEST in $$SIMPLE_TESTS; do \
-	    pear -c lib/.pearrc run-tests $$TEST/*.phpt | tee -a log/$@-CVS-simple.log | grep "^FAIL " | sed -e 's/FAIL.*\(\[.*\]\)/FAIL: \1/'; \
+	    pear -c .pearrc run-tests $$TEST/*.phpt | tee -a log/$@-CVS-simple.log | grep "^FAIL " | sed -e 's/FAIL.*\(\[.*\]\)/FAIL: \1/'; \
 	  done; \
 	fi
 	@ALL_TESTS=`find horde-cvs/framework/$(@:test-CVS-%=%)/ -name AllTests.php | xargs -L 1 -r dirname | sort | uniq`; \
@@ -94,9 +90,10 @@ $(TEST_CVS_PKGS:%=test-CVS-%): lib
 	    cd $$CWD; \
 	  done; \
 	  if [ -n "$$PHPUNIT" ]; then \
-	    echo "FAIL: Some phpunit tests failed!"; \
+	    echo; \
+	    echo "FAIL (framework/$(@:test-CVS-%=%)): Some phpunit tests failed!"; \
 	  else \
-	    echo "OK: PHPUnit checks."; \
+	    echo -n "."; \
 	  fi; \
 	fi
 
