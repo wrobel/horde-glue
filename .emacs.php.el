@@ -16,7 +16,11 @@
 		      "log/php-errors.log\" "))
 
 (setq phpunitoptions (concat liblocs
-			     logopts))
+			     logopts
+;;			     " --coverage-html="
+;;			     current-dir
+;;			     "coverage "
+			     ))
 
 (setq phpoptions (concat liblocs
 			 logopts
