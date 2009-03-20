@@ -1,0 +1,158 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Storage/FixTriggerOnFolderCreation
+
+Fix triggering when creating a folder.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |   61 +++++++++++-----------
+ 1 files changed, 31 insertions(+), 30 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index df6e967..b39f678 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -348,7 +348,11 @@ class Kolab_Folder {
+                                                   $result->getMessage()),
+                                           __FILE__, __LINE__, PEAR_LOG_ERR);
+                     }
+-                    $result = $this->trigger();
++                    $imap->setAnnotation(KOLAB_ANNOT_FOLDER_TYPE, 
++                                         array('value.shared' => $this->_type),
++                                         $this->name);
++
++                    $result = $this->trigger($this->name);
+                     if (is_a($result, 'PEAR_Error')) {
+                         Horde::logMessage(sprintf('Failed triggering dummy folder: %s!',
+                                                   $result->getMessage()),
+@@ -378,19 +382,10 @@ class Kolab_Folder {
+             unset($attributes['owner']);
+         }
+ 
+-        /** Now save the folder permissions */
+-        if (isset($this->_perms)) {
+-            $result = $this->_perms->save();
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-        }
+-
+         /** Handle the folder type */
+         $folder_type = $this->_type . ($this->_default ? '.default' : '');
+         if ($this->_type_annotation != $folder_type) {
+-            $result = $this->_setAnnotation(KOLAB_ANNOT_FOLDER_TYPE,
+-                                            $folder_type, $this->name);
++            $result = $this->_setAnnotation(KOLAB_ANNOT_FOLDER_TYPE, $folder_type);
+             if (is_a($result, 'PEAR_Error')) {
+                 $this->_type = null;
+                 $this->_default = false;
+@@ -411,8 +406,7 @@ class Kolab_Folder {
+                 } else {
+                     $entry = HORDE_ANNOT_SHARE_ATTR . $key;
+                 }
+-                $result = $this->_setAnnotation($entry,
+-                                                $store, $this->name);
++                $result = $this->_setAnnotation($entry, $store);
+                 if (is_a($result, 'PEAR_Error')) {
+                     return $result;
+                 }
+@@ -420,6 +414,14 @@ class Kolab_Folder {
+             $this->_attributes = $attributes;
+         }
+ 
++        /** Now save the folder permissions */
++        if (isset($this->_perms)) {
++            $result = $this->_perms->save();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
+         $result = $this->trigger();
+         if (is_a($result, 'PEAR_Error')) {
+             Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
+@@ -442,13 +444,6 @@ class Kolab_Folder {
+             return $result;
+         }
+ 
+-        $result = $this->trigger();
+-        if (is_a($result, 'PEAR_Error')) {
+-            Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
+-                                      $this->name, $result->getMessage()),
+-                              __FILE__, __LINE__, PEAR_LOG_ERR);
+-        }
+-
+         return true;
+     }
+ 
+@@ -488,15 +483,19 @@ class Kolab_Folder {
+     /**
+      * Returns the subpath of the folder.
+      *
++     * @param string $name Name of the folder that should be triggered.
++     *
+      * @return string|PEAR_Error  The subpath of this folder.
+      */
+-    function getSubpath()
++    function getSubpath($name = null)
+     {
+-        if (!isset($this->_subpath)) {
+-            if (!isset($this->name) && isset($this->new_name)) {
+-                $name = $this->new_name;
+-            } else {
+-                $name = $this->name;
++        if (!isset($this->_subpath) || isset($name)) {
++            if (!isset($name)) {
++                if (!isset($this->name) && isset($this->new_name)) {
++                    $name = $this->new_name;
++                } else {
++                    $name = $this->name;
++                }
+             }
+ 
+             if (!preg_match(";(shared\.|INBOX[/]?|user/([^/]+)[/]?)([^@]*)(@.*)?;", $name, $matches)) {
+@@ -1179,9 +1178,11 @@ class Kolab_Folder {
+      * folder. This is currently only required for handling free/busy
+      * information with Kolab.
+      *
++     * @param string $name Name of the folder that should be triggered.
++     *
+      * @return boolean|PEAR_Error True if successfull.
+      */
+-    function trigger()
++    function trigger($name = null)
+     {
+         global $conf;
+ 
+@@ -1195,7 +1196,7 @@ class Kolab_Folder {
+             return $owner;
+         }
+ 
+-        $subpath = $this->getSubpath();
++        $subpath = $this->getSubpath($name);
+         if (is_a($subpath, 'PEAR_Error')) {
+             return $subpath;
+         }
+@@ -1507,8 +1508,8 @@ class Kolab_Folder {
+                 return $imap;
+             }
+             return $imap->setAnnotation($key,
+-                                               array('value.shared' => $value),
+-                                               $this->name);
++                                        array('value.shared' => $value),
++                                        $this->name);
+         }
+ 
+         if (!isset($this->_annotation_data)) {
+-- 
+tg: (4a6bd9f..) t/framework/HK/GW/Kolab_Storage/FixTriggerOnFolderCreation (depends on: t/framework/HK/GW/Kolab_Storage/FixTriggerOnFolderRename)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 534947cac14b588de735123d83f0b5061719013e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:36:34 2009 +0000
+
+    Added patch framework/HK-GW-Kolab_Storage-Fix_trigger_on_creation.patch from the mercurial release queue.

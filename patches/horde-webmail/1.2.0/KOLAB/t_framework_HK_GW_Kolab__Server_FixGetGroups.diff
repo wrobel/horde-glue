@@ -1,0 +1,35 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/FixGetGroups
+
+Fix the retrieval of user groups.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ .../lib/Horde/Kolab/Server/Object/user.php         |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+index 76b202b..556933f 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+@@ -179,7 +179,7 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+      */
+     function getGroups()
+     {
+-        return $this->_db->getGroups($this->_dn);
++        return $this->_db->getGroups($this->_uid);
+     }
+ 
+     /**
+-- 
+tg: (59cb337..) t/framework/HK/GW/Kolab_Server/FixGetGroups (depends on: t/turba/HK/GW/AutomaticFreeBusyUrl)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 8c62525963066a04f92ca69d54429e5a6162b7f3
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:24:55 2009 +0000
+
+    Added patch framework/HK-GW-Kolab_Server-Fix_getGroups.patch from the mercurial release queue.

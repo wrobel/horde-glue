@@ -1,0 +1,98 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/getFreebusyServer
+
+Allow to retrieve the free/busy server of a user.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server/Object.php    |   26 ++++++++++---------
+ .../lib/Horde/Kolab/Server/Object/user.php         |    8 ++++++
+ 2 files changed, 22 insertions(+), 12 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object.php b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+index 82170f5..b4ae799 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+@@ -19,18 +19,19 @@ define('KOLAB_OBJECT_USER',             'Horde_Kolab_Server_Object_user');
+ define('KOLAB_OBJECT_SERVER',           'Horde_Kolab_Server_Object_server');
+ 
+ /** Define the possible Kolab object attributes */
+-define('KOLAB_ATTR_DN',        'dn');
+-define('KOLAB_ATTR_SN',        'sn');
+-define('KOLAB_ATTR_CN',        'cn');
+-define('KOLAB_ATTR_FN',        'fn');
+-define('KOLAB_ATTR_MAIL',      'mail');
+-define('KOLAB_ATTR_UID',       'uid');
+-define('KOLAB_ATTR_DELETED',   'kolabDeleteFlag');
+-define('KOLAB_ATTR_IMAPHOST',  'kolabImapServer');
+-define('KOLAB_ATTR_HOMESERVER','kolabHomeServer');
+-define('KOLAB_ATTR_IPOLICY',   'kolabInvitationPolicy');
+-define('KOLAB_ATTR_FBPAST',    'kolabFreeBusyPast');
+-define('KOLAB_ATTR_FBFUTURE',  'kolabFreeBusyFuture');
++define('KOLAB_ATTR_DN',           'dn');
++define('KOLAB_ATTR_SN',           'sn');
++define('KOLAB_ATTR_CN',           'cn');
++define('KOLAB_ATTR_FN',           'fn');
++define('KOLAB_ATTR_MAIL',         'mail');
++define('KOLAB_ATTR_UID',          'uid');
++define('KOLAB_ATTR_DELETED',      'kolabDeleteFlag');
++define('KOLAB_ATTR_FREEBUSYHOST', 'kolabFreeBusyServer');
++define('KOLAB_ATTR_IMAPHOST',     'kolabImapServer');
++define('KOLAB_ATTR_HOMESERVER',   'kolabHomeServer');
++define('KOLAB_ATTR_IPOLICY',      'kolabInvitationPolicy');
++define('KOLAB_ATTR_FBPAST',       'kolabFreeBusyPast');
++define('KOLAB_ATTR_FBFUTURE',     'kolabFreeBusyFuture');
+ 
+ /**
+  * This class provides methods to deal with Kolab objects stored in
+@@ -200,6 +201,7 @@ class Horde_Kolab_Server_Object {
+ 		case KOLAB_ATTR_MAIL:
+ 		case KOLAB_ATTR_UID:
+ 		case KOLAB_ATTR_IMAPHOST:
++		case KOLAB_ATTR_FREEBUSYHOST:
+ 		case KOLAB_ATTR_HOMESERVER:
+ 			return $this->_get($attr, true);
+ 		default:
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+index a4cd05f..d6b9e97 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+@@ -43,6 +43,7 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+         KOLAB_ATTR_MAIL,
+         KOLAB_ATTR_DELETED,
+ 		KOLAB_ATTR_IMAPHOST,
++		KOLAB_ATTR_FREEBUSYHOST,
+ 		KOLAB_ATTR_HOMESERVER,
+ 		KOLAB_ATTR_IPOLICY,
+         KOLAB_ATTR_FBFUTURE,
+@@ -69,11 +70,18 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+     function getServer($server_type)
+     {
+         switch ($server_type) {
++        case 'freebusy':
++            $server = $this->get(KOLAB_ATTR_FREEBUSYHOST);
++            if (!is_a($server, 'PEAR_Error') && !empty($server)) {
++                return $server;
++            }
++            return 'https://' . $this->getServer('homeserver') . '/freebusy';
+         case 'imap':
+             $server = $this->get(KOLAB_ATTR_IMAPHOST);
+             if (!is_a($server, 'PEAR_Error') && !empty($server)) {
+                 return $server;
+             }
++        case 'homeserver':
+         default:
+             $home = $this->get(KOLAB_ATTR_HOMESERVER);
+             return $home;
+-- 
+tg: (6938161..) t/framework/HK/GW/Kolab_Server/getFreebusyServer (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 7d8c722ee5e3307f7aa0c4b5f0580fb10beb7c8f
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 20:14:18 2009 +0000
+
+    Added patch /release/HK-GW-Kolab_Server-getFreeBusyServer.patch from the mercurial release queue.

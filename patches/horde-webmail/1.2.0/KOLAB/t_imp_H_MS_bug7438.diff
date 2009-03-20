@@ -1,0 +1,71 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/imp/H/MS/bug7438
+
+[#7438] Failed login not passed back to login screen
+
+http://bugs.horde.org/ticket/7438
+
+STATUS: MERGED
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/imp/lib/Auth/imp.php |    2 +-
+ horde-webmail/imp/redirect.php     |    6 ++----
+ 2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/horde-webmail/imp/lib/Auth/imp.php b/horde-webmail/imp/lib/Auth/imp.php
+index c94b0b1..6b55015 100644
+--- a/horde-webmail/imp/lib/Auth/imp.php
++++ b/horde-webmail/imp/lib/Auth/imp.php
+@@ -142,7 +142,7 @@ class Auth_imp extends Auth {
+             if (isset($prefs)) {
+                 $prefs->cleanup(true);
+             }
+-            $this->_setAuthError(AUTH_REASON_FAILED);
++            $this->_setAuthError(AUTH_REASON_BADLOGIN);
+             return false;
+         }
+ 
+diff --git a/horde-webmail/imp/redirect.php b/horde-webmail/imp/redirect.php
+index 7e5c045..e2f0daa 100644
+--- a/horde-webmail/imp/redirect.php
++++ b/horde-webmail/imp/redirect.php
+@@ -237,12 +237,10 @@ if (($imapuser !== null) && ($pass !== null)) {
+ 
+         IMP_Session::loginTasks();
+ 
+-        $url = _newSessionUrl($actionID, $isLogin, $view);
+-    } else {
+-        $url = Auth::addLogoutParameters(IMP::logoutUrl());
++        _redirect(_framesetUrl(_newSessionUrl($actionID, $isLogin, $view)));
+     }
+ 
+-    _redirect(_framesetUrl($url));
++    _redirect(Auth::addLogoutParameters(IMP::logoutUrl()));
+ }
+ 
+ /* No session, and no login attempt. Just go to the login page. */
+-- 
+tg: (461f8df..) t/imp/H/MS/bug7438 (depends on: t/COPYRIGHT3)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 38b4949c93b00cae793ace9ae861ade22e0bb3c1
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 22:57:16 2009 +0000
+
+    Removed stray patch file.
+
+commit 42660a8ab771c9f54731f24022409089aef6a09f
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 20:02:39 2009 +0000
+
+    Fix base patch.
+
+commit 0ae1d51e9802057c3aa2805a4088fe1eb6df8a53
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 07:23:20 2009 +0000
+
+    Fix [#7438] Failed login not passed back to login screen

@@ -1,0 +1,148 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/COPYRIGHT3
+
+Syncs the Kolab_Storage module with Horde fw3.
+
+STATUS: MERGED
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Deprecated.php     |    4 ++--
+ horde-webmail/lib/Horde/Kolab/Storage.php        |    4 ++--
+ horde-webmail/lib/Horde/Kolab/Storage/Cache.php  |    4 ++--
+ horde-webmail/lib/Horde/Kolab/Storage/Data.php   |    4 ++--
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |    4 ++--
+ horde-webmail/lib/Horde/Kolab/Storage/List.php   |    4 ++--
+ horde-webmail/lib/Horde/Kolab/Storage/Perms.php  |    4 ++--
+ 7 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Deprecated.php b/horde-webmail/lib/Horde/Kolab/Deprecated.php
+index e2ade05..a627821 100644
+--- a/horde-webmail/lib/Horde/Kolab/Deprecated.php
++++ b/horde-webmail/lib/Horde/Kolab/Deprecated.php
+@@ -17,9 +17,9 @@ require_once 'Horde/Kolab/Storage.php';
+  * backward compatibility. The intended way of using the Kolab storage
+  * handling is to use the main Kolab_Storage class only.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Deprecated.php,v 1.1.2.1 2008/08/18 13:48:57 wrobel Exp $
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Deprecated.php,v 1.1.2.4 2009/01/06 15:23:17 jan Exp $
+  *
+- * Copyright 2004-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2004-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage.php b/horde-webmail/lib/Horde/Kolab/Storage.php
+index 0531243..96a905b 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage.php
+@@ -34,9 +34,9 @@ require_once 'Horde/Kolab/Storage/List.php';
+  *     $folder = Kolab_Storage::getShareData(Auth::getAuth(), 'event');
+  *   </code>
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage.php,v 1.2.2.2 2008/09/12 16:09:51 wrobel Exp $
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage.php,v 1.2.2.3 2009/01/06 15:23:17 jan Exp $
+  *
+- * Copyright 2004-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2004-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Cache.php b/horde-webmail/lib/Horde/Kolab/Storage/Cache.php
+index 908a5d8..d60ceeb 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Cache.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Cache.php
+@@ -12,9 +12,9 @@ require_once 'Horde/Cache.php';
+  * The Kolab_Cache class provides a cache for the Kolab
+  * storage for groupware objects
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Cache.php,v 1.2.2.2 2008/09/06 09:19:31 jan Exp $
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Cache.php,v 1.2.2.4 2009/01/06 15:23:18 jan Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Data.php b/horde-webmail/lib/Horde/Kolab/Storage/Data.php
+index 472a131..213d1f2 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Data.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Data.php
+@@ -12,9 +12,9 @@ require_once 'Horde/Kolab/Storage/Cache.php';
+  * The Kolab_Data class represents a data type in an IMAP folder on the Kolab
+  * server.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Data.php,v 1.5.2.1 2008/08/18 13:48:57 wrobel Exp $
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Data.php,v 1.5.2.4 2009/01/06 15:23:18 jan Exp $
+  *
+- * Copyright 2004-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2004-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 8c74322..4d3e0f3 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -59,9 +59,9 @@ define('HORDE_ANNOT_SHARE_ATTR', '/vendor/horde/share-');
+  * The Kolab_Folder class represents an IMAP folder on the Kolab
+  * server.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Folder.php,v 1.7.2.3 2008/09/25 14:44:03 wrobel Exp $
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Folder.php,v 1.7.2.19 2009/02/24 07:40:40 wrobel Exp $
+  *
+- * Copyright 2004-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2004-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/List.php b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+index d7af1b2..583f41f 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/List.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+@@ -12,9 +12,9 @@ require_once 'Horde/Kolab/Storage/Folder.php';
+  * The Kolab_List class represents all IMAP folders on the Kolab
+  * server visible to the current user.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/List.php,v 1.3.2.2 2008/09/25 09:20:07 wrobel Exp $
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/List.php,v 1.3.2.7 2009/02/23 21:33:19 wrobel Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Perms.php b/horde-webmail/lib/Horde/Kolab/Storage/Perms.php
+index 114fda9..8b3dd72 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Perms.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Perms.php
+@@ -13,9 +13,9 @@ require_once 'Horde/Perms.php';
+  * Permission handling and the IMAP permission system used on the
+  * Kolab server.
+  *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Perms.php,v 1.2.2.1 2008/08/18 13:48:57 wrobel Exp $
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Perms.php,v 1.2.2.2 2009/01/06 15:23:18 jan Exp $
+  *
+- * Copyright 2006-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2006-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+-- 
+tg: (b79b990..) t/COPYRIGHT3 (depends on: t/Kolab_Storage/HK/GW/SuppressTriggering)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit f6c131c0e081c7fec9baf44bb96080b3f8e99918
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 22:37:24 2009 +0000
+
+    Remove stray files.
+
+commit adc83aafb0abaaeadb86a06f210928f1ee7c1bdb
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 06:07:04 2009 +0000
+
+    Sync Kolab_Storage within kolab-webclient with horde fw3.

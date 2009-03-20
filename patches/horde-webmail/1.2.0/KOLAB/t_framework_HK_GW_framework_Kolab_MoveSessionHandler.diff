@@ -1,0 +1,421 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/framework/Kolab/MoveSessionHandler
+
+Move several Kolab specific components to the new Kolab_Session handler.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Deprecated.php      |    4 +-
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php  |   38 +++-
+ horde-webmail/lib/Horde/Kolab/Storage/List.php    |   10 +-
+ horde-webmail/lib/Horde/Kolab/Storage/Session.php |  244 ---------------------
+ 4 files changed, 40 insertions(+), 256 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Deprecated.php b/horde-webmail/lib/Horde/Kolab/Deprecated.php
+index af78ceb..6f45013 100644
+--- a/horde-webmail/lib/Horde/Kolab/Deprecated.php
++++ b/horde-webmail/lib/Horde/Kolab/Deprecated.php
+@@ -180,7 +180,7 @@ class Kolab_Storage_Deprecated extends Kolab_Storage {
+             /** We need the DOM library for xml handling (PHP4/5). */
+             require_once 'Horde/DOM.php';
+ 
+-            $session = &Kolab_Session::singleton();
++            $session = &Horde_Kolab_Session::singleton();
+             $this->_imap = &$session->getImap();
+ 
+             $this->_object_type = $app_consts['mime_type_suffix'];
+@@ -449,7 +449,7 @@ class Kolab_Storage_Deprecated extends Kolab_Storage {
+      */
+     function listObjectsInFolder($folder)
+     {
+-        $session = &Kolab_Session::singleton();
++        $session = &Horde_Kolab_Session::singleton();
+         $imap = &$session->getImap();
+ 
+         // Select mailbox to search in
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 827faa9..97a2603 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -5,6 +5,9 @@
+  * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Folder.php,v 1.7.2.3 2008/09/25 14:44:03 wrobel Exp $
+  */
+ 
++/** We need the current user session. */
++require_once 'Horde/Kolab/Session.php';
++
+ /** Data handling for Kolab **/
+ require_once 'Horde/Kolab/Storage/Data.php';
+ 
+@@ -186,8 +189,7 @@ class Kolab_Folder {
+      */
+     function __wakeup()
+     {
+-        $session = &Kolab_Session::singleton();
+-        $this->_imap = &$session->getImap();
++        $this->_imap = &$this->getImap();
+ 
+         if (!isset($this->_data)) {
+             $this->_data = array();
+@@ -216,6 +218,36 @@ class Kolab_Folder {
+     }
+ 
+     /**
++     * Create an IMAP connection.
++     *
++     * @return Kolab_IMAP|PEAR_Error The IMAP connection.
++     */
++    function &getImap()
++    {
++        $session = &Horde_Kolab_Session::singleton();
++        $params = &$session->getImapParams();
++        if (is_a($params, 'PEAR_Error')) {
++            return $params;
++        } else {
++            /** We need the Kolab IMAP library now. */
++            require_once 'Horde/Kolab/Storage/IMAP.php';
++
++            $imap = &Kolab_IMAP::singleton($params['hostspec'],
++                                           $params['port'], true, false);
++            if (is_a($imap, 'PEAR_Error')) {
++                return $imap;
++            }
++
++            $result = $this->_imap->connect(Auth::getAuth(),
++                                            Auth::getCredential('password'));
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++            return $imap;
++        }
++    }
++
++    /**
+      * Set the list handler.
+      *
+      * @param Kolab_List $list  The handler for the list of folders.
+@@ -841,7 +873,7 @@ class Kolab_Folder {
+             $mime_message->alterPart($mime_part_id, $part);
+         }
+ 
+-        $session = &Kolab_Session::singleton();
++        $session = &Horde_Kolab_Session::singleton();
+ 
+         // Update email headers
+         $new_headers->addHeader('From', $session->user_mail);
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/List.php b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+index 3306df5..6d31c19 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/List.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+@@ -5,9 +5,6 @@
+  * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/List.php,v 1.3.2.2 2008/09/25 09:20:07 wrobel Exp $
+  */
+ 
+-/** We need the IMAP connection. */
+-require_once 'Horde/Kolab/Storage/Session.php';
+-
+ /** Kolab IMAP folder representation. **/
+ require_once 'Horde/Kolab/Storage/Folder.php';
+ 
+@@ -84,8 +81,7 @@ class Kolab_List {
+      */
+     function __wakeup()
+     {
+-        $session = &Kolab_Session::singleton();
+-        $this->_imap = &$session->getImap();
++        $this->_imap = &Kolab_Folder::getImap();
+ 
+         if (!isset($this->_folders)) {
+             $this->_folders = array();
+@@ -127,7 +123,7 @@ class Kolab_List {
+         static $list;
+ 
+         if (!isset($list) &&
+-            !empty($GLOBALS['conf']['kolab']['cache_folders'])) {
++            !empty($GLOBALS['conf']['kolab']['imap']['cache_folders'])) {
+             require_once 'Horde/SessionObjects.php';
+             $session = &Horde_SessionObjects::singleton();
+             $list = $session->query('kolab_folderlist');
+@@ -137,7 +133,7 @@ class Kolab_List {
+             $list = new Kolab_List();
+         }
+ 
+-        if (!empty($GLOBALS['conf']['kolab']['cache_folders'])) {
++        if (!empty($GLOBALS['conf']['kolab']['imap']['cache_folders'])) {
+             register_shutdown_function(array(&$list, 'shutdown'));
+         }
+ 
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Session.php b/horde-webmail/lib/Horde/Kolab/Storage/Session.php
+deleted file mode 100644
+index 840ad98..0000000
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Session.php
++++ /dev/null
+@@ -1,244 +0,0 @@
+-<?php
+-/**
+- * @package Kolab_Storage
+- *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Session.php,v 1.3.2.2 2008/09/22 16:21:23 wrobel Exp $
+- */
+-
+-/** We need the Auth library */
+-require_once 'Horde/Auth.php';
+-
+-/**
+- * The Kolab_Session class allows the Kolab classes to use a central
+- * IMAP connection per session.
+- *
+- * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Session.php,v 1.3.2.2 2008/09/22 16:21:23 wrobel Exp $
+- *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
+- *
+- * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+- *
+- * @author  Gunnar Wrobel <wrobel@pardus.de>
+- * @package Kolab_Storage
+- */
+-class Kolab_Session {
+-
+-    /**
+-     * The name of the IMAP server.
+-     *
+-     * @var string
+-     */
+-    var $_imap_server;
+-
+-    /**
+-     * The IMAP port of the server.
+-     *
+-     * @var int
+-     */
+-    var $_imap_port;
+-
+-    /**
+-     * Primary user mail address.
+-     *
+-     * @var string
+-     */
+-    var $user_mail;
+-
+-    /**
+-     * Our Kolab_IMAP object, used to communicate with the IMAP server.
+-     *
+-     * @var Kolab_IMAP
+-     */
+-    var $_imap;
+-
+-    /**
+-     * Constructor.
+-     */
+-    function Kolab_Session()
+-    {
+-        global $conf;
+-
+-        $user = $this->_fetchUser();
+-        if (!is_a($user, 'PEAR_Error')) {
+-            $result = $user->get(KOLAB_ATTR_MAIL);
+-            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
+-                $this->user_mail = $result;
+-            }
+-
+-            if (!empty($conf['kolab']['misc']['multidomain'])) {
+-                $result = $user->getServer('imap');
+-                if (!empty($result) && !is_a($result, 'PEAR_Error')) {
+-                    $server = explode(':', $result, 2);
+-                    if (!empty($server[0])) {
+-                        $this->_imap_server = $server[0];
+-                    }
+-                    if (!empty($server[1])) {
+-                        $this->_imap_port = $server[1];
+-                    }
+-                }
+-            }
+-        }
+-
+-        if (!isset($this->_imap_server)
+-            && isset($conf['kolab']['imap']['server'])) {
+-            $this->_imap_server = $conf['kolab']['imap']['server'];
+-        }
+-
+-        if (!isset($this->_imap_port)
+-            && isset($conf['kolab']['imap']['port'])) {
+-            $this->_imap_port = $conf['kolab']['imap']['port'];
+-        } else {
+-            $this->_imap_port = 143;
+-        }
+-
+-        if (!isset($this->user_mail)) {
+-            $auth = Auth::getAuth();
+-            if (empty($auth)) {
+-                $auth = 'anonymous';
+-            }
+-            if (strpos($auth, '@')) {
+-                $this->user_mail = $auth;
+-            } else {
+-                $this->user_mail = $auth . '@' . (!empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost');
+-            }
+-        }
+-    }
+-
+-    /**
+-     * Returns the properties that need to be serialized.
+-     *
+-     * @return array  List of serializable properties.
+-     */
+-    function __sleep()
+-    {
+-        $properties = get_object_vars($this);
+-        unset($properties['_imap']);
+-        $properties = array_keys($properties);
+-        return $properties;
+-    }
+-
+-    /**
+-     * Fetch the Kolab_Object representing the current user.
+-     *
+-     * @return Kolab_Object_user|PEAR_Error The object representing
+-     *                                      the current user.
+-     */
+-    function _fetchUser()
+-    {
+-        $user = Auth::getAuth();
+-        if (empty($user)) {
+-            return PEAR::raiseError(_('Anonymous user.'));
+-        }
+-
+-        /** We need the Kolab Server access. */
+-        require_once 'Horde/Kolab/Server.php';
+-        $server = Horde_Kolab_Server::singleton();
+-        if (is_a($server, 'PEAR_Error')) {
+-            return $server;
+-        }
+-
+-        $dn = $server->dnForUidOrMail($user);
+-        if (empty($dn)) {
+-            return PEAR::raiseError(_('No such user.'));
+-        }
+-        if (is_a($dn, 'PEAR_Error')) {
+-            return $dn;
+-        }
+-
+-        $user = $server->fetch($dn);
+-        if (is_a($user, 'PEAR_Error')) {
+-            return $user;
+-        }
+-
+-        global $conf;
+-
+-        if (empty($conf['kolab']['misc']['allow_special'])
+-            && !is_a($user, 'Horde_Kolab_Server_Object_user')) {
+-            return PEAR::raiseError(_('Current user is not a standard Kolab user.'));
+-        }
+-        return $user;
+-    }
+-
+-    /**
+-     * Returns the current IMAP connection.
+-     *
+-     * @return Kolab_IMAP|PEAR_Error An open IMAP connection.
+-     */
+-    function &getImap()
+-    {
+-        if (isset($this->_imap)) {
+-            return $this->_imap;
+-        }
+-
+-        if (!isset($this->_imap_server)) {
+-            $this->_imap = PEAR::raiseError(_("The URL for the Kolab IMAP Server is not available!"));
+-            return $this->_imap;
+-        }
+-
+-        /** We need the Kolab IMAP library now. */
+-        require_once 'Horde/Kolab/Storage/IMAP.php';
+-
+-        $this->_imap = &Kolab_IMAP::singleton($this->_imap_server, $this->_imap_port,
+-                                              true, false);
+-        if (is_a($this->_imap, 'PEAR_Error')) {
+-            return $this->_imap;
+-        }
+-        $result = $this->_imap->connect(Auth::getAuth(),
+-                                        Auth::getCredential('password'));
+-        if (is_a($result, 'PEAR_Error')) {
+-            $this->_imap = &$result;
+-            return $result;
+-        }
+-
+-        return $this->_imap;
+-    }
+-
+-    /**
+-     * Attempts to return a reference to a concrete Kolab_Session instance.
+-     *
+-     * It will only create a new instance if no Kolab_Session instance
+-     * currently exists.
+-     *
+-     * This method must be invoked as:
+-     *   <code>$var = &Kolab_Session::singleton();</code>
+-     *
+-     * @static
+-     *
+-     * @return Kolab_Session  The concrete Session reference.
+-     */
+-    function &singleton()
+-    {
+-        static $session;
+-
+-        if (!isset($session)) {
+-            /**
+-             * Horde_Kolab_Server currently has no caching so we mainly
+-             * cache some user information here as reading this data
+-             * may be expensive when running in a multi-host
+-             * environment.
+-             */
+-            require_once 'Horde/SessionObjects.php';
+-            $hs = &Horde_SessionObjects::singleton();
+-            $session = $hs->query('kolab_session');
+-        }
+-
+-        if (empty($session)) {
+-            $session = new Kolab_Session();
+-        }
+-
+-        register_shutdown_function(array(&$session, 'shutdown'));
+-
+-        return $session;
+-    }
+-
+-    /**
+-     * Stores the object in the session cache.
+-     */
+-    function shutdown()
+-    {
+-        require_once 'Horde/SessionObjects.php';
+-        $session = &Horde_SessionObjects::singleton();
+-        $session->overwrite('kolab_session', $this, false);
+-    }
+-}
+-- 
+tg: (049b435..) t/framework/HK/GW/framework/Kolab/MoveSessionHandler (depends on: t/framework/HK/GW/Auth/UseSession t/kronolith/HK/GW/getFreebusyServer t/framework/HK/GW/Kolab_Storage/Trigger)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 9bc50d7cb446fd82cf2416781d10d4952acf83d5
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 21:39:39 2009 +0000
+
+    Added dependency on t/framework/HK/GW/Kolab_Storage/Trigger.
+
+commit c7d3f02e77aa7e3899b828acf8041e38309ddf7d
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 21:38:03 2009 +0000
+
+    New TopGit dependency: t/framework/HK/GW/Kolab_Storage/Trigger
+
+commit fd2f1ee045e95340f5880c1fc8bed3dc2743cb43
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 20:42:51 2009 +0000
+
+    Added patch release/HK-GW-Kolab-Move_Session_handler.patch from the mercurial release queue.

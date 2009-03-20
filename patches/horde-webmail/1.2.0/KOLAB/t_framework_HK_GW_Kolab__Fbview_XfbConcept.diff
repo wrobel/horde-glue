@@ -1,0 +1,145 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Fbview/XfbConcept
+
+Implementation of the extended free/busy concept.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |   88 ++++++++++++++++++++++
+ horde-webmail/lib/Horde/Share/kolab.php          |    7 ++
+ 2 files changed, 95 insertions(+), 0 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index b39f678..36844f9 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -44,6 +44,13 @@ define('KOLAB_ANNOT_ROOT', '/vendor/kolab/');
+ define('KOLAB_ANNOT_FOLDER_TYPE', KOLAB_ANNOT_ROOT . 'folder-type');
+ 
+ /**
++ * Kolab specific free/busy relevance
++ */
++define('KOLAB_FBRELEVANCE_ADMINS',  0);
++define('KOLAB_FBRELEVANCE_READERS', 1);
++define('KOLAB_FBRELEVANCE_NOBODY',  2);
++ 
++/**
+  * Horde-specific annotations on the imap folder have this prefix.
+  */
+ define('HORDE_ANNOT_SHARE_ATTR', '/vendor/horde/share-');
+@@ -1529,4 +1536,85 @@ class Kolab_Folder {
+         $data['uid'] = 'KOLAB_FOLDER_CONFIGURATION';
+         return $this->_annotation_data->save($data, $uid);
+     }
++
++
++
++    /**
++     * Get the free/busy relevance for this folder
++     *
++     * @return int  Value containing the FB_RELEVANCE.
++     */
++    function getFbrelevance()
++    {
++        $result = $this->getKolabAttribute('incidences-for');
++        if (is_a($result, 'PEAR_Error') || empty($result)) {
++            return KOLAB_FBRELEVANCE_ADMINS;
++        }
++        switch ($result) {
++        case 'admins':
++            return KOLAB_FBRELEVANCE_ADMINS;
++        case 'readers':
++            return KOLAB_FBRELEVANCE_READERS;
++        case 'nobody':
++            return KOLAB_FBRELEVANCE_NOBODY;
++        default:
++            return KOLAB_FBRELEVANCE_ADMINS;
++        }
++    }
++
++    /**
++     * Set the free/busy relevance for this folder
++     *
++     * @param int $relevance Value containing the FB_RELEVANCE
++     *
++     * @return mixed  True on success or a PEAR_Error.
++     */
++    function setFbrelevance($relevance)
++    {
++        switch ($relevance) {
++        case KOLAB_FBRELEVANCE_ADMINS:
++            $value = 'admins';
++            break;
++        case KOLAB_FBRELEVANCE_READERS:
++            $value = 'readers';
++            break;
++        case KOLAB_FBRELEVANCE_NOBODY:
++            $value = 'nobody';
++            break;
++        default:
++            $value = 'admins';
++        }
++
++        return $this->_setAnnotation(KOLAB_ANNOT_ROOT . 'incidences-for',
++                                     $value);
++    }
++
++    /**
++     * Get the extended free/busy access settings for this folder
++     *
++     * @return array  Array containing the users with access to the
++     *                extended information.
++     */
++    function getXfbaccess()
++    {
++        $result = $this->getKolabAttribute('pxfb-readable-for');
++        if (is_a($result, 'PEAR_Error') || empty($result)) {
++            return array();
++        }
++        return explode(' ', $result);
++    }
++
++    /**
++     * Set the extended free/busy access settings for this folder
++     *
++     * @param array $access  Array containing the users with access to the
++     *                      extended information.
++     *
++     * @return mixed  True on success or a PEAR_Error.
++     */
++    function setXfbaccess($access)
++    {
++        return $this->_setAnnotation(KOLAB_ANNOT_ROOT . 'pxfb-readable-for',
++                                     $access);
++    }
+ }
+diff --git a/horde-webmail/lib/Horde/Share/kolab.php b/horde-webmail/lib/Horde/Share/kolab.php
+index b4d6f16..10ac08f 100644
+--- a/horde-webmail/lib/Horde/Share/kolab.php
++++ b/horde-webmail/lib/Horde/Share/kolab.php
+@@ -525,6 +525,13 @@ class Horde_Share_Object_kolab extends Horde_Share_Object {
+             $default = array('source' => 'kolab',
+                              'default' => $this->get('default'),
+                              'name' => $this->get('name'));
++            $type = $this->get('type');
++            if (!is_a($type, 'PEAR_Error') && $type[0] == 'event') {
++                $default = array_merge($default, array(
++                                           'fbrelevance' => $this->getFbrelevance(),
++                                           'xfbaccess'   => $this->getXfbaccess()
++                                       ));
++            }
+             if (is_a($params, 'PEAR_Error') || $params == '') {
+                 $params = $default;
+             }
+-- 
+tg: (faa8655..) t/framework/HK/GW/Kolab_Fbview/XfbConcept (depends on: t/framework/HK/GW/Kolab_Server/FixAddressObjectIdentification)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 0cdca1ac8e05cffe0b14de2e572fc71b0a86df7c
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:47:08 2009 +0000
+
+    Added patch framework/HK-GW-Fbview_xfb_concept.patch from the mercurial release queue.

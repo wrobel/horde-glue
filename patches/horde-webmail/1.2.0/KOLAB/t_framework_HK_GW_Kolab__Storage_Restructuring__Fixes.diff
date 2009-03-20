@@ -1,0 +1,91 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Storage/Restructuring_Fixes
+
+Some fixes of issues caused by restructuring the Kolab modules.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |   15 +++++++++++----
+ horde-webmail/lib/Horde/Kolab/Storage/List.php   |    8 ++++----
+ 2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index 97a2603..2ee6983 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -238,8 +238,8 @@ class Kolab_Folder {
+                 return $imap;
+             }
+ 
+-            $result = $this->_imap->connect(Auth::getAuth(),
+-                                            Auth::getCredential('password'));
++            $result = $imap->connect(Auth::getAuth(),
++                                     Auth::getCredential('password'));
+             if (is_a($result, 'PEAR_Error')) {
+                 return $result;
+             }
+@@ -385,6 +385,7 @@ class Kolab_Folder {
+ 
+                 $this->new_name = null;
+                 $this->_title = null;
++                $this->_owner = null;
+             }
+         }
+ 
+@@ -475,8 +476,14 @@ class Kolab_Folder {
+     function getOwner()
+     {
+         if (!isset($this->_owner)) {
+-            if (!preg_match(";(shared\.|INBOX[/]?|user/([^/]+))([^@]+)(@.*)?;", $this->name, $matches)) {
+-                return PEAR::raiseError(sprintf(_("Owner of folder %s cannot be determined."), $this->name));
++            if (!isset($this->name) && isset($this->new_name)) {
++                $name = $this->new_name;
++            } else {
++                $name = $this->name;
++            }
++
++            if (!preg_match(";(shared\.|INBOX[/]?|user/([^/]+)[/]?)([^@]*)(@.*)?;", $name, $matches)) {
++                return PEAR::raiseError(sprintf(_("Owner of folder %s cannot be determined."), $name));
+             }
+ 
+             if (substr($matches[1], 0, 6) == 'INBOX/') {
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/List.php b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+index 6d31c19..8cfed66 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/List.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+@@ -475,19 +475,19 @@ class Kolab_List {
+         $type = $folder->getType();
+         if (is_a($type, 'PEAR_Error')) {
+             Horde::logMessage(sprintf("Error while updating the Kolab folder list cache: %s.",
+-                                      $type->getMessage()), __FILE__, __LINE__, PEAR_LOG_ERROR);
++                                      $type->getMessage()), __FILE__, __LINE__, PEAR_LOG_ERR);
+             return;
+         }
+         $default = $folder->isDefault();
+         if (is_a($default, 'PEAR_Error')) {
+             Horde::logMessage(sprintf("Error while updating the Kolab folder list cache: %s.",
+-                                      $default->getMessage()), __FILE__, __LINE__, PEAR_LOG_ERROR);
++                                      $default->getMessage()), __FILE__, __LINE__, PEAR_LOG_ERR);
+             return;
+         }
+-        $owner = $folder->isDefault();
++        $owner = $folder->getOwner();
+         if (is_a($owner, 'PEAR_Error')) {
+             Horde::logMessage(sprintf("Error while updating the Kolab folder list cache: %s.",
+-                                      $owner->getMessage()), __FILE__, __LINE__, PEAR_LOG_ERROR);
++                                      $owner->getMessage()), __FILE__, __LINE__, PEAR_LOG_ERR);
+             return;
+         }
+ 
+-- 
+tg: (4868827..) t/framework/HK/GW/Kolab_Storage/Restructuring_Fixes (depends on: t/framework/HK/GW/framework/Kolab/DeprecatedGetServer)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 47a6392250c3cc5112d25cf4b599cb9112cf8d32
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 21:51:53 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Format-MoreTesting.patch from the mercurial release queue.

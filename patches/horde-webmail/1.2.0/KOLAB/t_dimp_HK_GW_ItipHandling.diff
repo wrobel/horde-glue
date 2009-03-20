@@ -1,0 +1,298 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/dimp/HK/GW/ItipHandling
+
+Allow handling iTip messages in dimp.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/dimp/imp.php                 |   23 +++++++
+ horde-webmail/dimp/js/DimpBase.js          |   14 ++++
+ horde-webmail/imp/lib/MIME/Viewer/itip.php |   98 ++++++++++++++++++++--------
+ 3 files changed, 108 insertions(+), 27 deletions(-)
+
+diff --git a/horde-webmail/dimp/imp.php b/horde-webmail/dimp/imp.php
+index f8b9b5c..70264fe 100644
+--- a/horde-webmail/dimp/imp.php
++++ b/horde-webmail/dimp/imp.php
+@@ -710,6 +710,29 @@ case 'SendMDN':
+     $imp_ui = new IMP_UI_Message();
+     $imp_ui->MDNCheck($ob->header, true);
+     break;
++
++case 'iTip':
++    $selection = Util::getPost('selection');
++    $component = Util::getPost('component');
++    $action = str_replace('_', '-', $selection);
++    $_POST['action'] = array($component => $action);
++
++    if (empty($indices)) {
++        break;
++    }
++    $idx_string = _getIdxString($indices);
++
++    /* Parse MIME info and create the body of the message. */
++    require_once IMP_BASE . '/lib/MIME/Contents.php';
++    $imp_contents = &IMP_Contents::singleton($idx_string);
++
++    $cr = !$imp_contents->buildMessage();
++
++    if (is_a($cr, 'PEAR_Error')) {
++        $notification->push($cr, 'horde.error');
++    }
++
++    break;
+ }
+ 
+ // Clear the output buffer that we started above, and log any unexpected
+diff --git a/horde-webmail/dimp/js/DimpBase.js b/horde-webmail/dimp/js/DimpBase.js
+index 96cd917..39a728b 100644
+--- a/horde-webmail/dimp/js/DimpBase.js
++++ b/horde-webmail/dimp/js/DimpBase.js
+@@ -1663,6 +1663,20 @@ var DimpBase = {
+         nf.setStyle({ height: (document.viewport.getHeight() - nf.cumulativeOffset()[1] - 10) + 'px' });
+     },
+ 
++    itip: function(action, index, folder, component)
++    {
++        var args, vs;
++
++	vs = this.viewport.getViewportSelection().search({ imapuid: { equal: [ index ] }, view: { equal: [ folder ] } });
++	if (!vs.size() && folder != this.folder) {
++	    vs = this.viewport.getViewportSelection(folder).search({ imapuid: { equal: [ index ] } });
++	}
++
++	args = this.viewport.addRequestParams({ selection: action, component: component });
++
++	DimpCore.doAction('iTip', args, DimpCore.toUIDArray(vs));
++    },
++
+     /* Flag actions for message list. */
+     flag: function(action, index, folder)
+     {
+diff --git a/horde-webmail/imp/lib/MIME/Viewer/itip.php b/horde-webmail/imp/lib/MIME/Viewer/itip.php
+index 1f8fe1e..e030413 100644
+--- a/horde-webmail/imp/lib/MIME/Viewer/itip.php
++++ b/horde-webmail/imp/lib/MIME/Viewer/itip.php
+@@ -122,7 +122,7 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+                 break;
+ 
+             case 'import':
+-            case 'accept-import':
++            case 'acceptimport':
+                 // vFreebusy reply.
+                 // vFreebusy publish.
+                 // vEvent request.
+@@ -202,12 +202,12 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+                     $this->_msgs[$key][] = array('warning', _("This action is not yet implemented."));
+                 }
+ 
+-                if ($action != 'accept-import') {
++                if ($action != 'acceptimport') {
+                     break;
+                 }
+ 
+             case 'accept':
+-            case 'accept-import':
++            case 'acceptimport':
+             case 'deny':
+             case 'tentative':
+                 // vEvent request.
+@@ -279,7 +279,7 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+ 
+                     switch ($action) {
+                     case 'accept':
+-                    case 'accept-import':
++                    case 'acceptimport':
+                         $message = sprintf(_("%s has accepted."), $name);
+                         $subject = _("Accepted: ") . $vEvent->getAttribute('SUMMARY');
+                         $params['PARTSTAT'] = 'ACCEPTED';
+@@ -622,7 +622,7 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+         case 'PUBLISH':
+             $desc = _("%s wishes to make you aware of \"%s\".");
+             if ($registry->hasMethod('calendar/import')) {
+-                $options[] = '<option value="import">' .   _("Add this to my calendar") . '</option>';
++                $options['import'] = _("Add this to my calendar");
+             }
+             break;
+ 
+@@ -655,35 +655,35 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+                     : _("%s wishes to make you aware of \"%s\".");
+             }
+             if ($is_update && $registry->hasMethod('calendar/replace')) {
+-                $options[] = '<option value="accept-import">' . _("Accept and update in my calendar") . '</option>';
+-                $options[] = '<option value="import">' . _("Update in my calendar") . '</option>';
++                $options['acceptimport'] = _("Accept and update in my calendar");
++                $options['import'] = _("Update in my calendar");
+             } elseif ($registry->hasMethod('calendar/import')) {
+-                $options[] = '<option value="accept-import">' . _("Accept and add to my calendar") . '</option>';
+-                $options[] = '<option value="import">' . _("Add to my calendar") . '</option>';
++                $options['acceptimport'] = _("Accept and add to my calendar");
++                $options['import'] = _("Add to my calendar");
+             }
+-            $options[] = '<option value="accept">' . _("Accept request") . '</option>';
+-            $options[] = '<option value="tentative">' . _("Tentatively Accept request") . '</option>';
+-            $options[] = '<option value="deny">' . _("Deny request") . '</option>';
+-            // $options[] = '<option value="delegate">' . _("Delegate position") . '</option>';
++            $options['accept'] = _("Accept request");
++            $options['tentative'] = _("Tentatively Accept request");
++            $options['deny'] = _("Deny request");
++            // $options['delegate'] = _("Delegate position");
+             break;
+ 
+         case 'ADD':
+             $desc = _("%s wishes to ammend \"%s\".");
+             if ($registry->hasMethod('calendar/import')) {
+-                $options[] = '<option value="import">' .   _("Update this event on my calendar") . '</option>';
++                $options['import'] = _("Update this event on my calendar");
+             }
+             break;
+ 
+         case 'REFRESH':
+             $desc = _("%s wishes to receive the latest information about \"%s\".");
+-            $options[] = '<option value="send">' . _("Send Latest Information") . '</option>';
++            $options['send'] = _("Send Latest Information");
+             break;
+ 
+         case 'REPLY':
+             $desc = _("%s has replied to the invitation to \"%s\".");
+             $sender = $this->_headers->getValue('From');
+             if ($registry->hasMethod('calendar/updateAttendee')) {
+-                $options[] = '<option value="update">' . _("Update respondent status") . '</option>';
++                $options['update'] = _("Update respondent status");
+             }
+             break;
+ 
+@@ -691,12 +691,12 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+             if (is_a($instance = $vevent->getAttribute('RECURRENCE-ID'), 'PEAR_Error')) {
+                 $desc = _("%s has cancelled \"%s\".");
+                 if ($registry->hasMethod('calendar/delete')) {
+-                    $options[] = '<option value="delete">' . _("Delete from my calendar") . '</option>';
++                    $options['delete'] = _("Delete from my calendar");
+                 }
+             } else {
+                 $desc = _("%s has cancelled an instance of the recurring \"%s\".");
+                 if ($registry->hasMethod('calendar/replace')) {
+-                    $options[] = '<option value="import">' . _("Update in my calendar") . '</option>';
++                    $options['import'] = _("Update in my calendar");
+                 }
+             }
+             break;
+@@ -709,6 +709,36 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+             $desc = sprintf($desc, htmlspecialchars($sender), htmlspecialchars($summary));
+         }
+ 
++        if ($_SESSION['imp']['viewmode'] == 'dimp') {
++            require_once DIMP_BASE . '/lib/DIMP.php';
++
++            function _createMEntry($text, $image, $id, $class = '', $show_text = true, $app = null)
++            {
++                $params = array('icon' => $image, 'id' => $id, 'class' => $class);
++                if ($show_text) {
++                    $params['title'] = $text;
++                } else {
++                    $params['tooltip'] = $text;
++                }
++                if (isset($app)) {
++                    $params['app'] = $app;
++                }
++                return DIMP::actionButton($params);
++            }
++
++            $script = 'if (DIMP.baseWindow) {var B = DIMP.baseWindow.DimpBase;} else {B = DimpBase;};DimpCore.addMouseEvents({ id: \'button_invitation_cont\', type: \'itippopdown\', offset: \'button_invitation_cont\', left: true});';
++	    $script .= '[ \'acceptimport\', \'import\', \'accept\', \'tentative\', \'deny\', \'update\', \'send\' ].each(function(a) {var d = $(\'ctx_itippopdown_\' + a); if (d) { DimpCore.clickObserveHandler({ d: d, f: function(a) { B.itip(a, DIMP.conf.msg_index, DIMP.conf.msg_folder, ' . $id . '); window.close(); }.curry(a) })}})';
++
++            $html .= '<div><span id="button_invitation_cont">' . _createMEntry(_("Invitation"), 'kronolith.png', 'button_invitation', 'hasmenu', true, 'kronolith') . Horde::img('popdown.png', '', array(), $GLOBALS['registry']->getImageDir('dimp')) . '</span></div><p/><script type="text/javascript">' . $script . '</script>';
++
++            if ($this->_msgs) {
++                global $notification;
++                foreach ($this->_msgs[$id] as $msg) {
++                    $notification->push($msg[1], 'horde.' . $msg[0]);
++                }
++            }
++        }
++
+         $html .= '<h2 class="header">' . $desc . '</h2>';
+ 
+         if ($this->_msgs) {
+@@ -796,16 +826,30 @@ class IMP_MIME_Viewer_itip extends MIME_Viewer {
+             $html .= '</tbody></table>';
+         }
+ 
+-        if ($_SESSION['imp']['viewmode'] != 'imp') {
+-            return $html;
+-        }
+-
+         if ($options) {
+-            $html .= '<h2 class="smallheader">' . _("Actions") . '</h2>' .
+-                '<label for="action_' . $id . '" class="hidden">' . _("Actions") . '</label>' .
+-                '<select id="action_' . $id . '" name="action[' . $id . ']">' .
+-                implode("\n", $options) .
+-                '</select> <input type="submit" class="button" value="' . _("Go") . '" />';
++
++            if ($_SESSION['imp']['viewmode'] == 'imp') {
++
++                $html .= '<h2 class="smallheader">' . _("Actions") . '</h2>' .
++                    '<label for="action_' . $id . '" class="hidden">' . _("Actions") . '</label>' .
++                    '<select id="action_' . $id . '" name="action[' . $id . ']">';
++
++                foreach ($options as $key => $description) {
++                    $html .= '<option value="' . $key .'">' . $description . "</option>\n";
++                }
++
++                $html .= '</select> <input type="submit" class="button" value="' . _("Go") . '" />';
++
++            } else if ($_SESSION['imp']['viewmode'] == 'dimp') {
++
++                $html .= '<div class="context" id="ctx_itippopdown">';
++
++                foreach ($options as $key => $description) {
++                    $html .= '<div>' . _createMEntry($description, 'kronolith.png', 'ctx_itippopdown_' . $key, '', true, 'kronolith') . '</div>';
++                }
++
++                $html .= '</div>';
++            }
+         }
+ 
+         return $html;
+-- 
+tg: (667dce6..) t/dimp/HK/GW/ItipHandling (depends on: master t/dimp/H/MS/FixBrokenFolderImages)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 2650c064ee6792752d58f6b1b974c05383ea80e7
+Author: root <root@domU-12-31-38-01-B8-13.compute-1.amazonaws.com>
+Date:   Fri Feb 20 14:52:48 2009 +0000
+
+    Fixed accept import and moved script initialization from onmouseover event.
+
+commit ea8089c0665f52fb45c90993d85bef7c6ac40ee8
+Author: root <root@ec2-174-129-182-10.compute-1.amazonaws.com>
+Date:   Fri Feb 20 10:03:43 2009 +0000
+
+    Handle all available options.
+
+commit e964c911e211a203a85f020748679fcb0fc63703
+Author: root <root@domU-12-31-38-01-B8-13.compute-1.amazonaws.com>
+Date:   Fri Feb 20 04:26:45 2009 +0000
+
+    Remove stray config file.
+
+commit b283064e483d73c9be827a58eba57ec149a4731d
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Feb 9 08:13:32 2009 +0000
+
+    Complete the iTip handling in IMP (draft version).
+
+commit a72190bb95b05e4a3dd78238a4c3d95ba0a968a7
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Feb 9 08:12:05 2009 +0000
+
+    New TopGit dependency: t/dimp/H/MS/FixBrokenFolderImages
+
+commit debda05a3fc8546913ce79e9c1cf36e72bda6e97
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 8 22:46:26 2009 +0000
+
+    Started patching dimp for iTip handling.

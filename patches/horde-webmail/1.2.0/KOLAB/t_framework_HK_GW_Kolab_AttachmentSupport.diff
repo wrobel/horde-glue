@@ -1,0 +1,632 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab/AttachmentSupport
+
+Attachment support as specified in the Kolab format.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Format/XML.php     |   51 +++++-
+ horde-webmail/lib/Horde/Kolab/Storage/Cache.php  |   25 +++
+ horde-webmail/lib/Horde/Kolab/Storage/Data.php   |   70 +++++--
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |  229 ++++++++++++++++------
+ 4 files changed, 294 insertions(+), 81 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML.php b/horde-webmail/lib/Horde/Kolab/Format/XML.php
+index d3d7def..f225477 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML.php
+@@ -117,11 +117,18 @@ class Horde_Kolab_Format_XML
+     var $_version = 1;
+ 
+     /**
++     * The name of the resulting document.
++     *
++     * @var string
++     */
++    var $_name = 'kolab.xml';
++
++    /**
+      * The XML document this driver works with.
+      *
+      * @var Horde_DOM_Document
+      */
+-    var $_xmldoc = null;
++        var $_xmldoc = null;
+ 
+     /**
+      * The name of the root element.
+@@ -319,12 +326,20 @@ class Horde_Kolab_Format_XML
+                 'default' => 'public',
+             ),
+             'inline-attachment' => array(
+-                'type'    => HORDE_KOLAB_XML_TYPE_STRING,
++                'type'    => HORDE_KOLAB_XML_TYPE_MULTIPLE,
+                 'value'   => HORDE_KOLAB_XML_VALUE_MAYBE_MISSING,
++                'array'   => array(
++                    'type'  => HORDE_KOLAB_XML_TYPE_STRING,
++                    'value' => HORDE_KOLAB_XML_VALUE_MAYBE_MISSING,
++                ),
+             ),
+             'link-attachment' => array(
+-                'type'    => HORDE_KOLAB_XML_TYPE_STRING,
++                'type'    => HORDE_KOLAB_XML_TYPE_MULTIPLE,
+                 'value'   => HORDE_KOLAB_XML_VALUE_MAYBE_MISSING,
++                'array'   => array(
++                    'type'  => HORDE_KOLAB_XML_TYPE_STRING,
++                    'value' => HORDE_KOLAB_XML_VALUE_MAYBE_MISSING,
++                ),
+             ),
+             'product-id' => array(
+                 'type'    => HORDE_KOLAB_XML_TYPE_STRING,
+@@ -362,6 +377,36 @@ class Horde_Kolab_Format_XML
+     }
+ 
+     /**
++     * Return the name of the resulting document.
++     *
++     * @return string The name that may be used as filename.
++     */
++    function getName()
++    {
++        return $this->_name;
++    }
++
++    /**
++     * Return the mime type of the resulting document.
++     *
++     * @return string The mime type of the result.
++     */
++    function getMimeType()
++    {
++        return 'application/x-vnd.kolab.' . $this->_root_name;
++    }
++
++    /**
++     * Return the disposition of the resulting document.
++     *
++     * @return string The disportion of this document.
++     */
++    function getDisposition()
++    {
++        return 'attachment';
++    }
++
++    /**
+      * Load an object based on the given XML string.
+      *
+      * @param string $xmltext  The XML of the message as string.
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Cache.php b/horde-webmail/lib/Horde/Kolab/Storage/Cache.php
+index f2bed55..908a5d8 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Cache.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Cache.php
+@@ -187,6 +187,31 @@ class Kolab_Cache {
+     }
+ 
+     /**
++     * Load a cached attachment.
++     *
++     * @param string $key          Access key to the cached data.
++     *
++     * @return mixed The data of the object.
++     */
++    function loadAttachment($key)
++    {
++        return $this->_horde_cache->get($key, 0);
++    }
++
++    /**
++     * Cache an attachment.
++     *
++     * @param string $key  Access key to the cached data.
++     * @param string $data The data to be cached.
++     *
++     * @return boolean True if successfull.
++     */
++    function storeAttachment($key, $data)
++    {
++        return $this->_horde_cache->set($key, $data);
++    }
++
++    /**
+      * Initialize the cache structure.
+      */
+     function reset()
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Data.php b/horde-webmail/lib/Horde/Kolab/Storage/Data.php
+index 4e3b39c..472a131 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Data.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Data.php
+@@ -48,14 +48,6 @@ class Kolab_Data {
+     var $_object_type;
+ 
+     /**
+-     * The full mime type string of the current Kolab object format we're
+-     * dealing with.
+-     *
+-     * @var string
+-     */
+-    var $_mime_type;
+-
+-    /**
+      * The version of the data.
+      *
+      * @var int
+@@ -108,8 +100,6 @@ class Kolab_Data {
+         }
+         $this->_data_version = $data_version;
+ 
+-        $this->_mime_type = 'application/x-vnd.kolab.' . $this->_object_type;
+-
+         if ($this->_object_type != $this->_type) {
+             $this->_type_key = '@' . $this->_object_type;
+         } else {
+@@ -286,12 +276,6 @@ class Kolab_Data {
+      */
+     function save($object, $old_object_id = null)
+     {
+-        $handler = Horde_Kolab_Format::factory('XML', $this->_object_type,
+-                                               $this->_data_version);
+-        if (is_a($handler, 'PEAR_Error')) {
+-            return $handler;
+-        }
+-
+         // update existing kolab object
+         if ($old_object_id != null) {
+             // check if object really exists
+@@ -306,12 +290,15 @@ class Kolab_Data {
+                 return PEAR::raiseError(sprintf(_("Old object %s does not map to a uid."),
+                                                 $old_object_id));
+             }
++
++            $old_object = $this->getObject($old_object_id);
+         } else {
+             $id = null;
++            $old_object = null;
+         }
+ 
+-        $result = $this->_folder->saveObject($object, $handler, $this->_object_type,
+-                                             $this->_mime_type, $id);
++        $result = $this->_folder->saveObject($object, $this->_data_version,
++                                             $this->_object_type, $id, $old_object);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+@@ -346,6 +333,8 @@ class Kolab_Data {
+ 
+             $recent_uids = array_diff($ids, array_keys($this->_cache->uids));
+ 
++            $formats = $this->_folder->getFormats();
++
+             $handler = Horde_Kolab_Format::factory('XML', $this->_object_type, $this->_data_version);
+             if (is_a($handler, 'PEAR_Error')) {
+                 return $handler;
+@@ -358,7 +347,13 @@ class Kolab_Data {
+                     continue;
+                 }
+ 
+-                $text = $this->_folder->fetch($id, $this->_mime_type);
++                $mime = $this->_folder->parseMessage($id, $handler->getMimeType(), false);
++                if (is_a($mime, 'PEAR_Error')) {
++                    Horde::logMessage($text, __FILE__, __LINE__, PEAR_LOG_WARNING);
++                    $text = false;
++                } else {
++                    $text = $mime[0];
++                }
+ 
+                 if ($text) {
+                     $object = $handler->load($text);
+@@ -373,6 +368,31 @@ class Kolab_Data {
+                 }
+ 
+                 if ($object !== false) {
++                    $message = &$mime[2];
++                    $handler_type = $handler->getMimeType();
++                    foreach ($message->getParts() as $part) {
++                        $name = $part->getName();
++                        $type = $part->getType();
++                        $dp   = $part->getDispositionParameter('x-kolab-type');
++                        if (!empty($name) && $type != $handler_type
++                            || (!empty($dp) && in_array($dp, $formats))) {
++                            $object['_attachments'][$name]['type'] = $type;
++                            $object['_attachments'][$name]['key'] = $this->_cache_key . '/' . $object['uid'] . ':' . $name;
++                            $part->transferDecodeContents();
++                            $result = $this->_cache->storeAttachment($object['_attachments'][$name]['key'],
++                                                                     $part->getContents());
++                            if (is_a($result, 'PEAR_Error')) {
++                                Horde::logMessage(sprintf('Failed storing attachment of object %s: %s',
++                                                          $id, $result->getMessage()),
++                                                  __FILE__, __LINE__, PEAR_LOG_ERR);
++                                $object = false;
++                                break;
++                            }
++                        }
++                    }
++                }
++
++                if ($object !== false) {
+                     $this->_cache->store($id, $object['uid'], $object);
+                     $mod_ts = time();
+                     if (is_array($changes) && in_array($object['uid'], $changes)
+@@ -577,6 +597,18 @@ class Kolab_Data {
+     }
+ 
+     /**
++     * Return the specified attachment.
++     *
++     * @param string     $attachment_id       The attachment id.
++     *
++     * @return string|PEAR_Error  The attachment data as a string.
++     */
++    function getAttachment($attachment_id)
++    {
++        return $this->_cache->loadAttachment($attachment_id);
++    }
++
++    /**
+      * Retrieve all object ids in the current folder.
+      *
+      * @return array  The object ids.
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index f1fd7e7..ddcfbe8 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -307,7 +307,7 @@ class Kolab_Folder {
+ 
+             if (isset($attributes['type'])) {
+                 if ($attributes['type'] != $type) {
+-                    Horde::logMessage(sprintf("Cannot modify the type of a folder from %s to %s!",
++                    Horde::logMessage(sprintf('Cannot modify the type of a folder from %s to %s!',
+                                               $type, $attributes['type']),
+                                       __FILE__, __LINE__, PEAR_LOG_ERR);
+                 }
+@@ -352,7 +352,7 @@ class Kolab_Folder {
+ 
+         if (isset($attributes['owner'])) {
+             if ($attributes['owner'] != $this->getOwner()) {
+-                Horde::logMessage(sprintf("Cannot modify the owner of a folder from %s to %s!",
++                Horde::logMessage(sprintf('Cannot modify the owner of a folder from %s to %s!',
+                                           $this->getOwner(), $attributes['owner']),
+                                   __FILE__, __LINE__, PEAR_LOG_ERR);
+             }
+@@ -763,19 +763,43 @@ class Kolab_Folder {
+     }
+ 
+     /**
++     * Retrieve the supported formats.
++     *
++     * @return array The names of the supported formats.
++     */
++    function getFormats()
++    {
++        global $conf;
++
++        if (empty($conf['kolab']['misc']['formats'])) {
++            $formats = array('XML');
++        } else {
++            $formats = $conf['kolab']['misc']['formats'];
++        }
++        if (!is_array($formats)) {
++            $formats = array($formats);
++        }
++        if (!in_array('XML', $formats)) {
++            $formats[] = 'XML';
++        }
++        return $formats;
++    }
++
++    /**
+      * Save an object in this folder.
+      *
+-     * @param array              $object  The array that holds the data of
+-     *                                    the object.
+-     * @param Horde_Kolab_Format $handler The handler for the Kolab Format.
+-     * @param string       $object_type   The type of the kolab object.
+-     * @param string       $mime_type     The mime type for the kolab object.
+-     * @param string       $id            The IMAP id of the old object if it
+-     *                                    existed before
++     * @param array  $object        The array that holds the data of the object.
++     * @param int    $data_version  The format handler version.
++     * @param string $object_type   The type of the kolab object.
++     * @param string $id            The IMAP id of the old object if it
++     *                              existed before
++     * @param array  $old_object    The array that holds the current data of the
++     *                              object.
+      *
+      * @return boolean|PEAR_Error  True on success.
+      */
+-    function saveObject(&$object, &$handler, $object_type, $mime_type, $id = null)
++    function saveObject(&$object, $data_version, $object_type, $id = null,
++                        &$old_object = null)
+     {
+         $session = &Horde_Kolab_Session::singleton();
+         $imap = &$session->getImap();
+@@ -791,25 +815,77 @@ class Kolab_Folder {
+ 
+         $new_headers = new MIME_Headers();
+ 
++        $formats = $this->getFormats();
++
++        $handlers = array();
++        foreach ($formats as $type) {
++            $handlers[$type] = &Horde_Kolab_Format::factory($type, $object_type,
++                                                            $data_version);
++            if (is_a($handlers[$type], 'PEAR_Error')) {
++                if ($type == 'XML') {
++                    return $handlers[$type];
++                }
++                Horde::logMessage(sprintf('Loading format handler "%s" failed: %s',
++                                          $type, $handlers[$type]->getMessage()),
++                                  __FILE__, __LINE__, PEAR_LOG_ERR);
++                continue;
++            }
++        }
++
+         if ($id != null) {
+             /** Update an existing kolab object */
++            $session = &Horde_Kolab_Session::singleton();
++            $imap = &$session->getImap();
++            if (is_a($imap, 'PEAR_Error')) {
++                return $imap;
++            }
++
++            if (!in_array($id, $imap->getUids())) {
++                return PEAR::raiseError(sprintf(_("The message with ID %s does not exist. This probably means that the Kolab object has been modified by somebody else while you were editing it. Your edits have been lost."),
++                                                $id));
++            }
+ 
+             /** Parse email and load Kolab format structure */
+-            $result = $this->_parseMessage($id, $mime_type);
++            $result = $this->parseMessage($id, $handlers['XML']->getMimeType(),
++                                          true, $formats);
+             if (is_a($result, 'PEAR_Error')) {
+                 return $result;
+             }
+-            list($old_message, $mime_part_id, $mime_message, $mime_headers) = $result;
++            list($old_message, $part_ids, $mime_message, $mime_headers) = $result;
+             if (is_a($old_message, 'PEAR_Error')) {
+                 return $old_message;
+             }
+ 
+-            $result = $handler->load($old_message);
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
++            if (isset($object['_attachments']) && isset($old_object['_attachments'])) {
++                $attachments = array_keys($object['_attachments']);
++                foreach (array_keys($old_object['_attachments']) as $attachment) {
++                    if (!in_array($attachment, $attachments)) {
++                        foreach ($mime_message->getParts() as $part) {
++                            if ($part->getName() === $attachment) {
++                                foreach (array_keys($mime_message->_parts) as $key) {
++                                    if ($mime_message->_parts[$key]->getMIMEId() == $part->getMIMEId()) {
++                                        unset($mime_message->_parts[$key]);
++                                        break;
++                                    }
++                                }
++                                $mime_message->_generateIdMap($mime_message->_parts);
++                            }
++                        }                        
++                    }
++                }
++            }
++            $object = array_merge($old_object, $object);
++
++            if (isset($attachments)) {
++                foreach ($mime_message->getParts() as $part) {
++                    $name = $part->getName();
++                    foreach ($attachments as $attachment) {
++                        if ($name === $attachment) {
++                            $object['_attachments'][$attachment]['id'] = $part->getMIMEId();
++                        }
++                    }
++                }
+             }
+-
+-            $object = array_merge($result, $object);
+ 
+             /** Copy email header */
+             if (!empty($mime_headers) && !$mime_headers === false) {
+@@ -822,20 +898,53 @@ class Kolab_Folder {
+             $mime_part_id = false;
+         }
+ 
+-        $new_content = $handler->save($object);
+-        if (is_a($new_content, 'PEAR_Error')) {
+-            return $new_content;
++        if (isset($object['_attachments'])) {
++            $attachments = array_keys($object['_attachments']);
++            foreach ($attachments as $attachment) {
++                $data = $object['_attachments'][$attachment];
++
++                if (!isset($data['content']) && !isset($data['path'])) {
++                    /**
++                     * There no new content and no new path. Do not rewrite the
++                     * attachment.
++                     */
++                    continue;
++                }
++
++                $part = new MIME_Part(isset($data['type']) ? $data['type'] : null,
++                                      isset($data['content']) ? $data['content'] : file_get_contents($data['path']),
++                                      NLS::getCharset());
++                $part->setTransferEncoding('quoted-printable');
++                $part->setDisposition('attachment');
++                $part->setName($attachment);
++
++                if (!isset($data['id'])) {
++                    $mime_message->addPart($part);
++                } else {
++                    $mime_message->alterPart($data['id'], $part);
++                }
++            }
+         }
+ 
+-        /** Update mime part */
+-        $part = new MIME_Part($mime_type, $new_content, NLS::getCharset());
+-        $part->setTransferEncoding("quoted-printable");
+-        $part->setName($object_type . ".xml");
++        foreach ($formats as $type) {
++            $new_content = $handlers[$type]->save($object);
++            if (is_a($new_content, 'PEAR_Error')) {
++                return $new_content;
++            }
+ 
+-        if ($mime_part_id === false) {
+-            $mime_message->addPart($part);
+-        } else {
+-            $mime_message->alterPart($mime_part_id, $part);
++            /** Update mime part */
++            $part = new MIME_Part($handlers[$type]->getMimeType(),
++                                  $new_content, NLS::getCharset());
++            $part->setTransferEncoding('quoted-printable');
++            $part->setDisposition($handlers[$type]->getDisposition());
++            $part->setDispositionParameter('x-kolab-type', $type);
++            $part->setName($handlers[$type]->getName());
++
++            if (!isset($part_ids) || $part_ids[$type] === false) {
++                $mime_message->addPart($part);
++            } else {
++                $mime_message->alterPart($part_ids[$type], $part);
++            }
+         }
+ 
+         $session = &Horde_Kolab_Session::singleton();
+@@ -844,9 +953,9 @@ class Kolab_Folder {
+         $new_headers->addHeader('From', $session->user_mail);
+         $new_headers->addHeader('To', $session->user_mail);
+         $new_headers->addHeader('Date', date('r'));
+-        $new_headers->addHeader('X-Kolab-Type', $mime_type);
+-        $new_headers->addHeader('Subject', $object["uid"]);
+-        $new_headers->addHeader('User-Agent', 'Horde::Kolab v1.1');
++        $new_headers->addHeader('X-Kolab-Type', $handlers['XML']->getMimeType());
++        $new_headers->addHeader('Subject', $object['uid']);
++        $new_headers->addHeader('User-Agent', 'Horde::Kolab::Storage v0.2');
+         $new_headers->addMIMEHeaders($mime_message);
+ 
+         $msg = preg_replace("/\r\n|\n|\r/s", "\r\n",
+@@ -891,30 +1000,12 @@ class Kolab_Folder {
+     }
+ 
+     /**
+-     * Fetch an IMAP message.
+-     *
+-     * @param int     $id             The message to retrieve
+-     * @param string  $mime_type      The mime type of the part to retrieve
+-     *
+-     * @return mixed A string containing the Kolab XML object or false
+-     *               if an error occured.
+-     */
+-    function fetch($id, $mime_type)
+-    {
+-        $result = $this->_parseMessage($id, $mime_type, false);
+-        if (is_a($result, 'PEAR_Error')) {
+-            Horde::logMessage($text, __FILE__, __LINE__, PEAR_LOG_WARNING);
+-            return false;
+-        }
+-        return $result[0];
+-    }
+-
+-    /**
+      * Get an IMAP message and retrieve the Kolab Format object.
+      *
+      * @param int     $id             The message to retrieve.
+      * @param string  $mime_type      The mime type of the part to retrieve.
+      * @param boolean $parse_headers  Should the heades be MIME parsed?
++     * @param array   $formats        The list of possible format parts.
+      *
+      * @return array|PEAR_Error An array that list the Kolab XML
+      *                          object text, the mime ID of the part
+@@ -922,7 +1013,8 @@ class Kolab_Folder {
+      *                          message and the MIME parsed headers if
+      *                          requested.
+      */
+-    function _parseMessage($id, $mime_type, $parse_headers = true)
++    function parseMessage($id, $mime_type, $parse_headers = true,
++                          $formats = array('XML'))
+     {
+         $session = &Horde_Kolab_Session::singleton();
+         $imap = &$session->getImap();
+@@ -932,12 +1024,14 @@ class Kolab_Folder {
+ 
+         $raw_headers = $imap->getMessageHeader($id);
+         if (is_a($raw_headers, 'PEAR_Error')) {
+-            return $raw_headers;
++            return PEAR::raiseError(sprintf(_("Failed retrieving the message with ID %s. Original error: %s."),
++                                            $id, $raw_headers->getMessage()));
+         }
+ 
+         $body = $imap->getMessageBody($id);
+         if (is_a($body, 'PEAR_Error')) {
+-            return $body;
++            return PEAR::raiseError(sprintf(_("Failed retrieving the message with ID %s. Original error: %s."),
++                                            $id, $body->getMessage()));
+         }
+ 
+         $mime_message = MIME_Structure::parseTextMIMEMessage($raw_headers . $body);
+@@ -947,17 +1041,34 @@ class Kolab_Folder {
+         $xml = false;
+ 
+         // Read in a Kolab event object, if one exists
+-        $mime_part_id = array_search($mime_type, $parts);
+-        if ($mime_part_id !== false) {
++        $part_ids['XML'] = array_search($mime_type, $parts);
++        if ($part_ids['XML'] !== false) {
+             if ($parse_headers) {
+                 $mime_headers = MIME_Structure::parseMIMEHeaders($raw_headers);
+             }
+ 
+-            $part = $mime_message->getPart($mime_part_id);
++            $part = $mime_message->getPart($part_ids['XML']);
+             $part->transferDecodeContents();
+             $xml = $part->getContents();
+         }
+-        $result = array($xml, $mime_part_id, $mime_message, $mime_headers);
++
++        $alternate_formats = array_diff(array('XML'), $formats);
++        if (!empty($alternate_formats)) {
++            foreach ($alternate_formats as $type) {
++                $part_ids[$type] = false;
++            }
++            foreach ($mime_message->getParts() as $part) {
++                $params = $part->getDispositionParameters();
++                foreach ($alternate_formats as $type) {
++                    if (isset($params['x-kolab-format'])
++                        && $params['x-kolab-format'] == $type) {
++                        $part_ids[$type] = $part->getMIMEId();
++                    }
++                }
++            }
++        }
++
++        $result = array($xml, $part_ids, $mime_message, $mime_headers);
+         return $result;
+     }
+ 
+@@ -1270,7 +1381,7 @@ class Kolab_Folder {
+         }
+         $data = $this->_annotation_data->getObject('KOLAB_FOLDER_CONFIGURATION');
+         if (is_a($data, 'PEAR_Error')) {
+-            Horde::logMessage(sprintf("Error retrieving annotation data on folder %s: %s",
++            Horde::logMessage(sprintf('Error retrieving annotation data on folder %s: %s',
+                                       $this->name, $data->getMessage()),
+                               __FILE__, __LINE__, PEAR_LOG_ERR);
+             return '';
+@@ -1308,7 +1419,7 @@ class Kolab_Folder {
+         }
+         $data = $this->_annotation_data->getObject('KOLAB_FOLDER_CONFIGURATION');
+         if (is_a($data, 'PEAR_Error')) {
+-            Horde::logMessage(sprintf("Error retrieving annotation data on folder %s: %s",
++            Horde::logMessage(sprintf('Error retrieving annotation data on folder %s: %s',
+                                       $this->name, $data->getMessage()),
+                               __FILE__, __LINE__, PEAR_LOG_ERR);
+             $data = array();
+-- 
+tg: (cda64a2..) t/framework/HK/GW/Kolab/AttachmentSupport (depends on: t/framework/HK/GW/Auth/InvalidCheck)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 3f524003ae3a20c6ff04899b06ad780649676746
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Jan 31 00:10:37 2009 +0000
+
+    Added patches framework/HK-GW-Kolab_Format-Support_Attachments.patch and framework/HK-GW-Kolab_Storage-Support_Attachments.patch from the mercurial release queue.

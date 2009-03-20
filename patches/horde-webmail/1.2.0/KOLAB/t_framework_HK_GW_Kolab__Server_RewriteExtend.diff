@@ -1,0 +1,3836 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/RewriteExtend
+
+Rewritten/extended the first Kolab_Server version.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server.php           |  404 +++++++++++++++-----
+ horde-webmail/lib/Horde/Kolab/Server/Object.php    |  388 +++++++++++++++----
+ .../lib/Horde/Kolab/Server/Object/address.php      |   58 +++-
+ .../Horde/Kolab/Server/Object/administrator.php    |   37 +-
+ .../lib/Horde/Kolab/Server/Object/adminrole.php    |  157 ++++++++
+ .../lib/Horde/Kolab/Server/Object/distlist.php     |   52 +++
+ .../Horde/Kolab/Server/Object/domainmaintainer.php |  106 +++++-
+ .../lib/Horde/Kolab/Server/Object/group.php        |  206 ++++++++++-
+ .../lib/Horde/Kolab/Server/Object/maintainer.php   |   38 +-
+ .../lib/Horde/Kolab/Server/Object/server.php       |   17 +-
+ .../lib/Horde/Kolab/Server/Object/sharedfolder.php |   74 ++++-
+ .../lib/Horde/Kolab/Server/Object/user.php         |  224 +++++++++++-
+ horde-webmail/lib/Horde/Kolab/Server/ldap.php      |  344 ++++++++++-------
+ horde-webmail/lib/Horde/Kolab/Server/test.php      |  257 +++++++++++--
+ horde-webmail/lib/Horde/Kolab/Session.php          |  166 +++++---
+ 15 files changed, 2029 insertions(+), 499 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server.php b/horde-webmail/lib/Horde/Kolab/Server.php
+index 0d6fbd7..5be2505 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server.php
++++ b/horde-webmail/lib/Horde/Kolab/Server.php
+@@ -4,7 +4,13 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server.php,v 1.2.2.3 2008/09/22 12:22:33 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /** We need PEAR */
+@@ -29,8 +35,11 @@ define('KOLAB_SERVER_RESULT_MANY',   3);
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Server {
+ 
+@@ -42,6 +51,13 @@ class Horde_Kolab_Server {
+     var $_params = array();
+ 
+     /**
++     * The UID of the current user.
++     *
++     * @var string
++     */
++    var $uid;
++
++    /**
+      * Valid Kolab object types
+      *
+      * @var array
+@@ -49,6 +65,7 @@ class Horde_Kolab_Server {
+     var $valid_types = array(
+         KOLAB_OBJECT_ADDRESS,
+         KOLAB_OBJECT_ADMINISTRATOR,
++        KOLAB_OBJECT_DISTLIST,
+         KOLAB_OBJECT_DOMAINMAINTAINER,
+         KOLAB_OBJECT_GROUP,
+         KOLAB_OBJECT_MAINTAINER,
+@@ -60,22 +77,25 @@ class Horde_Kolab_Server {
+     /**
+      * Construct a new Horde_Kolab_Server object.
+      *
+-     * @param array $params  Parameter array.
++     * @param array $params Parameter array.
+      */
+     function Horde_Kolab_Server($params = array())
+     {
+         $this->_params = $params;
++        if (isset($params['uid'])) {
++            $this->uid = $params['uid'];
++        }
+     }
+ 
+     /**
+      * Attempts to return a concrete Horde_Kolab_Server instance based
+      * on $driver.
+      *
+-     * @param mixed $driver  The type of concrete Horde_Kolab_Server subclass to
+-     *                       return.
+-     * @param array $params  A hash containing any additional
+-     *                       configuration or connection parameters a subclass
+-     *                       might need.
++     * @param mixed $driver The type of concrete Horde_Kolab_Server subclass to
++     *                      return.
++     * @param array $params A hash containing any additional
++     *                      configuration or connection parameters a subclass
++     *                      might need.
+      *
+      * @return Horde_Kolab_Server|PEAR_Error The newly created concrete
+      *                                       Horde_Kolab_Server instance.
+@@ -111,58 +131,104 @@ class Horde_Kolab_Server {
+      * This method must be invoked as:
+      * $var = &Horde_Kolab_Server::singleton()
+      *
++     * @param array $params An array of optional login parameters. May
++     *                      contain "uid" (for the login uid), "user"
++     *                      (if the uid is not yet known), and "pass"
++     *                      (for a password).
++     *
+      * @return Horde_Kolab_Server|PEAR_Error The concrete Horde_Kolab_Server
+      *                                       reference.
+      */
+-    function &singleton()
++    function &singleton($params = null)
+     {
+         global $conf;
+ 
+         static $instances = array();
+ 
+-        if (isset($conf['kolab']['server'])
+-            && isset($conf['kolab']['server']['driver'])) {
++        if (isset($conf['kolab']['server']['driver'])) {
+             $driver = $conf['kolab']['server']['driver'];
+             if (isset($conf['kolab']['server']['params'])) {
+-                $params = $conf['kolab']['server']['params'];
++                $server_params = $conf['kolab']['server']['params'];
+             } else {
+-                $params = array();
++                $server_params = array();
+             }
+         } else if (isset($conf['kolab']['ldap']['server'])
+                    && isset($conf['kolab']['ldap']['basedn'])
+                    && isset($conf['kolab']['ldap']['phpdn'])
+                    && isset($conf['kolab']['ldap']['phppw'])) {
+             $driver = 'ldap';
+-            $params = array('server' => $conf['kolab']['ldap']['server'],
+-                            'base_dn' => $conf['kolab']['ldap']['basedn'],
+-                            'bind_dn' => $conf['kolab']['ldap']['phpdn'],
+-                            'bind_pw' => $conf['kolab']['ldap']['phppw']);
++
++            $server_params = array('server'  => $conf['kolab']['ldap']['server'],
++                                  'base_dn' => $conf['kolab']['ldap']['basedn'],
++                                  'uid'     => $conf['kolab']['ldap']['phpdn'],
++                                  'pass'    => $conf['kolab']['ldap']['phppw']);
+         } else {
+-            $driver = null;
+-            $params = array();
++            $driver        = null;
++            $server_params = array();
+         }
+ 
+-        $signature = serialize(array($driver, $params));
++        if (!empty($params)) {
++            if (isset($params['user'])) {
++                $tmp_server = &Horde_Kolab_Server::factory($driver, $server_params);
++
++                $uid = $tmp_server->uidForIdOrMail($params['user']);
++                if (is_a($uid, 'PEAR_Error')) {
++                    return PEAR::raiseError(sprintf(_("Failed identifying the UID of the Kolab user %s. Error was: %s"),
++                                                    $params['user'],
++                                                    $uid->getMessage()));
++                }
++                $server_params['uid'] = $uid;
++            }
++            if (isset($params['pass'])) {
++                if (isset($server_params['pass'])) {
++                    $server_params['search_pass'] = $server_params['pass'];
++                }
++                $server_params['pass'] = $params['pass'];
++            }
++            if (isset($params['uid'])) {
++                if (isset($server_params['uid'])) {
++                    $server_params['search_uid'] = $server_params['pass'];
++                }
++                $server_params['uid'] = $params['uid'];
++            }
++        }
++
++        $sparam         = $server_params;
++        $sparam['pass'] = md5($sparam['pass']);
++        $signature      = serialize(array($driver, $sparam));
+         if (empty($instances[$signature])) {
+             $instances[$signature] = &Horde_Kolab_Server::factory($driver,
+-                                                                  $params);
++                                                                  $server_params);
+         }
+ 
+         return $instances[$signature];
+     }
+ 
+     /**
++     * Return the root of the UID values on this server.
++     *
++     * @return string The base UID on this server (base DN on ldap).
++     */
++    function getBaseUid()
++    {
++        return '';
++    }
++
++    /**
+      * Fetch a Kolab object.
+      *
+-     * @param string $dn   The DN of the object to fetch.
++     * @param string $uid  The UID of the object to fetch.
+      * @param string $type The type of the object to fetch.
+      *
+      * @return Kolab_Object|PEAR_Error The corresponding Kolab object.
+      */
+-    function &fetch($dn, $type = null)
++    function &fetch($uid = null, $type = null)
+     {
++        if (!isset($uid)) {
++            $uid = $this->uid;
++        }
+         if (empty($type)) {
+-            $type = $this->_determineType($dn);
++            $type = $this->_determineType($uid);
+             if (is_a($type, 'PEAR_Error')) {
+                 return $type;
+             }
+@@ -173,18 +239,84 @@ class Horde_Kolab_Server {
+             }
+         }
+ 
+-        $object = &Horde_Kolab_Server_Object::factory($type, $dn, $this);
++        $object = &Horde_Kolab_Server_Object::factory($type, $uid, $this);
++        return $object;
++    }
++
++    /**
++     * Add a Kolab object.
++     *
++     * @param array $info The object to store.
++     *
++     * @return Kolab_Object|PEAR_Error The newly created Kolab object.
++     */
++    function &add($info)
++    {
++        if (!isset($info['type'])) {
++            return PEAR::raiseError('The type of a new object must be specified!');
++        }
++        if (!in_array($info['type'], $this->valid_types)) {
++            return PEAR::raiseError(sprintf(_("Invalid Kolab object type \"%s\"."),
++                                            $type));
++        }
++
++        $uid = $this->generateUid($info['type'], $info);
++        if (is_a($uid, 'PEAR_Error')) {
++            return $uid;
++        }
++
++        $object = &Horde_Kolab_Server_Object::factory($info['type'], $uid, $this);
++        if (is_a($object, 'PEAR_Error')) {
++            return $object;
++        }
++
++        if ($object->exists()) {
++            return PEAR::raiseError('The object does already exist!');
++        }
++
++        $result = $object->save($info);
++        if (is_a($result, 'PEAR_Error')) {
++            return PEAR::raiseError(sprintf('Adding object failed: %s',
++                                            $result->getMessage()));
++        }
++        return $object;
++    }
++
++    /**
++     * Update or create a Kolab object.
++     *
++     * @param string $type The type of the object to store.
++     * @param array  $info Any additional information about the object to store.
++     * @param string $uid  The unique id of the object to store.
++     *
++     * @return Kolab_Object|PEAR_Error The updated Kolab object.
++     */
++    function &store($type, $info, $uid = null)
++    {
++        if (!in_array($type, $this->valid_types)) {
++            return PEAR::raiseError(sprintf(_("Invalid Kolab object type \"%s\"."),
++                                            $type));
++        }
++        if (empty($uid)) {
++            $uid = $this->generateUid($type, $info);
++        }
++
++        $object = &Horde_Kolab_Server_Object::factory($type, $uid, $this);
++        $result = $object->save($info);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
+         return $object;
+     }
+ 
+     /**
+      * Get the groups for this object
+      *
+-     * @param string $dn   The DN of the object to fetch.
++     * @param string $uid The UID of the object to fetch.
+      *
+      * @return array|PEAR_Error An array of group ids.
+      */
+-    function getGroups($dn)
++    function getGroups($uid)
+     {
+         return array();
+     }
+@@ -192,49 +324,64 @@ class Horde_Kolab_Server {
+     /**
+      * Read object data.
+      *
+-     * @param string $dn    The object to retrieve.
++     * @param string $uid   The object to retrieve.
+      * @param string $attrs Restrict to these attributes.
+      *
+      * @return array|PEAR_Error An array of attributes.
+      */
+-    function read($dn, $attrs = null) {
+-        return $this->_read($dn, $attrs);
++    function read($uid, $attrs = null)
++    {
++        return $this->_read($uid, $attrs);
+     }
+ 
+     /**
+      * Stub for reading object data.
+      *
+-     * @param string $dn    The object to retrieve.
++     * @param string $uid   The object to retrieve.
+      * @param string $attrs Restrict to these attributes.
+      *
+      * @return array|PEAR_Error An array of attributes.
+      */
+-    function _read($dn, $attrs = null) {
++    function _read($uid, $attrs = null)
++    {
++        return PEAR::raiseError(_("Not implemented!"));
++    }
++
++    /**
++     * Stub for saving object data.
++     *
++     * @param string $uid  The object to save.
++     * @param string $data The data of the object.
++     *
++     * @return array|PEAR_Error An array of attributes.
++     */
++    function save($uid, $data)
++    {
+         return PEAR::raiseError(_("Not implemented!"));
+     }
+ 
+     /**
+      * Determine the type of a Kolab object.
+      *
+-     * @param string $dn The DN of the object to examine.
++     * @param string $uid The UID of the object to examine.
+      *
+      * @return string The corresponding Kolab object type.
+      */
+-    function _determineType($dn)
++    function _determineType($uid)
+     {
+         return KOLAB_OBJECT_USER;
+     }
+ 
+     /**
+      * Identify the primary mail attribute for the first object found
+-     * with the given uid or mail.
++     * with the given ID or mail.
+      *
+-     * @param string $id  Search for objects with this uid/mail.
++     * @param string $id Search for objects with this ID/mail.
+      *
+      * @return mixed|PEAR_Error The mail address or false if there was
+      *                          no result.
+      */
+-    function mailForUidOrMail($id)
++    function mailForIdOrMail($id)
+     {
+         /* In the default class we just return the id */
+         return $id;
+@@ -243,40 +390,40 @@ class Horde_Kolab_Server {
+     /**
+      * Returns a list of allowed email addresses for the given user.
+      *
+-     * @param string $sasluser The user name.
++     * @param string $user The user name.
+      *
+      * @return array|PEAR_Error An array of allowed mail addresses.
+      */
+-    function addrsForUid($sasluser)
++    function addrsForIdOrMail($user)
+     {
+-        /* In the default class we just return the mail address */
+-        return $sasluser;
++        /* In the default class we just return the user name */
++        return $user;
+     }
+ 
+     /**
+-     * Return the DN for a given primary mail, uid, or alias.
++     * Return the UID for a given primary mail, uid, or alias.
+      *
+-     * @param string $mail  A valid mail address for the user.
++     * @param string $mail A valid mail address for the user.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForMailAddress($mail)
++    function uidForMailAddress($mail)
+     {
+         /* In the default class we just return the mail address */
+         return $mail;
+     }
+ 
+     /**
+-     * Identify the DN for the first object found using a specified
++     * Identify the UID for the first object found using a specified
+      * attribute value.
+      *
+      * @param string $attr     The name of the attribute used for searching.
+      * @param string $value    The desired value of the attribute.
+      * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForAttr($attr, $value,
++    function uidForAttr($attr, $value,
+                        $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+         /* In the default class we just return false */
+@@ -284,115 +431,143 @@ class Horde_Kolab_Server {
+     }
+ 
+     /**
+-     * Is the given DN member of the group with the given mail address?
++     * Is the given UID member of the group with the given mail address?
+      *
+-     * @param string $dn       DN of the user.
+-     * @param string $mail     Search the group with this mail address.
++     * @param string $uid  UID of the user.
++     * @param string $mail Search the group with this mail address.
+      *
+      * @return boolean|PEAR_Error True in case the user is in the
+      *                            group, false otherwise.
+      */
+-    function memberOfGroupAddress($dn, $mail)
++    function memberOfGroupAddress($uid, $mail)
+     {
+         /* No groups in the default class */
+         return false;
+     }
+ 
+     /**
+-     * Identify the DN for the first object found with the given uid.
++     * Identify the UID for the first object found with the given ID.
+      *
+-     * @param string $uid      Search for objects with this uid.
++     * @param string $id       Search for objects with this ID.
+      * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForUid($uid,
++    function uidForId($id,
+                       $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+-        return $this->dnForAttr('uid', $uid);
++        return $this->uidForAttr('uid', $id);
+     }
+ 
+     /**
+-     * Identify the DN for the first object found with the given mail.
++     * Identify the UID for the first object found with the given mail.
+      *
+      * @param string $mail     Search for objects with this mail address.
+      * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForMail($mail,
++    function uidForMail($mail,
+                       $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+-        return $this->dnForAttr('mail', $mail);
++        return $this->uidForAttr('mail', $mail);
+     }
+ 
+     /**
+-     * Identify the DN for the first object found with the given uid or mail.
++     * Identify the UID for the first object found with the given ID or mail.
+      *
+-     * @param string $id       Search for objects with this uid/mail.
+-     * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
++     * @param string $id Search for objects with this uid/mail.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForUidOrMail($id)
++    function uidForIdOrMail($id)
+     {
+-        $dn = $this->dnForAttr('uid', $id);
+-        if (!$dn) {
+-            $dn = $this->dnForAttr('mail', $id);
++        $uid = $this->uidForAttr('uid', $id);
++        if (!$uid) {
++            $uid = $this->uidForAttr('mail', $id);
+         }
+-        return $dn;
++        return $uid;
+     }
+ 
+     /**
+-     * Identify the DN for the first object found with the given alias.
++     * Identify the UID for the first object found with the given alias.
+      *
+      * @param string $mail     Search for objects with this mail alias.
+      * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForAlias($mail,
++    function uidForAlias($mail,
+                       $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+-        return $this->dnForAttr('alias', $mail);
++        return $this->uidForAttr('alias', $mail);
+     }
+ 
+     /**
+-     * Identify the DN for the first object found with the given mail
++     * Identify the UID for the first object found with the given mail
+      * address or alias.
+      *
+      * @param string $mail Search for objects with this mail address
+      * or alias.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForMailOrAlias($mail) {
+-        $dn = $this->dnForAttr('alias', $mail);
+-        if (!$dn) {
+-            $dn = $this->dnForAttr('mail', $mail);
++    function uidForMailOrAlias($mail)
++    {
++        $uid = $this->uidForAttr('alias', $mail);
++        if (!$uid) {
++            $uid = $this->uidForAttr('mail', $mail);
+         }
+-        return $dn;
++        return $uid;
+     }
+ 
+     /**
+-     * Identify the DN for the first object found with the given uid,
++     * Identify the UID for the first object found with the given ID,
+      * mail or alias.
+      *
+-     * @param string $id       Search for objects with this uid/mail/alias.
+-     * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
++     * @param string $id Search for objects with this ID/mail/alias.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForMailOrUidOrAlias($id)
++    function uidForMailOrIdOrAlias($id)
+     {
+-        $dn = $this->dnForAttr('uid', $id);
+-        if (!$dn) {
+-            $dn = $this->dnForAttr('mail', $id);
+-            if (!$dn) {
+-                $dn = $this->dnForAttr('alias', $id);
++        $uid = $this->uidForAttr('uid', $id);
++        if (!$uid) {
++            $uid = $this->uidForAttr('mail', $id);
++            if (!$uid) {
++                $uid = $this->uidForAttr('alias', $id);
+             }
+         }
+-        return $dn;
++        return $uid;
++    }
++
++    /**
++     * Generate a hash representation for a list of objects.
++     *
++     * @param string $type   The type of the objects to be listed
++     * @param array  $params Additional parameters.
++     *
++     * @return array|PEAR_Error An array of Kolab objects.
++     */
++    function listHash($type, $params = null)
++    {
++        $list = $this->_listObjects($type, $params);
++        if (is_a($list, 'PEAR_Error')) {
++            return $list;
++        }
++
++        if (isset($params['attributes'])) {
++            $attributes = $params['attributes'];
++        } else {
++            $attributes = null;
++        }
++
++        $hash = array();
++        foreach ($list as $entry) {
++            $hash[] = $entry->toHash($attributes);
++        }
++
++        return $hash;
+     }
+ 
+     /**
+@@ -406,7 +581,7 @@ class Horde_Kolab_Server {
+     function listObjects($type, $params = null)
+     {
+         if (!in_array($type, $this->valid_types)) {
+-            return PEAR::raiseError(sprintf(_("Invalid Kolab object type \"%s\"."), 
++            return PEAR::raiseError(sprintf(_("Invalid Kolab object type \"%s\"."),
+                                             $type));
+         }
+ 
+@@ -425,4 +600,43 @@ class Horde_Kolab_Server {
+     {
+         return array();
+     }
+-};
++
++    /**
++     * Generates a unique ID for the given information.
++     *
++     * @param string $type The type of the object to create.
++     * @param array  $info Any additional information about the object to create.
++     *
++     * @return string|PEAR_Error The UID.
++     */
++    function generateUid($type, $info)
++    {
++        if (!class_exists($type)) {
++            $result = Horde_Kolab_Server_Object::loadClass($type);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $id = call_user_func(array($type, 'generateId'), $info);
++        if (is_a($id, 'PEAR_Error')) {
++            return $id;
++        }
++        return $this->_generateUid($type, $id, $info);
++    }
++
++    /**
++     * Generates a UID for the given information.
++     *
++     * @param string $type The type of the object to create.
++     * @param string $id   The id of the object.
++     * @param array  $info Any additional information about the object to create.
++     *
++     * @return string|PEAR_Error The UID.
++     */
++    function _generateUid($type, $id, $info)
++    {
++        return $id;
++    }
++
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object.php b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+index 1d49fa7..663281e 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+@@ -5,7 +5,13 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object.php,v 1.2.2.3 2008/09/22 16:20:59 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /** Define the different Kolab object types */
+@@ -13,26 +19,52 @@ define('KOLAB_OBJECT_ADDRESS',          'Horde_Kolab_Server_Object_address');
+ define('KOLAB_OBJECT_ADMINISTRATOR',    'Horde_Kolab_Server_Object_administrator');
+ define('KOLAB_OBJECT_DOMAINMAINTAINER', 'Horde_Kolab_Server_Object_domainmaintainer');
+ define('KOLAB_OBJECT_GROUP',            'Horde_Kolab_Server_Object_group');
++define('KOLAB_OBJECT_DISTLIST',         'Horde_Kolab_Server_Object_distlist');
+ define('KOLAB_OBJECT_MAINTAINER',       'Horde_Kolab_Server_Object_maintainer');
+ define('KOLAB_OBJECT_SHAREDFOLDER',     'Horde_Kolab_Server_Object_sharedfolder');
+ define('KOLAB_OBJECT_USER',             'Horde_Kolab_Server_Object_user');
+ define('KOLAB_OBJECT_SERVER',           'Horde_Kolab_Server_Object_server');
+ 
+ /** Define the possible Kolab object attributes */
+-define('KOLAB_ATTR_DN',           'dn');
++define('KOLAB_ATTR_UID',          'dn');
++define('KOLAB_ATTR_ID',           'id');
+ define('KOLAB_ATTR_SN',           'sn');
+ define('KOLAB_ATTR_CN',           'cn');
++define('KOLAB_ATTR_GIVENNAME',    'givenName');
+ define('KOLAB_ATTR_FN',           'fn');
++define('KOLAB_ATTR_LNFN',         'lnfn');
+ define('KOLAB_ATTR_MAIL',         'mail');
+-define('KOLAB_ATTR_UID',          'uid');
++define('KOLAB_ATTR_SID',          'uid');
++define('KOLAB_ATTR_ACL',          'acl');
++define('KOLAB_ATTR_MEMBER',       'member');
++define('KOLAB_ATTR_USERTYPE',     'usertype');
++define('KOLAB_ATTR_DOMAIN',       'domain');
++define('KOLAB_ATTR_FOLDERTYPE',   'kolabFolderType');
++define('KOLAB_ATTR_USERPASSWORD', 'userPassword');
+ define('KOLAB_ATTR_DELETED',      'kolabDeleteFlag');
+ define('KOLAB_ATTR_FREEBUSYHOST', 'kolabFreeBusyServer');
+ define('KOLAB_ATTR_IMAPHOST',     'kolabImapServer');
+ define('KOLAB_ATTR_HOMESERVER',   'kolabHomeServer');
++define('KOLAB_ATTR_KOLABDELEGATE','kolabDelegate');
+ define('KOLAB_ATTR_IPOLICY',      'kolabInvitationPolicy');
++define('KOLAB_ATTR_QUOTA',        'cyrus-userquota');
+ define('KOLAB_ATTR_FBPAST',       'kolabFreeBusyPast');
+ define('KOLAB_ATTR_FBFUTURE',     'kolabFreeBusyFuture');
+-define('KOLAB_ATTR_FOLDERTYPE',   'kolabFolderType');
++define('KOLAB_ATTR_VISIBILITY',   'visible');
++
++/** Define the possible Kolab object classes */
++define('KOLAB_OC_TOP',                'top');
++define('KOLAB_OC_INETORGPERSON',      'inetOrgPerson');
++define('KOLAB_OC_KOLABINETORGPERSON', 'kolabInetOrgPerson');
++define('KOLAB_OC_HORDEPERSON',        'hordePerson');
++define('KOLAB_OC_KOLABGROUPOFNAMES',  'kolabGroupOfNames');
++define('KOLAB_OC_KOLABSHAREDFOLDER',  'kolabSharedFolder');
++
++/** Define the possible Kolab user types */
++define('KOLAB_UT_STANDARD',           0);
++define('KOLAB_UT_INTERNAL',           1);
++define('KOLAB_UT_GROUP',              2);
++define('KOLAB_UT_RESOURCE',           3);
+ 
+ /**
+  * This class provides methods to deal with Kolab objects stored in
+@@ -45,8 +77,11 @@ define('KOLAB_ATTR_FOLDERTYPE',   'kolabFolderType');
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Server_Object {
+ 
+@@ -58,19 +93,23 @@ class Horde_Kolab_Server_Object {
+     var $_db;
+ 
+     /**
+-     * DN of this object on the Kolab server.
++     * UID of this object on the Kolab server.
+      *
+      * @var string
+      */
+-    var $_dn;
++    var $_uid;
+ 
+     /**
+-     * The cached result
++     * The cached LDAP result
++     *
++     * FIXME: Include _ldap here
+      *
+      * @var mixed
+      */
+     var $_cache = false;
+ 
++    /** FIXME: Add an attribute cache for the get() function */
++
+     /**
+      * The LDAP filter to retrieve this object type.
+      *
+@@ -79,79 +118,140 @@ class Horde_Kolab_Server_Object {
+     var $filter = '';
+ 
+     /**
+-     * The attributes supported by this class.
++     * The group the UID must be member of so that this object really
++     * matches this class type. This may not include the root UID.
++     *
++     * @var string
++     */
++    var $required_group;
++
++    /**
++     * The LDAP attributes supported by this class.
+      *
+      * @var array
+      */
+     var $_supported_attributes = array();
+ 
+     /**
+-     * Initialize the Kolab Object. Provide either the DN or a
++     * Attributes derived from the LDAP values.
++     *
++     * @var array
++     */
++    var $_derived_attributes = array(
++        KOLAB_ATTR_ID,
++    );
++
++    /**
++     * The attributes required when creating an object of this class.
++     *
++     * @var array
++     */
++    var $_required_attributes = array();
++
++    /**
++     * The ldap classes for this type of object.
++     *
++     * @var array
++     */
++    var $_object_classes = array();
++
++    /**
++     * Sort by this attributes (must be a LDAP attribute).
++     *
++     * @var string
++     */
++    var $sort_by = KOLAB_ATTR_SN;
++
++    /**
++     * Initialize the Kolab Object. Provide either the UID or a
+      * LDAP search result.
+      *
+-     * @param Horde_Kolab_Server $db     The link into the Kolab db.
+-     * @param string             $dn     DN of the object.
+-     * @param array              $data   A possible array of data for the object
++     * @param Horde_Kolab_Server &$db  The link into the Kolab db.
++     * @param string             $uid  UID of the object.
++     * @param array              $data A possible array of data for the object
+      */
+-    function Horde_Kolab_Server_Object(&$db, $dn = null, $data = null)
++    function Horde_Kolab_Server_Object(&$db, $uid = null, $data = null)
+     {
+         $this->_db = &$db;
+-        if (empty($dn)) {
+-            if (empty($data) || !isset($data['dn'])) {
+-                $this->_cache = PEAR::raiseError(_('Specify either the DN or a search result!'));
++        if (empty($uid)) {
++            if (empty($data) || !isset($data[KOLAB_ATTR_UID])) {
++                $this->_cache = PEAR::raiseError(_('Specify either the UID or a search result!'));
+                 return;
+             }
+-			if (is_array($data['dn'])) {
+-				$this->_dn = $data['dn'][0];
+-			} else {
+-				$this->_dn = $data['dn'];
+-			}
+-			$this->_cache = $data;
++            if (is_array($data[KOLAB_ATTR_UID])) {
++                $this->_uid = $data[KOLAB_ATTR_UID][0];
++            } else {
++                $this->_uid = $data[KOLAB_ATTR_UID];
++            }
++            $this->_cache = $data;
+         } else {
+-            $this->_dn = $dn;
++            $this->_uid = $uid;
+         }
+     }
+ 
+     /**
+-     * Attempts to return a concrete Horde_Kolab_Server_Object instance based on $type.
++     * Attempts to return a concrete Horde_Kolab_Server_Object instance based on
++     * $type.
+      *
+-     * @param mixed  $type    The type of the Horde_Kolab_Server_Object subclass to
+-     *                        return.
+-     * @param string $dn      DN of the object
+-     * @param array  $storage A link to the Kolab_Server class handling read/write.
+-     * @param array  $data    A possible array of data for the object
++     * @param mixed  $type     The type of the Horde_Kolab_Server_Object subclass
++     *                         to return.
++     * @param string $uid      UID of the object
++     * @param array  &$storage A link to the Kolab_Server class handling read/write.
++     * @param array  $data     A possible array of data for the object
+      *
+      * @return Horde_Kolab_Server_Object|PEAR_Error The newly created concrete
+      *                                 Horde_Kolab_Server_Object instance.
+      */
+-
+-	function &factory($type, $dn, &$storage, $data = null)
+-	{
+-        if (in_array($type, array(KOLAB_OBJECT_ADDRESS, KOLAB_OBJECT_ADMINISTRATOR,
+-                                  KOLAB_OBJECT_DOMAINMAINTAINER, KOLAB_OBJECT_GROUP,
+-                                  KOLAB_OBJECT_MAINTAINER, KOLAB_OBJECT_SHAREDFOLDER,
+-                                  KOLAB_OBJECT_USER, KOLAB_OBJECT_SERVER))) {
+-            $type = substr($type, 26);
++    function &factory($type, $uid, &$storage, $data = null)
++    {
++        $result = Horde_Kolab_Server_Object::loadClass($type);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
+         }
+ 
+-        $type = basename($type);
+-
+-        if (file_exists(dirname(__FILE__) . '/Object/' . $type . '.php')) {
+-            include_once dirname(__FILE__) . '/Object/' . $type . '.php';
++        if (class_exists($type)) {
++            $object = &new $type($storage, $uid, $data);
++        } else {
++            $object = PEAR::raiseError('Class definition of ' . $type . ' not found.');
+         }
+ 
+-        $class = 'Horde_Kolab_Server_Object_' . $type;
+-        if (class_exists($class)) {
+-            $object = &new $class($storage, $dn, $data);
++        return $object;
++    }
++
++    /**
++     * Attempts to load the concrete Horde_Kolab_Server_Object class based on
++     * $type.
++     *
++     * @param mixed $type The type of the Horde_Kolab_Server_Object subclass.
++     *
++     * @static
++     *
++     * @return true|PEAR_Error True if successfull.
++     */
++    function loadClass($type)
++    {
++        if (in_array($type, array(KOLAB_OBJECT_ADDRESS, KOLAB_OBJECT_ADMINISTRATOR,
++                                  KOLAB_OBJECT_DISTLIST, KOLAB_OBJECT_DOMAINMAINTAINER,
++                                  KOLAB_OBJECT_GROUP, KOLAB_OBJECT_MAINTAINER,
++                                  KOLAB_OBJECT_SHAREDFOLDER, KOLAB_OBJECT_USER,
++                                  KOLAB_OBJECT_SERVER))) {
++            $name = substr($type, 26);
+         } else {
+-            $object = PEAR::raiseError('Class definition of ' . $class . ' not found.');
++            return PEAR::raiseError(sprintf('Object type "%s" not supported.',
++                                            $type));
+         }
+ 
+-        return $object;
+-	}
++        $name = basename($name);
++
++        if (file_exists(dirname(__FILE__) . '/Object/' . $name . '.php')) {
++            include_once dirname(__FILE__) . '/Object/' . $name . '.php';
++        }
++    }
+ 
+     /**
+      * Does the object exist?
++     *
++     * @return NULL
+      */
+     function exists()
+     {
+@@ -164,23 +264,27 @@ class Horde_Kolab_Server_Object {
+ 
+     /**
+      * Read the object into the cache
++     *
++     * @return NULL
+      */
+     function _read()
+     {
+-        $this->_cache = $this->_db->read($this->_dn, $this->_supported_attributes);
++        $this->_cache = $this->_db->read($this->_uid,
++                                         $this->_supported_attributes);
+     }
+ 
+     /**
+      * Get the specified attribute of this object
+      *
+-	 * @param string $attr The attribute to read
+-	 *
++     * @param string $attr The attribute to read
++     *
+      * @return string the value of this attribute
+      */
+     function get($attr)
+     {
+-        if ($attr != KOLAB_ATTR_DN) {
+-            if (!in_array($attr, $this->_supported_attributes)) {
++        if ($attr != KOLAB_ATTR_UID) {
++            if (!in_array($attr, $this->_supported_attributes)
++                && !in_array($attr, $this->_derived_attributes)) {
+                 return PEAR::raiseError(sprintf(_("Attribute \"%s\" not supported!"),
+                                                 $attr));
+             }
+@@ -192,58 +296,120 @@ class Horde_Kolab_Server_Object {
+             }
+         }
+ 
+-		switch ($attr) {
+-		case KOLAB_ATTR_DN:
+-			return $this->_getDn();
+-		case KOLAB_ATTR_FN:
+-			return $this->_getFn();
+-		case KOLAB_ATTR_SN:
+-		case KOLAB_ATTR_CN:
+-		case KOLAB_ATTR_MAIL:
+-		case KOLAB_ATTR_UID:
+-		case KOLAB_ATTR_IMAPHOST:
+-		case KOLAB_ATTR_FREEBUSYHOST:
+-		case KOLAB_ATTR_HOMESERVER:
+-			return $this->_get($attr, true);
+-		default:
+-			return $this->_get($attr, false);
+-		}
++        if (in_array($attr, $this->_derived_attributes)) {
++            return $this->_derive($attr);
++        }
++
++        switch ($attr) {
++        case KOLAB_ATTR_UID:
++            return $this->_getUID();
++        case KOLAB_ATTR_FN:
++            return $this->_getFn();
++        case KOLAB_ATTR_SN:
++        case KOLAB_ATTR_CN:
++        case KOLAB_ATTR_GIVENNAME:
++        case KOLAB_ATTR_MAIL:
++        case KOLAB_ATTR_SID:
++        case KOLAB_ATTR_USERPASSWORD:
++        case KOLAB_ATTR_DELETED:
++        case KOLAB_ATTR_IMAPHOST:
++        case KOLAB_ATTR_FREEBUSYHOST:
++        case KOLAB_ATTR_HOMESERVER:
++        case KOLAB_ATTR_FBPAST:
++        case KOLAB_ATTR_FBFUTURE:
++        case KOLAB_ATTR_FOLDERTYPE:
++            return $this->_get($attr, true);
++        default:
++            return $this->_get($attr, false);
++        }
+     }
+ 
+     /**
+      * Get the specified attribute of this object
+      *
+-	 * @param string  $attr   The attribute to read
+-	 * @param boolean $single Should a single value be returned
+-	 *                        or are multiple values allowed?
+-	 *
++     * @param string  $attr   The attribute to read
++     * @param boolean $single Should a single value be returned
++     *                        or are multiple values allowed?
++     *
+      * @return string the value of this attribute
+      */
+     function _get($attr, $single = true)
+     {
+         if (isset($this->_cache[$attr])) {
+-			if ($single && is_array($this->_cache[$attr])) {
+-				return $this->_cache[$attr][0];
+-			} else {
+-				return $this->_cache[$attr];
+-			}
++            if ($single && is_array($this->_cache[$attr])) {
++                return $this->_cache[$attr][0];
++            } else {
++                return $this->_cache[$attr];
++            }
+         }
+         return false;
+     }
+ 
+     /**
+-     * Get the DN of this object
++     * Derive an attribute value.
++     *
++     * @param string $attr The attribute to derive.
+      *
+-     * @return string the DN of this object
++     * @return mixed The value of the attribute.
+      */
+-    function _getDn()
++    function _derive($attr)
+     {
+-        return $this->_dn;
++        switch ($attr) {
++        case KOLAB_ATTR_ID:
++            $result = split(',', $this->_uid);
++            if (substr($result[0], 0, 3) == 'cn=') {
++                return substr($result[0], 3);
++            } else {
++                return $result[0];
++            }
++        case KOLAB_ATTR_LNFN:
++            $gn = $this->_get(KOLAB_ATTR_GIVENNAME, true);
++            $sn = $this->_get(KOLAB_ATTR_SN, true);
++            return sprintf('%s, %s', $sn, $gn);
++        default:
++            return false;
++        }
++    }
++
++    /**
++     * Convert the object attributes to a hash.
++     *
++     * @param string $attrs The attributes to return.
++     *
++     * @return array|PEAR_Error The hash representing this object.
++     */
++    function toHash($attrs = null)
++    {
++        if (!isset($attrs)) {
++            $attrs = array();
++        }
++        $result = array();
++        foreach ($attrs as $key) {
++            $value = $this->get($key);
++            if (is_a($value, 'PEAR_Error')) {
++                return $value;
++            }
++            $result[$key] = $value;
++        }
++
++        return $result;
++    }
++
++    /**
++     * Get the UID of this object
++     *
++     * @return string the UID of this object
++     */
++    function _getUid()
++    {
++        return $this->_uid;
+     }
+ 
+     /**
+      * Get the "first name" attribute of this object
+      *
++     * FIXME: This should get refactored to be combined with the Id value.
++     *
+      * @return string the "first name" of this object
+      */
+     function _getFn()
+@@ -269,10 +435,66 @@ class Horde_Kolab_Server_Object {
+      *
+      * This method can be used to encapsulate multidomain support.
+      *
++     * @param string $server_type The type of server URL that should be returned.
++     *
+      * @return string|PEAR_Error The server url or empty.
+      */
+     function getServer($server_type)
+     {
+         return PEAR::raiseError('Not implemented!');
+     }
++
++    /**
++     * Generates an ID for the given information.
++     *
++     * @param array $info The data of the object.
++     *
++     * @static
++     *
++     * @return string|PEAR_Error The ID.
++     */
++    function generateId($info)
++    {
++        $id_mapfields = array('givenName', 'sn');
++        $id_format    = '%s %s';
++
++        $fieldarray = array();
++        foreach ($id_mapfields as $mapfield) {
++            if (isset($info[$mapfield])) {
++                $fieldarray[] = $info[$mapfield];
++            } else {
++                $fieldarray[] = '';
++            }
++        }
++
++        return trim(vsprintf($id_format, $fieldarray), " \t\n\r\0\x0B,");
++    }
++
++    /**
++     * Saves object information.
++     *
++     * @param array $info The information about the object.
++     *
++     * @return boolean|PEAR_Error True on success.
++     */
++    function save($info)
++    {
++        foreach ($this->_required_attributes as $attribute) {
++            if (!isset($info[$attribute])) {
++                return PEAR::raiseError(sprintf('The value for "%s" is missing!',
++                                                $attribute));
++            }
++        }
++
++        $info['objectClass'] = $this->_object_classes;
++
++        $result = $this->_db->save($this->_uid, $info);
++        if ($result === false || is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++
++        $this->_cache = $info;
++
++        return $result;
++    }
+ };
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/address.php b/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
+index d04ea4b..bcf905e 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
+@@ -4,7 +4,13 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/address.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /**
+@@ -18,8 +24,11 @@
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Server_Object_address extends Horde_Kolab_Server_Object {
+ 
+@@ -37,9 +46,50 @@ class Horde_Kolab_Server_Object_address extends Horde_Kolab_Server_Object {
+      */
+     var $_supported_attributes = array(
+         KOLAB_ATTR_SN,
++        KOLAB_ATTR_CN,
++        KOLAB_ATTR_GIVENNAME,
+         KOLAB_ATTR_FN,
++        KOLAB_ATTR_LNFN,
+         KOLAB_ATTR_MAIL,
+         KOLAB_ATTR_DELETED,
+     );
+ 
+-};
++    /**
++     * The attributes required when creating an object of this class.
++     *
++     * @var array
++     */
++    var $_required_attributes = array(
++        KOLAB_ATTR_SN,
++        KOLAB_ATTR_GIVENNAME,
++    );
++
++    /**
++     * The ldap classes for this type of object.
++     *
++     * @var array
++     */
++    var $_object_classes = array(
++        KOLAB_OC_TOP,
++        KOLAB_OC_INETORGPERSON,
++        KOLAB_OC_KOLABINETORGPERSON,
++    );
++
++    /**
++     * Convert the object attributes to a hash.
++     *
++     * @param string $attrs The attributes to return.
++     *
++     * @return array|PEAR_Error The hash representing this object.
++     */
++    function toHash($attrs = null)
++    {
++        if (!isset($attrs)) {
++            $attrs = array(
++                KOLAB_ATTR_LNFN,
++            );
++        }
++        return parent::toHash($attrs);
++    }
++
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/administrator.php b/horde-webmail/lib/Horde/Kolab/Server/Object/administrator.php
+index fe13dad..f03ac86 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/administrator.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/administrator.php
+@@ -4,9 +4,17 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/administrator.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
++require_once 'Horde/Kolab/Server/Object/adminrole.php';
++
+ /**
+  * This class provides methods to deal with administrator
+  * entries for Kolab.
+@@ -18,27 +26,20 @@
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+-class Horde_Kolab_Server_Object_administrator extends Horde_Kolab_Server_Object {
++class Horde_Kolab_Server_Object_administrator extends Horde_Kolab_Server_Object_adminrole {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
++     * The group the UID must be member of so that this object really
++     * matches this class type. This may not include the root UID.
+      *
+      * @var string
+      */
+-    var $filter = '(&(cn=*)(objectclass=inetOrgPerson)(uid=*)(sn=*))';
++    var $required_group = 'cn=admin,cn=internal';
+ 
+-    /**
+-     * The attributes supported by this class
+-     *
+-     * @var array
+-     */
+-    var $_supported_attributes = array(
+-        KOLAB_ATTR_SN,
+-        KOLAB_ATTR_FN,
+-        KOLAB_ATTR_UID,
+-        KOLAB_ATTR_DELETED,
+-    );
+-};
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php b/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
+new file mode 100644
+index 0000000..7552e3a
+--- /dev/null
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
+@@ -0,0 +1,157 @@
++<?php
++/**
++ * A Kolab object of type administrator.
++ *
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/maintainer.php,v 1.3 2008/08/01 07:49:26 wrobel Exp $
++ *
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
++ */
++
++/**
++ * This class provides methods to deal with administrator object types.
++ *
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/maintainer.php,v 1.3 2008/08/01 07:49:26 wrobel Exp $
++ *
++ * Copyright 2008 The Horde Project (http://www.horde.org/)
++ *
++ * See the enclosed file COPYING for license information (LGPL). If you
++ * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
++ */
++class Horde_Kolab_Server_Object_adminrole extends Horde_Kolab_Server_Object {
++
++    /**
++     * The LDAP filter to retrieve this object type
++     *
++     * @var string
++     */
++    var $filter = '(&(cn=*)(objectClass=inetOrgPerson)(!(uid=manager))(sn=*))';
++
++    /**
++     * The attributes supported by this class
++     *
++     * @var array
++     */
++    var $_supported_attributes = array(
++        KOLAB_ATTR_SN,
++        KOLAB_ATTR_CN,
++        KOLAB_ATTR_GIVENNAME,
++        KOLAB_ATTR_FN,
++        KOLAB_ATTR_SID,
++        KOLAB_ATTR_USERPASSWORD,
++        KOLAB_ATTR_DELETED,
++    );
++
++    /**
++     * The attributes required when creating an object of this class.
++     *
++     * @var array
++     */
++    var $_required_attributes = array(
++        KOLAB_ATTR_SN,
++        KOLAB_ATTR_GIVENNAME,
++        KOLAB_ATTR_USERPASSWORD,
++        KOLAB_ATTR_SID,
++    );
++
++    /**
++     * Attributes derived from the LDAP values.
++     *
++     * @var array
++     */
++    var $_derived_attributes = array(
++        KOLAB_ATTR_ID,
++        KOLAB_ATTR_LNFN,
++    );
++
++    /**
++     * The ldap classes for this type of object.
++     *
++     * @var array
++     */
++    var $_object_classes = array(
++        KOLAB_OC_TOP,
++        KOLAB_OC_INETORGPERSON,
++        KOLAB_OC_KOLABINETORGPERSON,
++    );
++
++    /**
++     * Convert the object attributes to a hash.
++     *
++     * @param string $attrs The attributes to return.
++     *
++     * @return array|PEAR_Error The hash representing this object.
++     */
++    function toHash($attrs = null)
++    {
++        if (!isset($attrs)) {
++            $attrs = array(
++                KOLAB_ATTR_SID,
++                KOLAB_ATTR_LNFN,
++            );
++        }
++        return parent::toHash($attrs);
++    }
++
++    /**
++     * Saves object information.
++     *
++     * @param array $info The information about the object.
++     *
++     * @return boolean|PEAR_Error True on success.
++     */
++    function save($info)
++    {
++        if (!isset($info['cn'])) {
++            if (!isset($info['sn']) || !isset($info['givenName'])) {
++                return PEAR::raiseError('Either the last name or the given name is missing!');
++            } else {
++                $info['cn'] = $this->generateId($info);
++            }
++        }
++
++        $admins_uid = sprintf('%s,%s', $this->required_group,
++                              $this->_db->getBaseUid());
++
++        $admin_group = $this->_db->fetch($admin_uids, KOLAB_OBJECT_GROUP);
++        if (is_a($admin_group, 'PEAR_Error') || !$admin_group->exists()) {
++
++            $members = array($this->_uid);
++
++            //FIXME: This is not okay and also contains too much LDAP knowledge
++            $parts = split(',', $this->required_group);
++            list($groupname) = sscanf($parts[0], 'cn=%s');
++
++            $result = $this->_db->add(array(KOLAB_ATTR_CN => $groupname,
++                                            'type' => KOLAB_OBJECT_GROUP,
++                                            KOLAB_ATTR_MEMBER => $members,
++                                            KOLAB_ATTR_VISIBILITY => false));
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        } else {
++            $result = $admin_group->isMember($this->_uid);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++            if ($result === false) {
++                $members   = $admin_group->getMembers();
++                $members[] = $this->_uid;
++                $admin_group->save(array(KOLAB_ATTR_MEMBER => $members));
++            }
++        }
++        return parent::save($info);
++    }
++
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php b/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php
+new file mode 100644
+index 0000000..945c047
+--- /dev/null
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php
+@@ -0,0 +1,52 @@
++<?php
++/**
++ * Representation of a Kolab distribution list.
++ *
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/group.php,v 1.3 2008/08/01 07:49:26 wrobel Exp $
++ *
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
++ */
++
++require_once 'Horde/Kolab/Server/Object/group.php';
++
++/**
++ * This class provides methods to deal with distribution lists for Kolab.
++ *
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/group.php,v 1.3 2008/08/01 07:49:26 wrobel Exp $
++ *
++ * Copyright 2008 The Horde Project (http://www.horde.org/)
++ *
++ * See the enclosed file COPYING for license information (LGPL). If you
++ * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
++ */
++class Horde_Kolab_Server_Object_distlist extends Horde_Kolab_Server_Object_group {
++
++    /**
++     * The LDAP filter to retrieve this object type
++     *
++     * @var string
++     */
++    var $filter = '(&(objectClass=kolabGroupOfNames)(mail=*))';
++
++
++    /**
++     * The attributes required when creating an object of this class.
++     *
++     * @var array
++     */
++    var $_required_attributes = array(
++        KOLAB_ATTR_MAIL,
++    );
++};
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php b/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php
+index 36675fa..bb688ad 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/domainmaintainer.php
+@@ -4,9 +4,17 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/domainmaintainer.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
++require_once 'Horde/Kolab/Server/Object/adminrole.php';
++
+ /**
+  * This class provides methods associated to Kolab domain maintainers.
+  *
+@@ -17,28 +25,100 @@
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+-class Horde_Kolab_Server_Object_domainmaintainer extends Horde_Kolab_Server_Object {
++class Horde_Kolab_Server_Object_domainmaintainer extends Horde_Kolab_Server_Object_adminrole {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
++     * The attributes required when creating an object of this class.
+      *
+-     * @var string
++     * @var array
+      */
+-    var $filter = '(&(cn=*)(objectclass=kolabInetOrgPerson)(!(uid=manager))(sn=*))';
++    var $_required_attributes = array(
++        KOLAB_ATTR_SN,
++        KOLAB_ATTR_GIVENNAME,
++        KOLAB_ATTR_USERPASSWORD,
++        KOLAB_ATTR_SID,
++        KOLAB_ATTR_DOMAIN,
++    );
+ 
+     /**
+-     * The attributes supported by this class
++     * Attributes derived from the LDAP values.
+      *
+      * @var array
+      */
+-    var $_supported_attributes = array(
+-        KOLAB_ATTR_SN,
+-        KOLAB_ATTR_FN,
+-        KOLAB_ATTR_UID,
+-        KOLAB_ATTR_DELETED,
++    var $_derived_attributes = array(
++        KOLAB_ATTR_ID,
++        KOLAB_ATTR_LNFN,
++        KOLAB_ATTR_DOMAIN,
+     );
+ 
++    /**
++     * The group the UID must be member of so that this object really
++     * matches this class type. This may not include the root UID.
++     *
++     * @var string
++     */
++    var $required_group = 'cn=domain-maintainer,cn=internal';
++
++    /**
++     * Convert the object attributes to a hash.
++     *
++     * @param string $attrs The attributes to return.
++     *
++     * @return array|PEAR_Error The hash representing this object.
++     */
++    function toHash($attrs = null)
++    {
++        if (!isset($attrs)) {
++            $attrs = array(
++                KOLAB_ATTR_SID,
++                KOLAB_ATTR_LNFN,
++                KOLAB_ATTR_DOMAIN,
++            );
++        }
++        return parent::toHash($attrs);
++    }
++
++    /**
++     * Saves object information.
++     *
++     * @param array $info The information about the object.
++     *
++     * @return boolean|PEAR_Error True on success.
++     */
++    function save($info)
++    {
++        foreach ($info[KOLAB_ATTR_DOMAIN] as $domain) {
++            $domain_uid = sprintf('cn=%s,cn=domain,cn=internal,%s',
++                                  $domain, $this->_db->getBaseUid());
++
++            //FIXME: This should be made easier by the group object
++
++            $domain_group = $this->_db->fetch($domain_uids, KOLAB_OBJECT_GROUP);
++            if (is_a($domain_group, 'PEAR_Error')) {
++                return $domain_group;
++            }
++            if (!$domain_group->exists()) {
++                $members = array($this->_uid);
++                $domain_group->save(array(KOLAB_ATTR_MEMBER => $members));
++            } else {
++                $result = $domain_group->isMember($this->_uid);
++                if (is_a($result, 'PEAR_Error')) {
++                    return $result;
++                }
++                if ($result === false) {
++                    $members   = $domain_group->getMembers();
++                    $members[] = $this->_uid;
++                    $domain_group->save(array(KOLAB_ATTR_MEMBER => $members));
++                }
++            }
++        }
++        return parent::save($info);
++    }
++
+ }
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/group.php b/horde-webmail/lib/Horde/Kolab/Server/Object/group.php
+index f63bcf4..1b4163c 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/group.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/group.php
+@@ -4,7 +4,13 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/group.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /**
+@@ -17,8 +23,11 @@
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Server_Object_group extends Horde_Kolab_Server_Object {
+ 
+@@ -27,7 +36,7 @@ class Horde_Kolab_Server_Object_group extends Horde_Kolab_Server_Object {
+      *
+      * @var string
+      */
+-    var $filter = '(&(!(cn=domains))(objectclass=kolabGroupOfNames))';
++    var $filter = '(objectClass=kolabGroupOfNames)';
+ 
+     /**
+      * The attributes supported by this class
+@@ -37,7 +46,194 @@ class Horde_Kolab_Server_Object_group extends Horde_Kolab_Server_Object {
+     var $_supported_attributes = array(
+         KOLAB_ATTR_CN,
+         KOLAB_ATTR_MAIL,
++        KOLAB_ATTR_MEMBER,
+         KOLAB_ATTR_DELETED,
+     );
+ 
+-};
++    /**
++     * Attributes derived from the LDAP values.
++     *
++     * @var array
++     */
++    var $_derived_attributes = array(
++        KOLAB_ATTR_ID,
++        KOLAB_ATTR_VISIBILITY,
++    );
++
++    /**
++     * The attributes required when creating an object of this class.
++     *
++     * @var array
++     */
++    var $_required_attributes = array(
++        KOLAB_ATTR_CN,
++    );
++
++    /**
++     * The ldap classes for this type of object.
++     *
++     * @var array
++     */
++    var $_object_classes = array(
++        KOLAB_OC_TOP,
++        KOLAB_OC_KOLABGROUPOFNAMES,
++    );
++
++    /**
++     * Sort by this attributes (must be a LDAP attribute).
++     *
++     * @var string
++     */
++    var $sort_by = KOLAB_ATTR_MAIL;
++
++    /**
++     * Derive an attribute value.
++     *
++     * @param string $attr The attribute to derive.
++     *
++     * @return mixed The value of the attribute.
++     */
++    function _derive($attr)
++    {
++        switch ($attr) {
++        case KOLAB_ATTR_VISIBILITY:
++            return strpos($this->_uid, 'cn=internal') === false;
++        default:
++            return parent::_derive($attr);
++        }
++    }
++
++    /**
++     * Convert the object attributes to a hash.
++     *
++     * @param string $attrs The attributes to return.
++     *
++     * @return array|PEAR_Error The hash representing this object.
++     */
++    function toHash($attrs = null)
++    {
++        if (!isset($attrs)) {
++            $attrs = array(
++                KOLAB_ATTR_ID,
++                KOLAB_ATTR_MAIL,
++                KOLAB_ATTR_VISIBILITY,
++            );
++        }
++        return parent::toHash($attrs);
++    }
++
++    /**
++     * Generates an ID for the given information.
++     *
++     * @param array $info The data of the object.
++     *
++     * @static
++     *
++     * @return string|PEAR_Error The ID.
++     */
++    function generateId($info)
++    {
++        if (isset($info['mail'])) {
++            return trim($info['mail'], " \t\n\r\0\x0B,");
++        } else {
++            return trim($info['cn'], " \t\n\r\0\x0B,");
++        }
++    }
++
++    /**
++     * Saves object information.
++     *
++     * @param array $info The information about the object.
++     *
++     * @return boolean|PEAR_Error True on success.
++     */
++    function save($info)
++    {
++        if (!isset($info['cn'])) {
++            if (!isset($info['mail'])) {
++                return PEAR::raiseError('Either the mail address or the common name has to be specified for a group object!');
++            } else {
++                $info['cn'] = $info['mail'];
++            }
++        }
++        return parent::save($info);
++    }
++
++    /**
++     * Retrieve the member list for this group.
++     *
++     * @return array|PEAR_Error The list of members in this group.
++     */
++    function getMembers()
++    {
++        return $this->_get(KOLAB_ATTR_MEMBER, false);
++    }
++
++    /**
++     * Add a member to this group.
++     *
++     * @param string $member The UID of the member to add.
++     *
++     * @return array|PEAR_Error True if successful.
++     */
++    function addMember($member)
++    {
++        $members = $this->getMembers();
++        if (is_a($members, 'PEAR_Error')) {
++            return $members;
++        }
++        if (!in_array($member, $members)) {
++            $this->_cache[KOLAB_ATTR_MEMBER][] = $member;
++        } else {
++            return PEAR::raiseError(_("The UID %s is already a member of the group %s!"),
++                                    $member, $this->_uid);
++        }
++        return $this->save($this->_cache);
++    }
++
++    /**
++     * Delete a member from this group.
++     *
++     * @param string $member The UID of the member to delete.
++     *
++     * @return array|PEAR_Error True if successful.
++     */
++    function deleteMember($member)
++    {
++        $members = $this->getMembers();
++        if (is_a($members, 'PEAR_Error')) {
++            return $members;
++        }
++        if (in_array($member, $members)) {
++            $this->_cache[KOLAB_ATTR_MEMBER] = array_diff($this->_cache[KOLAB_ATTR_MEMBER],
++                                                          array($member));
++        } else {
++            return PEAR::raiseError(_("The UID %s is no member of the group %s!"),
++                                    $member, $this->_uid);
++
++        }
++        return $this->save($this->_cache);
++    }
++
++    /**
++     * Is the specified UID member of this group?
++     *
++     * @param string $member The UID of the member to check.
++     *
++     * @return boolean|PEAR_Error True if the UID is a member of the group,
++     *                            false otherwise.
++     */
++    function isMember($member)
++    {
++        $members = $this->getMembers();
++        if (is_a($members, 'PEAR_Error') || !is_array($members)) {
++            return $members;
++        }
++        if (!in_array($member, $members)) {
++            return false;
++        } else {
++            return true;
++        }
++    }
++
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/maintainer.php b/horde-webmail/lib/Horde/Kolab/Server/Object/maintainer.php
+index 9a7f867..485ae2d 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/maintainer.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/maintainer.php
+@@ -4,9 +4,17 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/maintainer.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
++require_once 'Horde/Kolab/Server/Object/adminrole.php';
++
+ /**
+  * This class provides methods to deal with maintainer
+  * entries for Kolab.
+@@ -18,28 +26,20 @@
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+-class Horde_Kolab_Server_Object_maintainer extends Horde_Kolab_Server_Object {
++class Horde_Kolab_Server_Object_maintainer extends Horde_Kolab_Server_Object_adminrole {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
++     * The group the UID must be member of so that this object really
++     * matches this class type. This may not include the root UID.
+      *
+      * @var string
+      */
+-    var $filter = '(&(cn=*)(objectclass=inetOrgPerson)(!(uid=manager))(sn=*))';
+-
+-    /**
+-     * The attributes supported by this class
+-     *
+-     * @var array
+-     */
+-    var $_supported_attributes = array(
+-        KOLAB_ATTR_SN,
+-        KOLAB_ATTR_FN,
+-        KOLAB_ATTR_UID,
+-        KOLAB_ATTR_DELETED,
+-    );
++    var $required_group = 'cn=maintainer,cn=internal';
+ 
+-};
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/server.php b/horde-webmail/lib/Horde/Kolab/Server/Object/server.php
+index 1466ff0..5db7261 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/server.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/server.php
+@@ -4,7 +4,13 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/server.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /**
+@@ -17,8 +23,11 @@
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Server_Object_server extends Horde_Kolab_Server_Object {
+ 
+@@ -38,4 +47,4 @@ class Horde_Kolab_Server_Object_server extends Horde_Kolab_Server_Object {
+         KOLAB_ATTR_FBPAST,
+     );
+ 
+-};
++}
+\ No newline at end of file
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php b/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php
+index 8c2bd80..c909c05 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php
+@@ -4,7 +4,13 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/sharedfolder.php,v 1.2.2.2 2008/08/01 07:56:20 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /**
+@@ -18,8 +24,11 @@
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Server_Object_sharedfolder extends Horde_Kolab_Server_Object {
+ 
+@@ -28,7 +37,7 @@ class Horde_Kolab_Server_Object_sharedfolder extends Horde_Kolab_Server_Object {
+      *
+      * @var string
+      */
+-    var $filter = '(objectclass=kolabSharedFolder)';
++    var $filter = '(objectClass=kolabSharedFolder)';
+ 
+     /**
+      * The attributes supported by this class
+@@ -38,6 +47,63 @@ class Horde_Kolab_Server_Object_sharedfolder extends Horde_Kolab_Server_Object {
+     var $_supported_attributes = array(
+         KOLAB_ATTR_CN,
+         KOLAB_ATTR_DELETED,
++        KOLAB_ATTR_FOLDERTYPE,
++        KOLAB_ATTR_HOMESERVER,
++        KOLAB_ATTR_IMAPHOST,
++        KOLAB_ATTR_QUOTA,
++        KOLAB_ATTR_ACL,
++    );
++
++    /**
++     * The attributes required when creating an object of this class.
++     *
++     * @var array
++     */
++    var $_required_attributes = array(
++        KOLAB_ATTR_CN,
++        KOLAB_ATTR_HOMESERVER,
++    );
++
++    /**
++     * The ldap classes for this type of object.
++     *
++     * @var array
++     */
++    var $_object_classes = array(
++        KOLAB_OC_TOP,
++        KOLAB_OC_KOLABSHAREDFOLDER,
+     );
+ 
++    /**
++     * Generates an ID for the given information.
++     *
++     * @param array $info The data of the object.
++     *
++     * @static
++     *
++     * @return string|PEAR_Error The ID.
++     */
++    function generateId($info)
++    {
++        return trim($info['cn'], " \t\n\r\0\x0B,");
++    }
++
++    /**
++     * Convert the object attributes to a hash.
++     *
++     * @param string $attrs The attributes to return.
++     *
++     * @return array|PEAR_Error The hash representing this object.
++     */
++    function toHash($attrs = null)
++    {
++        if (!isset($attrs)) {
++            $attrs = array(
++                KOLAB_ATTR_CN,
++                KOLAB_ATTR_HOMESERVER,
++                KOLAB_ATTR_FOLDERTYPE,
++            );
++        }
++        return parent::toHash($attrs);
++    }
+ }
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+index d6b9e97..73e108d 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+@@ -4,7 +4,13 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/Object/user.php,v 1.2.2.3 2008/09/12 16:52:07 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /**
+@@ -18,8 +24,11 @@
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+ 
+@@ -28,7 +37,7 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+      *
+      * @var string
+      */
+-    var $filter = '(&(objectclass=kolabInetOrgPerson)(uid=*)(mail=*)(sn=*))';
++    var $filter = '(&(objectClass=kolabInetOrgPerson)(uid=*)(mail=*)(sn=*))';
+ 
+     /**
+      * The attributes supported by this class
+@@ -38,18 +47,131 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+     var $_supported_attributes = array(
+         KOLAB_ATTR_SN,
+         KOLAB_ATTR_CN,
++        KOLAB_ATTR_GIVENNAME,
+         KOLAB_ATTR_FN,
+-        KOLAB_ATTR_UID,
++        KOLAB_ATTR_SID,
++        KOLAB_ATTR_USERPASSWORD,
+         KOLAB_ATTR_MAIL,
+         KOLAB_ATTR_DELETED,
+-		KOLAB_ATTR_IMAPHOST,
+-		KOLAB_ATTR_FREEBUSYHOST,
+-		KOLAB_ATTR_HOMESERVER,
+-		KOLAB_ATTR_IPOLICY,
++        KOLAB_ATTR_IMAPHOST,
++        KOLAB_ATTR_FREEBUSYHOST,
++        KOLAB_ATTR_HOMESERVER,
++        KOLAB_ATTR_KOLABDELEGATE,
++        KOLAB_ATTR_IPOLICY,
+         KOLAB_ATTR_FBFUTURE,
+     );
+ 
+     /**
++     * Attributes derived from the LDAP values.
++     *
++     * @var array
++     */
++    var $_derived_attributes = array(
++        KOLAB_ATTR_ID,
++        KOLAB_ATTR_USERTYPE,
++    );
++
++    /**
++     * The attributes required when creating an object of this class.
++     *
++     * @var array
++     */
++    var $_required_attributes = array(
++        KOLAB_ATTR_SN,
++        KOLAB_ATTR_GIVENNAME,
++        KOLAB_ATTR_USERPASSWORD,
++        KOLAB_ATTR_MAIL,
++        KOLAB_ATTR_HOMESERVER,
++    );
++
++    /**
++     * The ldap classes for this type of object.
++     *
++     * @var array
++     */
++    var $_object_classes = array(
++        KOLAB_OC_TOP,
++        KOLAB_OC_INETORGPERSON,
++        KOLAB_OC_KOLABINETORGPERSON,
++        KOLAB_OC_HORDEPERSON,
++    );
++
++    /**
++     * Initialize the Kolab Object. Provide either the UID or a
++     * LDAP search result.
++     *
++     * @param Horde_Kolab_Server &$db  The link into the Kolab db.
++     * @param string             $dn   UID of the object.
++     * @param array              $data A possible array of data for the object
++     */
++    function Horde_Kolab_Server_Object_user(&$db, $dn = null, $data = null)
++    {
++        global $conf;
++
++        /** Allows to customize the supported user attributes. */
++        if (isset($conf['kolab']['server']['user_supported_attrs'])) {
++            $this->_supported_attributes = $conf['kolab']['server']['user_supported_attrs'];
++        }
++
++        /** Allows to customize the required user attributes. */
++        if (isset($conf['kolab']['server']['user_required_attrs'])) {
++            $this->_required_attributes = $conf['kolab']['server']['user_required_attrs'];
++        }
++
++        /** Allows to customize the user object classes. */
++        if (isset($conf['kolab']['server']['user_objectclasses'])) {
++            $this->_object_classes = $conf['kolab']['server']['user_object_classes'];
++        }
++
++        Horde_Kolab_Server_Object::Horde_Kolab_Server_Object($db, $dn, $data);
++    }
++
++    /**
++     * Derive an attribute value.
++     *
++     * @param string $attr The attribute to derive.
++     *
++     * @return mixed The value of the attribute.
++     */
++    function _derive($attr)
++    {
++        switch ($attr) {
++        case KOLAB_ATTR_USERTYPE:
++            if (strpos($this->_uid, 'cn=internal')) {
++                return KOLAB_UT_INTERNAL;
++            } else if (strpos($this->_uid, 'cn=group')) {
++                return KOLAB_UT_GROUP;
++            } else if (strpos($this->_uid, 'cn=resource')) {
++                return KOLAB_UT_RESOURCE;
++            } else {
++                return KOLAB_UT_STANDARD;
++            }
++        default:
++            return parent::_derive($attr);
++        }
++    }
++
++    /**
++     * Convert the object attributes to a hash.
++     *
++     * @param string $attrs The attributes to return.
++     *
++     * @return array|PEAR_Error The hash representing this object.
++     */
++    function toHash($attrs = null)
++    {
++        if (!isset($attrs)) {
++            $attrs = array(
++                KOLAB_ATTR_SID,
++                KOLAB_ATTR_FN,
++                KOLAB_ATTR_MAIL,
++                KOLAB_ATTR_USERTYPE,
++            );
++        }
++        return parent::toHash($attrs);
++    }
++
++    /**
+      * Get the groups for this object
+      *
+      * @return mixed|PEAR_Error An array of group ids, false if no groups were
+@@ -65,6 +187,8 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+      *
+      * This method is used to encapsulate multidomain support.
+      *
++     * @param string $server_type The type of server URL that should be returned.
++     *
+      * @return string The server url or empty on error.
+      */
+     function getServer($server_type)
+@@ -75,7 +199,11 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+             if (!is_a($server, 'PEAR_Error') && !empty($server)) {
+                 return $server;
+             }
+-            return 'https://' . $this->getServer('homeserver') . '/freebusy';
++            $server = $this->getServer('homeserver');
++            if (is_a($server, 'PEAR_Error')) {
++                return $server;
++            }
++            return 'https://' . $server . '/freebusy';
+         case 'imap':
+             $server = $this->get(KOLAB_ATTR_IMAPHOST);
+             if (!is_a($server, 'PEAR_Error') && !empty($server)) {
+@@ -87,4 +215,80 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+             return $home;
+         }
+     }
++
++    /**
++     * Generates an ID for the given information.
++     *
++     * @param array $info The data of the object.
++     *
++     * @static
++     *
++     * @return string|PEAR_Error The ID.
++     */
++    function generateId($info)
++    {
++        global $conf;
++
++        /** The fields that should get mapped into the user ID. */
++        if (isset($conf['kolab']['server']['user_id_mapfields'])) {
++            $id_mapfields = $conf['kolab']['server']['user_id_mapfields'];
++        } else {
++            $id_mapfields = array('givenName', 'sn');
++        }
++
++        /** The user ID format. */
++        if (isset($conf['kolab']['server']['user_id_format'])) {
++            $id_format = $conf['kolab']['server']['user_id_format'];
++        } else {
++            $id_format = '%s %s';
++        }
++
++        $fieldarray = array();
++        foreach ($id_mapfields as $mapfield) {
++            if (isset($info[$mapfield])) {
++                $fieldarray[] = $info[$mapfield];
++            } else {
++                $fieldarray[] = '';
++            }
++        }
++        return trim(vsprintf($id_format, $fieldarray), " \t\n\r\0\x0B,");
++    }
++
++    /**
++     * Saves object information.
++     *
++     * @param array $info The information about the object.
++     *
++     * @return boolean|PEAR_Error True on success.
++     */
++    function save($info)
++    {
++        if (!isset($info['cn'])) {
++            if (!isset($info['sn']) || !isset($info['givenName'])) {
++                return PEAR::raiseError('Either the last name or the given name is missing!');
++            } else {
++                $info['cn'] = $this->generateId($info);
++            }
++        }
++
++        if (isset($conf['kolab']['server']['user_mapping'])) {
++            $mapped = array();
++            $map    = $conf['kolab']['server']['user_mapping'];
++            foreach ($map as $key => $val) {
++                $mapped[$val] = $info[$key];
++            }
++            $info = $mapped;
++        }
++
++        if (isset($conf['kolab']['server']['user_mapping'])) {
++            $mapped = array();
++            $map    = $conf['kolab']['server']['user_mapping'];
++            foreach ($map as $key => $val) {
++                $mapped[$val] = $info[$key];
++            }
++            $info = $mapped;
++        }
++
++        return parent::save($info);
++    }
+ };
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/ldap.php b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+index ed5bc84..7b52476 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/ldap.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+@@ -4,7 +4,13 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/ldap.php,v 1.2.2.2 2008/08/01 07:56:19 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /** We need the Horde LDAP tools for this class **/
+@@ -21,8 +27,11 @@ require_once 'Horde/LDAP.php';
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+ 
+@@ -50,6 +59,9 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Connects to the LDAP server.
+      *
++     * @param string $server  LDAP server URL.
++     * @param string $base_dn LDAP server base DN.
++     *
+      * @return boolean|PEAR_Error True if the connection succeeded.
+      */
+     function _connect($server = null, $base_dn = null)
+@@ -84,7 +96,8 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         /* We need version 3 for Kolab */
+         if (!ldap_set_option($this->_connection, LDAP_OPT_PROTOCOL_VERSION, 3)) {
+             return PEAR::raiseError(sprintf(_("Error setting LDAP protocol on server %s to v3: %s"),
+-                                            $server, ldap_error($this->_connection)));
++                                            $server,
++                                            ldap_error($this->_connection)));
+         }
+ 
+         return true;
+@@ -93,8 +106,8 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Binds the LDAP connection with a specific user and pass.
+      *
+-     * @param string $dn  DN to bind with
+-     * @param string $pw  Password associated to this DN.
++     * @param string $dn DN to bind with
++     * @param string $pw Password associated to this DN.
+      *
+      * @return boolean|PEAR_Error  Whether or not the binding succeeded.
+      */
+@@ -108,13 +121,15 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         }
+ 
+         if (!$dn) {
+-            if (isset($this->_params['bind_dn'])) {
+-                $dn = $this->_params['bind_dn'];
++            if (isset($this->_params['uid'])) {
++                $dn = $this->_params['uid'];
+             } else {
+                 $dn = '';
+             }
+-            if (isset($this->_params['bind_pw'])) {
+-                $pw = $this->_params['bind_pw'];
++        }
++        if (!$pw) {
++            if (isset($this->_params['pass'])) {
++                $pw = $this->_params['pass'];
+             }
+         }
+ 
+@@ -128,12 +143,27 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     }
+ 
+     /**
++     * Disconnect from LDAP.
++     *
++     * @return NULL
++     */
++    function unbind()
++    {
++        $result = @ldap_unbind($this->_connection);
++        if (!$result) {
++            return PEAR::raiseError("Failed to unbind from the LDAP server!");
++        }
++
++        $this->_bound = false;
++    }
++
++    /**
+      * Search for an object.
+      *
+-     * @param string  $filter     Filter criteria.
+-     * @param array   $attributes Restrict the search result to
+-     *                            these attributes.
+-     * @param string  $base       The base location for searching.
++     * @param string $filter     Filter criteria.
++     * @param array  $attributes Restrict the search result to
++     *                           these attributes.
++     * @param string $base       The base location for searching.
+      *
+      * @return array|PEAR_Error A LDAP search result.
+      */
+@@ -204,9 +234,29 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     }
+ 
+     /**
++     * Add a new object
++     *
++     * @param string $dn   The DN of the object to be added.
++     * @param array  $data The attributes of the object to be added.
++     *
++     * @return boolean  True if adding succeeded.
++     */
++    function _add($dn, $data)
++    {
++        if (!$this->_bound) {
++            $result = $this->_bind();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        return @ldap_add($this->_connection, $dn, $data);
++    }
++
++    /**
+      * Count the number of results.
+      *
+-     * @param string $result   The LDAP search result.
++     * @param string $result The LDAP search result.
+      *
+      * @return int The number of records found.
+      */
+@@ -218,7 +268,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Return the dn of an entry.
+      *
+-     * @param resource $entry   The LDAP entry.
++     * @param resource $entry The LDAP entry.
+      *
+      * @return string  The DN of the entry.
+      */
+@@ -230,7 +280,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Return the attributes of an entry.
+      *
+-     * @param resource $entry   The LDAP entry.
++     * @param resource $entry The LDAP entry.
+      *
+      * @return array  The attributes of the entry.
+      */
+@@ -242,7 +292,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Return the first entry of a result.
+      *
+-     * @param resource $result   The LDAP search result.
++     * @param resource $result The LDAP search result.
+      *
+      * @return resource  The first entry of the result.
+      */
+@@ -254,7 +304,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Return the next entry of a result.
+      *
+-     * @param resource $entry   The current LDAP entry.
++     * @param resource $entry The current LDAP entry.
+      *
+      * @return resource  The next entry of the result.
+      */
+@@ -266,9 +316,9 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Return the entries of a result.
+      *
+-     * @param resource $result   The LDAP search result.
+-     * @param int      $from     Only return results after this position.
+-     * @param int      $to       Only return results until this position.
++     * @param resource $result The LDAP search result.
++     * @param int      $from   Only return results after this position.
++     * @param int      $to     Only return results until this position.
+      *
+      * @return array  The entries of the result.
+      */
+@@ -276,6 +326,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     {
+         if ($from >= 0 || $to >= 0) {
+             $result = array();
++
+             $i = 0;
+             for ($entry = $this->_firstEntry($result);
+                  $entry != false;
+@@ -337,18 +388,29 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+      */
+ 
+     /**
++     * Return the root of the UID values on this server.
++     *
++     * @return string The base UID on this server (base DN on ldap).
++     */
++    function getBaseUid()
++    {
++        return $this->_base_dn;
++    }
++
++    /**
+      * Return the DNs of a result.
+      *
+-     * @param resource $result   The LDAP search result.
+-     * @param int      $from     Only return results after this position.
+-     * @param int      $to       Only return results until this position.
++     * @param resource $result The LDAP search result.
++     * @param int      $from   Only return results after this position.
++     * @param int      $to     Only return results until this position.
+      *
+      * @return array  The DNs of the result.
+      */
+     function _getDns($result, $from = -1, $to = -1)
+     {
+-        $dns = array();
++        $dns   = array();
+         $entry = $this->_firstEntry($result);
++
+         $i = 0;
+         for ($entry = $this->_firstEntry($result);
+              $entry != false;
+@@ -419,8 +481,8 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Get the attributes of the first result entry.
+      *
+-     * @param array $result The LDAP search result.
+-     * @param array $attrs  The attributes to retrieve.
++     * @param array $result   The LDAP search result.
++     * @param array $attrs    The attributes to retrieve.
+      * @param int   $restrict A KOLAB_SERVER_RESULT_* result restriction.
+      *
+      * @return mixed|PEAR_Error The attributes or false if there were
+@@ -474,6 +536,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             }
+             unset($entries['count']);
+             $result = array();
++
+             $i = 0;
+             foreach ($entries as $entry) {
+                 $result[$i] = array();
+@@ -528,10 +591,12 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             if (in_array('cn=admin,cn=internal,' . $this->_base_dn, $groups)) {
+                 return KOLAB_OBJECT_ADMINISTRATOR;
+             }
+-            if (in_array('cn=maintainer,cn=internal,' . $this->_base_dn, $groups)) {
++            if (in_array('cn=maintainer,cn=internal,' . $this->_base_dn,
++                         $groups)) {
+                 return KOLAB_OBJECT_MAINTAINER;
+             }
+-            if (in_array('cn=domain-maintainer,cn=internal,' . $this->_base_dn, $groups)) {
++            if (in_array('cn=domain-maintainer,cn=internal,' . $this->_base_dn,
++                         $groups)) {
+                 return KOLAB_OBJECT_DOMAINMAINTAINER;
+             }
+         }
+@@ -550,11 +615,15 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+      *
+      * @return array|PEAR_Error An array of object classes.
+      */
+-    function _getObjectClasses($dn) {
++    function _getObjectClasses($dn)
++    {
+         $object = $this->_read($dn, array('objectClass'));
+         if (is_a($object, 'PEAR_Error')) {
+             return $object;
+         }
++        if (!isset($object['objectClass'])) {
++            return PEAR::raiseError('The result has no object classes!');
++        }
+         unset($object['count']);
+         unset($object['objectClass']['count']);
+         return $object['objectClass'];
+@@ -569,7 +638,8 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+      * @return mixed|PEAR_Error The DN or false if there was no result.
+      */
+     function _dnForFilter($filter,
+-                          $restrict = KOLAB_SERVER_RESULT_SINGLE) {
++                          $restrict = KOLAB_SERVER_RESULT_SINGLE)
++    {
+         $result = $this->_search($filter, array());
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+@@ -601,14 +671,14 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+ 
+     /**
+      * Identify the primary mail attribute for the first object found
+-     * with the given uid or mail.
++     * with the given ID or mail.
+      *
+-     * @param string $id  Search for objects with this uid/mail.
++     * @param string $id Search for objects with this ID/mail.
+      *
+      * @return mixed|PEAR_Error The mail address or false if there was
+      *                          no result.
+      */
+-    function mailForUidOrMail($id)
++    function mailForIdOrMail($id)
+     {
+         $filter = '(&(objectClass=kolabInetOrgPerson)(|(uid='.
+             Horde_LDAP::quote($id) . ')(mail=' .
+@@ -622,14 +692,14 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     }
+ 
+     /**
+-     * Identify the DN for the first object found with the given uid
++     * Identify the UID for the first object found with the given ID
+      * or mail.
+      *
+-     * @param string $id  Search for objects with this uid/mail.
++     * @param string $id Search for objects with this ID/mail.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForUidOrMail($id)
++    function uidForIdOrMail($id)
+     {
+         $filter = '(&(objectClass=kolabInetOrgPerson)(|(uid='.
+             Horde_LDAP::quote($id) . ')(mail=' .
+@@ -640,11 +710,11 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Returns a list of allowed email addresses for the given user.
+      *
+-     * @param string $id The users primary mail address or uid
++     * @param string $id The users primary mail address or ID.
+      *
+      * @return array|PEAR_Error An array of allowed mail addresses
+      */
+-    function addrsForUidOrMail($id)
++    function addrsForIdOrMail($id)
+     {
+         $filter = '(&(objectClass=kolabInetOrgPerson)(|(mail='
+             . Horde_LDAP::quote($id) . ')(uid='
+@@ -655,13 +725,12 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             return $result;
+         }
+         $addrs = array_merge((array) $result['mail'], (array) $result['alias']);
+-        $mail = $result['mail'][0];
++        $mail  = $result['mail'][0];
+ 
+         $filter = '(&(objectClass=kolabInetOrgPerson)(kolabDelegate='
+             . Horde_LDAP::quote($mail) . '))';
+         $result = $this->_attrsForFilter($filter, array('mail', 'alias'),
+                                          KOLAB_SERVER_RESULT_MANY);
+-
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+@@ -681,13 +750,13 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     }
+ 
+     /**
+-     * Return the DN for a given primary mail, uid, or alias.
++     * Return the UID for a given primary mail, ID, or alias.
+      *
+-     * @param string $mail  A valid mail address for the user.
++     * @param string $mail A valid mail address for the user.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForMailAddress($mail)
++    function uidForMailAddress($mail)
+     {
+         $filter = '(&(objectClass=kolabInetOrgPerson)(|(uid='.
+             Horde_LDAP::quote($mail) . ')(mail=' .
+@@ -697,16 +766,16 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     }
+ 
+     /**
+-     * Identify the DN for the first object found using a specified
++     * Identify the UID for the first object found using a specified
+      * attribute value.
+      *
+      * @param string $attr     The name of the attribute used for searching.
+      * @param string $value    The desired value of the attribute.
+      * @param int    $restrict A KOLAB_SERVER_RESULT_* result restriction.
+      *
+-     * @return mixed|PEAR_Error The DN or false if there was no result.
++     * @return mixed|PEAR_Error The UID or false if there was no result.
+      */
+-    function dnForAttr($attr, $value,
++    function uidForAttr($attr, $value,
+                        $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+         $filter = '(&(objectClass=kolabInetOrgPerson)(' . $attr .
+@@ -715,19 +784,19 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     }
+ 
+     /**
+-     * Is the given DN member of the group with the given mail address?
++     * Is the given UID member of the group with the given mail address?
+      *
+-     * @param string $dn       DN of the user.
+-     * @param string $mail     Search the group with this mail address.
++     * @param string $uid  UID of the user.
++     * @param string $mail Search the group with this mail address.
+      *
+      * @return boolen|PEAR_Error True in case the user is in the
+      *                           group, false otherwise.
+      */
+-    function memberOfGroupAddress($dn, $mail)
++    function memberOfGroupAddress($uid, $mail)
+     {
+         $filter = '(&(objectClass=kolabGroupOfNames)(mail='
+             . Horde_LDAP::quote($mail) . ')(member='
+-            . Horde_LDAP::quote($dn) . '))';
++            . Horde_LDAP::quote($uid) . '))';
+         $result = $this->_dnForFilter($filter, KOLAB_SERVER_RESULT_STRICT);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+@@ -741,14 +810,14 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     /**
+      * Get the groups for this object.
+      *
+-     * @param string $dn   The DN of the object to fetch.
++     * @param string $uid The UID of the object to fetch.
+      *
+      * @return array|PEAR_Error An array of group ids.
+      */
+-    function getGroups($dn)
++    function getGroups($uid)
+     {
+         $filter = '(&(objectClass=kolabGroupOfNames)(member='
+-            . Horde_LDAP::quote($dn) . '))';
++            . Horde_LDAP::quote($uid) . '))';
+         $result = $this->_dnForFilter($filter, KOLAB_SERVER_RESULT_MANY);
+         if (empty($result)) {
+             return array();
+@@ -772,95 +841,25 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             $base = $params['base_dn'];
+         }
+ 
+-        switch ($type) {
+-        case KOLAB_OBJECT_USER:
+-            $filter = '(&(objectClass=kolabInetOrgPerson)(uid=*)(mail=*)(sn=*))';
+-            $attributes = array(
+-                KOLAB_ATTR_SN,
+-                KOLAB_ATTR_CN,
+-                KOLAB_ATTR_UID,
+-                KOLAB_ATTR_MAIL,
+-                KOLAB_ATTR_DELETED,
+-            );
+-            $sort = KOLAB_ATTR_SN;
+-            break;
+-        case KOLAB_OBJECT_ADDRESS:
+-            $filter = '(&(objectClass=inetOrgPerson)(!(uid=*))(sn=*))';
+-            $attributes = array(
+-                KOLAB_ATTR_SN,
+-                KOLAB_ATTR_CN,
+-                KOLAB_ATTR_MAIL,
+-                KOLAB_ATTR_DELETED,
+-            );
+-            $sort = KOLAB_ATTR_SN;
+-            break;
+-        case KOLAB_OBJECT_ADMINISTRATOR:
+-            $filter = '(&(cn=*)(objectClass=inetOrgPerson)(uid=*)(sn=*))';
+-            $attributes = array(
+-                KOLAB_ATTR_SN,
+-                KOLAB_ATTR_CN,
+-                KOLAB_ATTR_UID,
+-                KOLAB_ATTR_DELETED,
+-            );
+-            $sort = KOLAB_ATTR_SN;
+-            break;
+-        case KOLAB_OBJECT_DOMAINMAINTAINER:
+-            $filter = '(&(cn=*)(objectClass=kolabInetOrgPerson)(!(uid=manager))(sn=*))';
+-            $attributes = array(
+-                KOLAB_ATTR_SN,
+-                KOLAB_ATTR_CN,
+-                KOLAB_ATTR_UID,
+-                KOLAB_ATTR_DELETED,
+-            );
+-            $sort = KOLAB_ATTR_SN;
+-            break;
+-        case KOLAB_OBJECT_GROUP:
+-            $filter = '(&(!(cn=domains))(objectClass=kolabGroupOfNames))';
+-            $attributes = array(
+-                KOLAB_ATTR_CN,
+-                KOLAB_ATTR_MAIL,
+-                KOLAB_ATTR_DELETED,
+-            );
+-            $sort = KOLAB_ATTR_CN;
+-            break;
+-        case KOLAB_OBJECT_MAINTAINER:
+-            $filter = '(&(cn=*)(objectClass=inetOrgPerson)(!(uid=manager))(sn=*))';
+-            $attributes = array(
+-                KOLAB_ATTR_SN,
+-                KOLAB_ATTR_CN,
+-                KOLAB_ATTR_UID,
+-                KOLAB_ATTR_DELETED,
+-            );
+-            $sort = KOLAB_ATTR_SN;
+-            break;
+-        case KOLAB_OBJECT_SHAREDFOLDER:
+-            $filter = '(objectClass=kolabSharedFolder)';
+-            $attributes = array(
+-                KOLAB_ATTR_CN,
+-                KOLAB_ATTR_DELETED,
+-                KOLAB_ATTR_FOLDERTYPE,
+-            );
+-            $sort = KOLAB_ATTR_CN;
+-            break;
+-        case KOLAB_OBJECT_SERVER:
+-            $filter = '(&((k=kolab))(objectClass=kolab))';
+-            $attributes = false;
+-            $sort = false;
+-            break;
+-        }
+-
+-        if (isset($params['attributes'])) {
+-            $attributes = $params['attributes'];
++        $result = Horde_Kolab_Server_Object::loadClass($type);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
+         }
++        $vars   = get_class_vars($type);
++        $filter = $vars['filter'];
++        $sort   = $vars['sort_by'];
+ 
+         if (isset($params['sort'])) {
+             $sort = $params['sort'];
+         }
+ 
+-        $result = $this->_search($filter, $attributes, $base);
++        $result = $this->_search($filter, null, $base);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
++        if (empty($result)) {
++            return array();
++        }
+ 
+         if ($sort) {
+             $this->_sort($result, $sort);
+@@ -887,8 +886,16 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             return false;
+         }
+ 
++        if (!empty($vars['required_group'])) {
++            $required_group = $this->fetch($vars['required_group'],
++                                           KOLAB_OBJECT_GROUP);
++        }
++
+         $objects = array();
+         foreach ($entries as $dn) {
++            if (!empty($vars['required_group']) && $required_group->isMember($dn)) {
++                continue;
++            }
+             $result = $this->fetch($dn, $type);
+             if (is_a($result, 'PEAR_Error')) {
+                 return $result;
+@@ -897,4 +904,65 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         }
+         return $objects;
+     }
++
++    /**
++     * Generates a UID for the given information.
++     *
++     * @param string $type The type of the object to create.
++     * @param string $id   The id of the object.
++     * @param array  $info Any additional information about the object to create.
++     *
++     * @return string|PEAR_Error The DN.
++     */
++    function _generateUid($type, $id, $info)
++    {
++        switch ($type) {
++        case KOLAB_OBJECT_USER:
++            if (!isset($info['user_type']) || $info['user_type'] == 0) {
++                return sprintf('cn=%s,%s', $id, $this->_base_dn);
++            } else if ($info['user_type'] == KOLAB_UT_INTERNAL) {
++                return sprintf('cn=%s,cn=internal,%s', $id, $this->_base_dn);
++            } else if ($info['user_type'] == KOLAB_UT_GROUP) {
++                return sprintf('cn=%s,cn=groups,%s', $id, $this->_base_dn);
++            } else if ($info['user_type'] == KOLAB_UT_RESOURCE) {
++                return sprintf('cn=%s,cn=resources,%s', $id, $this->_base_dn);
++            } else {
++                return sprintf('cn=%s,%s', $id, $this->_base_dn);
++            }
++        case KOLAB_OBJECT_ADDRESS:
++            return sprintf('cn=%s,cn=internal,%s', $id, $this->_base_dn);
++        case KOLAB_OBJECT_SHAREDFOLDER:
++        case KOLAB_OBJECT_ADMINISTRATOR:
++        case KOLAB_OBJECT_MAINTAINER:
++        case KOLAB_OBJECT_DOMAINMAINTAINER:
++            return sprintf('cn=%s,%s', $id, $this->_base_dn);
++        case KOLAB_OBJECT_GROUP:
++        case KOLAB_OBJECT_DISTLIST:
++            if (!isset($info['visible']) || !empty($info['visible'])) {
++                return sprintf('cn=%s,%s', $id, $this->_base_dn);
++            } else {
++                return sprintf('cn=%s,cn=internal,%s', $id, $this->_base_dn);
++            }
++        default:
++            return PEAR::raiseError(_("Not implemented!"));
++        }
++    }
++
++    /**
++     * Save an object.
++     *
++     * @param string $dn   The DN of the object.
++     * @param array  $data The data for the object.
++     *
++     * @return boolean|PEAR_Error True if successfull.
++     */
++    function save($dn, $data)
++    {
++        $result = $this->_add($dn, $data);
++        if (!$result  && $this->_errno()) {
++            return PEAR::raiseError(sprintf(_("Failed saving object. Error was: %s"),
++                                            $this->_error()));
++        }
++    }
++
+ }
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/test.php b/horde-webmail/lib/Horde/Kolab/Server/test.php
+index d4ece0d..6f8a237 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/test.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/test.php
+@@ -4,7 +4,13 @@
+  *
+  * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/test.php,v 1.2.2.2 2008/08/01 07:56:19 wrobel Exp $
+  *
+- * @package Kolab_Server
++ * PHP version 4
++ *
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ 
+ /** Require the LDAP based class as our base class */
+@@ -20,8 +26,11 @@ require_once 'Horde/Kolab/Server/ldap.php';
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel  <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+ 
+@@ -68,6 +77,82 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     var $_current_index;
+ 
+     /**
++     * Construct a new Horde_Kolab_Server object.
++     *
++     * @param array $params Parameter array.
++     */
++    function Horde_Kolab_Server_test($params = array())
++    {
++        if (isset($params['data'])) {
++            $GLOBALS['KOLAB_SERVER_TEST_DATA'] = $params['data'];
++        } else {
++            if (!isset($GLOBALS['KOLAB_SERVER_TEST_DATA'])) {
++                $GLOBALS['KOLAB_SERVER_TEST_DATA'] = array();
++            }
++        }
++        Horde_Kolab_Server::Horde_Kolab_Server($params);
++    }
++
++    /**
++     * Binds the LDAP connection with a specific user and pass.
++     *
++     * @param string $dn DN to bind with
++     * @param string $pw Password associated to this DN.
++     *
++     * @return boolean|PEAR_Error  Whether or not the binding succeeded.
++     */
++    function _bind($dn = false, $pw = '')
++    {
++        if (!$dn) {
++            if (isset($this->_params['uid'])) {
++                $dn = $this->_params['uid'];
++            } else {
++                $dn = '';
++            }
++        }
++        if (!$pw) {
++            if (isset($this->_params['pass'])) {
++                $pw = $this->_params['pass'];
++            }
++        }
++
++        if (!empty($dn)) {
++            if (!isset($GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn])) {
++                return PEAR::raiseError('User does not exist!');
++            }
++
++            $this->_bound = true;
++
++            $data = $this->_read($dn, $attrs = array('userPassword'));
++            if (is_a($data, 'PEAR_Error')) {
++                return $data;
++            }
++            if (!isset($data['userPassword'])) {
++                return PEAR::raiseError('User has no password entry!');
++            }
++            $this->_bound = $data['userPassword'][0] = $pw;
++            if (!$this->_bound) {
++                return PEAR::raiseError('Incorrect password!');
++            }
++        } else if ($this->_params['no_anonymous_bind']) {
++            return PEAR::raiseError('Anonymous bind is not allowed!');
++        } else {
++            $this->_bound = true;
++        }
++        return true;
++    }
++
++    /**
++     * Disconnect from LDAP.
++     *
++     * @return NULL
++     */
++    function unbind()
++    {
++        $this->_bound = false;
++    }
++
++    /**
+      * Parse LDAP filter.
+      * Partially derived from Net_LDAP_Filter.
+      *
+@@ -87,7 +172,9 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+                 if (stristr($matches[1], ')(')) {
+                     return PEAR::raiseError("Filter parsing error: invalid filter syntax - multiple leaf components detected!");
+                 } else {
+-                    $filter_parts = preg_split('/(?<!\\\\)(=|=~|>|<|>=|<=)/', $matches[1], 2, PREG_SPLIT_DELIM_CAPTURE);
++                    $filter_parts = preg_split('/(?<!\\\\)(=|=~|>|<|>=|<=)/',
++                                               $matches[1], 2,
++                                               PREG_SPLIT_DELIM_CAPTURE);
+                     if (count($filter_parts) != 3) {
+                         return PEAR::raiseError("Filter parsing error: invalid filter syntax - unknown matching rule used");
+                     } else {
+@@ -113,17 +200,17 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+      */
+     function _parseSub($filter)
+     {
+-        $result = array();
+-        $level = 0;
++        $result  = array();
++        $level   = 0;
+         $collect = '';
+         while (preg_match('/^(\(.+?\))(.*)/', $filter, $matches)) {
+             if (in_array(substr($matches[1], 0, 2), array('(!', '(|', '(&'))) {
+                 $level++;
+-                $collect .= $matches[1];
+-            } else if ($level) {
++            }
++            if ($level) {
+                 $collect .= $matches[1];
+                 if (substr($matches[2], 0, 1) == ')') {
+-                    $collect .= ')';
++                    $collect   .= ')';
+                     $matches[2] = substr($matches[2], 1);
+                     $level--;
+                     if (!$level) {
+@@ -141,13 +228,22 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     /**
+      * Search for an object.
+      *
+-     * @param string  $filter     Filter criteria.
+-     * @param array   $attributes Restrict the search result to
+-     *                            these attributes.
++     * @param string $filter     Filter criteria.
++     * @param array  $attributes Restrict the search result to
++     *                           these attributes.
++     * @param string $base       DN of the search base.
+      *
+      * @return array|PEAR_Error A LDAP serach result.
+      */
+-    function _search($filter, $attributes = null, $base = null) {
++    function _search($filter, $attributes = null, $base = null)
++    {
++        if (!$this->_bound) {
++            $result = $this->_bind();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
+         $filter = $this->_parse($filter);
+         if (is_a($filter, 'PEAR_Error')) {
+             return $filter;
+@@ -172,9 +268,9 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     /**
+      * Perform the search.
+      *
+-     * @param array   $filter     Filter criteria-
+-     * @param array   $attributes Restrict the search result to
+-     *                            these attributes.
++     * @param array $filter     Filter criteria-
++     * @param array $attributes Restrict the search result to
++     *                          these attributes.
+      *
+      * @return array|PEAR_Error A LDAP serach result.
+      */
+@@ -182,12 +278,13 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     {
+         if (isset($filter['log'])) {
+             $result = array();
+-            foreach ($this->_params as $element) {
++            foreach ($GLOBALS['KOLAB_SERVER_TEST_DATA'] as $element) {
+                 if (isset($element['data'][$filter['att']])) {
+                     switch ($filter['log']) {
+                     case '=':
+                         $value = $element['data'][$filter['att']];
+-                        if ($filter['val'] == '*' || $value == $filter['val']
++                        if (($filter['val'] == '*' && !empty($value))
++                            || $value == $filter['val']
+                             || (is_array($value)
+                                 && in_array($filter['val'], $value))) {
+                             if (empty($attributes)) {
+@@ -210,20 +307,23 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+             }
+             return $result;
+         } else {
+-            $subresult = array();
++            $subresult   = array();
+             $filtercount = count($filter['sub']);
+             foreach ($filter['sub'] as $subfilter) {
+-                $subresult = array_merge($subresult, $this->_doSearch($subfilter, $attributes));
++                $subresult = array_merge($subresult,
++                                         $this->_doSearch($subfilter,
++                                                          $attributes));
+             }
+             $result = array();
+-            $dns = array();
++            $dns    = array();
+             foreach ($subresult as $element) {
+                 $dns[] = $element['dn'];
++
+                 $result[$element['dn']] = $element;
+             }
+             switch ($filter['op']) {
+             case '&':
+-                $count = array_count_values($dns);
++                $count     = array_count_values($dns);
+                 $selection = array();
+                 foreach ($count as $dn => $value) {
+                     if ($value == $filtercount) {
+@@ -233,6 +333,32 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+                 return $selection;
+             case '|':
+                 return array_values($result);
++            case '!':
++                $dns = array();
++                foreach ($result as $entry) {
++                    if (!in_array($entry['dn'], $dns) ) {
++                        $dns[] = $entry['dn'];
++                    }
++                }
++                $all_dns = array_keys($GLOBALS['KOLAB_SERVER_TEST_DATA']);
++                $diff    = array_diff($all_dns, $dns);
++
++                $result = array();
++                foreach ($diff as $dn) {
++                    if (empty($attributes)) {
++                        $result[] = $GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn];
++                    } else {
++                        $selection = $GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn];
++                        foreach ($GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn]['data']
++                                 as $attr => $value) {
++                            if (!in_array($attr, $attributes)) {
++                                unset($selection['data'][$attr]);
++                            }
++                        }
++                        $result[] = $selection;
++                    }
++                }
++                return $result;
+             default:
+                 return PEAR::raiseError(_("Not implemented!"));
+             }
+@@ -249,15 +375,22 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+      */
+     function _read($dn, $attrs = null)
+     {
+-        if (!isset($this->_params[$dn])) {
++        if (!$this->_bound) {
++            $result = $this->_bind();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        if (!isset($GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn])) {
+             return PEAR::raiseError(sprintf("LDAP Error: No such object: %s: No such object",
+                                             $dn));
+         }
+         if (empty($attrs)) {
+-            return $this->_params[$dn]['data'];
++            return $GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn]['data'];
+         } else {
+             $result = array();
+-            $data = $this->_params[$dn]['data'];
++            $data   = $GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn]['data'];
+ 
+             foreach ($attrs as $attr) {
+                 if (isset($data[$attr])) {
+@@ -271,9 +404,40 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     }
+ 
+     /**
++     * Add a new object
++     *
++     * @param string $dn   The DN of the object to be added.
++     * @param array  $data The attributes of the object to be added.
++     *
++     * @return boolean  True if adding succeeded.
++     */
++    function _add($dn, $data)
++    {
++        if (!$this->_bound) {
++            $result = $this->_bind();
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++        }
++
++        $ldap_data = array();
++        foreach ($data as $key => $val) {
++            if (!is_array($val)) {
++                $val = array($val);
++            }
++            $ldap_data[$key] = array_merge(array('count' => count($val)), $val);
++        }
++
++        $GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn] = array(
++            'dn' => $dn,
++            'data' => $ldap_data
++        );
++    }
++
++    /**
+      * Count the number of results.
+      *
+-     * @param array $result   The LDAP search result.
++     * @param array $result The LDAP search result.
+      *
+      * @return int The number of records found.
+      */
+@@ -289,7 +453,7 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     /**
+      * Return the dn of an entry.
+      *
+-     * @param array $entry  The LDAP entry.
++     * @param array $entry The LDAP entry.
+      *
+      * @return string  The DN of the entry.
+      */
+@@ -308,7 +472,7 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     /**
+      * Return the attributes of an entry.
+      *
+-     * @param array $entry   The LDAP entry.
++     * @param array $entry The LDAP entry.
+      *
+      * @return array  The attributes of the entry.
+      */
+@@ -329,15 +493,19 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     {
+         if (is_array($this->_current_result)
+             && $this->_current_index < count($this->_current_result)) {
++
+             $data = array_keys($this->_current_result[$this->_current_index]['data']);
+-            $data['count'] = 1;
+-            $data['dn'] = array($this->_current_result[$this->_current_index]['dn']);
++
++            $data['count']       = 1;
++            $data['dn']          = array($this->_current_result[$this->_current_index]['dn']);
+             $data['dn']['count'] = 1;
+-            foreach ($this->_current_result[$this->_current_index]['data'] as $attr => $value) {
++
++            foreach ($this->_current_result[$this->_current_index]['data']
++                     as $attr => $value) {
+                 if (!is_array($value)) {
+                     $value = array($value);
+                 }
+-                $data[$attr] = $value;
++                $data[$attr]          = $value;
+                 $data[$attr]['count'] = count($value);
+             }
+             $this->_current_index++;
+@@ -349,23 +517,23 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     /**
+      * Return the first entry of a result.
+      *
+-     * @param array $result   The LDAP search result.
++     * @param array $result The LDAP search result.
+      *
+-     * @return mixe  The first entry of the result or false.
++     * @return mixed The first entry of the result or false.
+      */
+     function _firstEntry($result)
+     {
+         $this->_current_result = $result;
+-        $this->_current_index = 0;
++        $this->_current_index  = 0;
+         return $this->_fetchEntry();
+     }
+ 
+     /**
+      * Return the next entry of a result.
+      *
+-     * @param resource $entry   The current LDAP entry.
++     * @param resource $entry The current LDAP entry.
+      *
+-     * @return resource  The next entry of the result.
++     * @return resource The next entry of the result.
+      */
+     function _nextEntry($entry)
+     {
+@@ -375,19 +543,19 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     /**
+      * Return the entries of a result.
+      *
+-     * @param array $result   The LDAP search result.
++     * @param array $result The LDAP search result.
+      *
+      * @return mixed The entries of the result or false.
+      */
+     function _getEntries($result)
+     {
+         if (is_array($result)) {
+-            $data = array();
++            $data          = array();
+             $data['count'] = count($result);
+             foreach ($result as $entry) {
+-                $t = $entry['data'];
++                $t       = $entry['data'];
+                 $t['dn'] = $entry['dn'];
+-                $data[] = $t;
++                $data[]  = $t;
+             }
+             return $data;
+         }
+@@ -397,13 +565,17 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     /**
+      * Sort the entries of a result.
+      *
+-     * @param resource $result    The LDAP search result.
++     * @param resource &$result   The LDAP search result.
+      * @param string   $attribute The attribute used for sorting.
+      *
+      * @return boolean  True if sorting succeeded.
+      */
+     function _sort(&$result, $attribute)
+     {
++        if (empty($result)) {
++            return $result;
++        }
++
+         $this->_sort_by = $attribute;
+         usort($result, array($this, '_resultSort'));
+         return false;
+@@ -444,4 +616,5 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     {
+         return $this->_error;
+     }
++
+ }
+diff --git a/horde-webmail/lib/Horde/Kolab/Session.php b/horde-webmail/lib/Horde/Kolab/Session.php
+index 83e4ec1..7c73496 100644
+--- a/horde-webmail/lib/Horde/Kolab/Session.php
++++ b/horde-webmail/lib/Horde/Kolab/Session.php
+@@ -25,8 +25,11 @@ require_once 'Horde/Auth.php';
+  * See the enclosed file COPYING for license information (LGPL). If you
+  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+  *
+- * @author  Gunnar Wrobel <wrobel@pardus.de>
+- * @package Kolab_Server
++ * @category Kolab
++ * @package  Kolab_Server
++ * @author   Gunnar Wrobel <wrobel@pardus.de>
++ * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
++ * @link     http://pear.horde.org/index.php?package=Kolab_Server
+  */
+ class Horde_Kolab_Session {
+ 
+@@ -38,6 +41,13 @@ class Horde_Kolab_Session {
+     var $user_id;
+ 
+     /**
++     * User UID.
++     *
++     * @var string
++     */
++    var $user_uid;
++
++    /**
+      * Primary user mail address.
+      *
+      * @var string
+@@ -45,6 +55,13 @@ class Horde_Kolab_Session {
+     var $user_mail;
+ 
+     /**
++     * True if the Kolab_Server login was successfull.
++     *
++     * @var boolean|PEAR_Error
++     */
++    var $auth;
++
++    /**
+      * The connection parameters for the IMAP server.
+      *
+      * @var array|PEAR_Error
+@@ -61,9 +78,12 @@ class Horde_Kolab_Session {
+     /**
+      * Constructor.
+      *
+-     * @param string $user The session will be setup for the user with this ID.
++     * @param string $user        The session will be setup for the user with
++     *                            this ID.
++     * @param array  $credentials An array of login credentials. For Kolab,
++     *                            this must contain a "password" entry.
+      */
+-    function Horde_Kolab_Session($user = null)
++    function Horde_Kolab_Session($user = null, $credentials = null)
+     {
+         global $conf;
+ 
+@@ -72,47 +92,65 @@ class Horde_Kolab_Session {
+             if (empty($user)) {
+                 $user = 'anonymous';
+             } else if (!strpos($user, '@')) {
+-                $user = $user . '@' . (!empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost');
++                $user = $user . '@' . (!empty($_SERVER['SERVER_NAME']) ?
++                                       $_SERVER['SERVER_NAME'] : 'localhost');
+             }
+         }
+ 
+-        $this->user_id = $user;
++        $this->user_id      = $user;
+         $this->_imap_params = array();
+ 
+-        $user_object = $this->_fetchUser($user);
+-        if (!is_a($user_object, 'PEAR_Error')) {
+-            $result = $user_object->get(KOLAB_ATTR_MAIL);
+-            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
+-                $this->user_mail = $result;
+-            }
++        $user_object = null;
+ 
+-            $result = $user_object->get(KOLAB_ATTR_UID);
+-            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
+-                $this->user_id = $result;
+-            }
++        if ($user != 'anonymous') {
++            $server = $this->getServer($user, $credentials);
++            if (is_a($server, 'PEAR_Error')) {
++                $this->auth = $server;
++            } else {
++                $this->user_uid = $server->uid;
++                $user_object    = $server->fetch();
+ 
+-            $result = $user_object->getServer('imap');
+-            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
+-                $server = explode(':', $result, 2);
+-                if (!empty($server[0])) {
+-                    $this->_imap_params['hostspec'] = $server[0];
+-                }
+-                if (!empty($server[1])) {
+-                    $this->_imap_params['port'] = $server[1];
+-                }
+-            }
++                if (is_a($user_object, 'PEAR_Error')) {
++                    $this->auth = $user_object;
++                } else {
++                    if (empty($conf['kolab']['imap']['allow_special_users'])
++                        && !is_a($user_object, 'Horde_Kolab_Server_Object_user')) {
++                        $this->auth = PEAR::raiseError(_('Access to special Kolab users is denied.'));
++                    } else {
++                        /**
++                         * At this point we can be certain the user is an
++                         * authenticated Kolab user.
++                         */
++                        $this->auth = true;
++                    }
+ 
+-            $result = $user_object->getServer('freebusy');
+-            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
+-                $this->freebusy_server = $result;
+-            }
+-        }
++                    $result = $user_object->get(KOLAB_ATTR_MAIL);
++                    if (!empty($result) && !is_a($result, 'PEAR_Error')) {
++                        $this->user_mail = $result;
++                    }
+ 
+-        if (empty($conf['kolab']['imap']['allow_special_users'])
+-            && (is_a($user_object, 'PEAR_Error')
+-                || !is_a($user_object, 'Horde_Kolab_Server_Object_user'))) {
+-            $this->_imap_params = PEAR::raiseError(_('Access to special Kolab users is denied.'));
+-            return;
++                    $result = $user_object->get(KOLAB_ATTR_UID);
++                    if (!empty($result) && !is_a($result, 'PEAR_Error')) {
++                        $this->user_id = $result;
++                    }
++
++                    $result = $user_object->getServer('imap');
++                    if (!empty($result) && !is_a($result, 'PEAR_Error')) {
++                        $server = explode(':', $result, 2);
++                        if (!empty($server[0])) {
++                            $this->_imap_params['hostspec'] = $server[0];
++                        }
++                        if (!empty($server[1])) {
++                            $this->_imap_params['port'] = $server[1];
++                        }
++                    }
++
++                    $result = $user_object->getServer('freebusy');
++                    if (!empty($result) && !is_a($result, 'PEAR_Error')) {
++                        $this->freebusy_server = $result;
++                    }
++                }
++            }
+         }
+ 
+         if (empty($this->user_mail)) {
+@@ -147,38 +185,32 @@ class Horde_Kolab_Session {
+     }
+ 
+     /**
+-     * Fetch the Kolab_Object representing the current user.
++     * Get the Kolab Server connection.
+      *
+-     * @param string $user The id of the user to retrieve.
++     * @param string $user        The session will be setup for the user with
++     *                            this ID.
++     * @param array  $credentials An array of login credentials. For Kolab,
++     *                            this must contain a "password" entry.
+      *
+-     * @return Kolab_Object_user|PEAR_Error The object representing
+-     *                                      the current user.
++     * @return Horde_Kolab_Server|PEAR_Error The Kolab Server connection.
+      */
+-    function _fetchUser($user = null)
++    function &getServer($user = null, $credentials = null)
+     {
+-        if (empty($user)) {
+-            $user = Auth::getAuth();
+-            if (empty($user)) {
+-                return PEAR::raiseError(_('Anonymous user.'));
+-            }
+-        }
+-
+         /** We need the Kolab Server access. */
+         require_once 'Horde/Kolab/Server.php';
+-        $server = Horde_Kolab_Server::singleton();
+-        if (is_a($server, 'PEAR_Error')) {
+-            return $server;
+-        }
+ 
+-        $dn = $server->dnForUidOrMail($user);
+-        if (empty($dn)) {
+-            return PEAR::raiseError(_('No such user.'));
+-        }
+-        if (is_a($dn, 'PEAR_Error')) {
+-            return $dn;
++        $params = array();
++        if ($this->user_uid) {
++            $params['uid']  = $this->user_uid;
++            $params['pass'] = Auth::getCredential('password');
++        } else if (isset($user)) {
++            $params['user'] = $user;
++            if (isset($credentials['password'])) {
++                $params['pass'] = $credentials['password'];
++            }
+         }
+ 
+-        return $server->fetch($dn);
++        return Horde_Kolab_Server::singleton($params);
+     }
+ 
+     /**
+@@ -201,13 +233,16 @@ class Horde_Kolab_Session {
+      * This method must be invoked as:
+      *   <code>$var = &Horde_Kolab_Session::singleton();</code>
+      *
+-     * @static
++     * @param string $user        The session will be setup for the user with
++     *                            this ID.
++     * @param array  $credentials An array of login credentials. For Kolab,
++     *                            this must contain a "password" entry.
+      *
+-     * @param string $user The session will be setup for the user with this ID.
++     * @static
+      *
+      * @return Horde_Kolab_Session  The concrete Session reference.
+      */
+-    function &singleton($user = null)
++    function &singleton($user = null, $credentials = null)
+     {
+         static $session;
+ 
+@@ -219,14 +254,14 @@ class Horde_Kolab_Session {
+              * environment.
+              */
+             require_once 'Horde/SessionObjects.php';
+-            $hs = &Horde_SessionObjects::singleton();
++            $hs      = &Horde_SessionObjects::singleton();
+             $session = $hs->query('kolab_session');
+         }
+ 
+         if (empty($session)
+             || (!empty($user) &&  $user != $session->user_mail
+                 && $user != $session->user_id)) {
+-            $session = new Horde_Kolab_Session($user);
++            $session = new Horde_Kolab_Session($user, $credentials);
+         }
+ 
+         register_shutdown_function(array(&$session, 'shutdown'));
+@@ -236,6 +271,8 @@ class Horde_Kolab_Session {
+ 
+     /**
+      * Stores the object in the session cache.
++     *
++     * @return NULL
+      */
+     function shutdown()
+     {
+@@ -243,4 +280,5 @@ class Horde_Kolab_Session {
+         $session = &Horde_SessionObjects::singleton();
+         $session->overwrite('kolab_session', $this, false);
+     }
++
+ }
+-- 
+tg: (d10384d..) t/framework/HK/GW/Kolab_Server/RewriteExtend (depends on: t/framework/HK/GW/Auth/ListUsers)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit d9464b0512a4d1ea3adf651ca48fe97ef035a1f0
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 22:51:46 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Server-Version2.patch from the mercurial release queue.

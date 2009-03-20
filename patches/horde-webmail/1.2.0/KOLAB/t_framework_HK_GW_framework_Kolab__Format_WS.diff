@@ -1,0 +1,35 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/framework/Kolab_Format/WS
+
+Whitespace.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Format/XML.php |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML.php b/horde-webmail/lib/Horde/Kolab/Format/XML.php
+index d3d7def..e66d49e 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML.php
+@@ -982,7 +982,7 @@ class Horde_Kolab_Format_XML
+             $cManager = null;
+             $horde_categories = null;
+         }
+-        
++
+         $kolab_categories = explode (',', $object['categories']);
+ 
+         $primary_category = '';
+-- 
+tg: (6938161..) t/framework/HK/GW/framework/Kolab_Format/WS (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 83ea6082e87acd8fc235100a90f32937e94c152e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 20:35:02 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Format-WS.patch from the mercurial release queue.

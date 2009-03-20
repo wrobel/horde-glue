@@ -1,0 +1,35 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Text/Filter/SC/CH/Xss
+
+Fixes a potential security issue with Internet Explorer.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Text/Filter/xss.php |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Text/Filter/xss.php b/horde-webmail/lib/Horde/Text/Filter/xss.php
+index 26ba9db..fbd60e2 100644
+--- a/horde-webmail/lib/Horde/Text/Filter/xss.php
++++ b/horde-webmail/lib/Horde/Text/Filter/xss.php
+@@ -193,7 +193,7 @@ class Text_Filter_xss extends Text_Filter {
+         /* Comment out style/link tags. */
+         if ($this->_params['strip_styles']) {
+             if ($this->_params['strip_style_attributes']) {
+-                $patterns['/\s+style\s*=/i'] = ' ' . $this->_params['replace'] . '=';
++                $patterns['/(\s+|([\'"]))style\s*=/i'] = '$2 ' . $this->_params['replace'] . '=';
+             }
+             $patterns['|<style[^>]*>(?:\s*<\!--)*|i'] = '<!--';
+             $patterns['|(?:-->\s*)*</style>|i'] = '-->';
+-- 
+tg: (6938161..) t/Text/Filter/SC/CH/Xss (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 0138238299582204ebb0e613985378ee36cf6fc7
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 17:50:47 2009 +0000
+
+    Added patch release/H-CH-Xss_fix.patch from the mercurial release queue.

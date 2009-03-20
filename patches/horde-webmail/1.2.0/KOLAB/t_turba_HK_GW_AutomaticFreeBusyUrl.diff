@@ -1,0 +1,73 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/turba/HK/GW/AutomaticFreeBusyUrl
+
+Determine the free/busy URL of Kolab users automatically.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/turba/config/attributes.php      |    6 ++++++
+ horde-webmail/turba/config/attributes.php.dist |    6 ++++++
+ horde-webmail/turba/config/sources.php.dist    |    4 +++-
+ 3 files changed, 15 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/turba/config/attributes.php b/horde-webmail/turba/config/attributes.php
+index ce124f0..5a127d8 100644
+--- a/horde-webmail/turba/config/attributes.php
++++ b/horde-webmail/turba/config/attributes.php
+@@ -356,6 +356,12 @@ $attributes['category'] = array(
+ );
+ 
+ /* Additional attributes supported by Kolab */
++$attributes['kolabHomeServer'] = array(
++    'label' => _("Kolab Home Server"),
++    'type' => 'text',
++    'required' => false,
++    'params' => array('regex' => '', 'size' => 40, 'maxlength' => 255)
++);
+ $attributes['initials'] = array(
+     'label' => _("Initials"),
+     'type' => 'text',
+diff --git a/horde-webmail/turba/config/attributes.php.dist b/horde-webmail/turba/config/attributes.php.dist
+index 0332682..3afb76f 100644
+--- a/horde-webmail/turba/config/attributes.php.dist
++++ b/horde-webmail/turba/config/attributes.php.dist
+@@ -402,6 +402,12 @@ $attributes['category'] = array(
+ // );
+ 
+ /* Additional attributes supported by Kolab */
++$attributes['kolabHomeServer'] = array(
++    'label' => _("Kolab Home Server"),
++    'type' => 'text',
++    'required' => false,
++    'params' => array('regex' => '', 'size' => 40, 'maxlength' => 255)
++);
+ $attributes['initials'] = array(
+     'label' => _("Initials"),
+     'type' => 'text',
+diff --git a/horde-webmail/turba/config/sources.php.dist b/horde-webmail/turba/config/sources.php.dist
+index 3d5adf4..fd6eb7a 100644
+--- a/horde-webmail/turba/config/sources.php.dist
++++ b/horde-webmail/turba/config/sources.php.dist
+@@ -825,7 +825,9 @@ if (!empty($GLOBALS['conf']['kolab']['enabled'])) {
+                 'cellPhone'         => 'mobile',
+                 'fax'               => 'fax',
+                 'notes'             => 'description',
+-                'freebusyUrl'       => 'kolabHomeServer',
++                'kolabHomeServer'   => 'kolabHomeServer',
++                'freebusyUrl'       => array('fields' => array('kolabHomeServer', 'email'),
++                                             'format' => 'https://%s/freebusy/%s.ifb'),
+             ),
+             'search' => array(
+                 'name',
+-- 
+tg: (3e628f4..) t/turba/HK/GW/AutomaticFreeBusyUrl (depends on: t/framework/HK/GW/Kolab_Storgae/FixedUpdateTriggering)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 358bad0ddf162ff032066b1045fec1f76d427e56
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:21:52 2009 +0000
+
+    Added patch turba/HK-GW-Fix_freebusyurl.patch from the mercurial release queue.

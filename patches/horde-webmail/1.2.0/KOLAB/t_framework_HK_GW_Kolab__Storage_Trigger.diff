@@ -1,0 +1,336 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Storage/Trigger
+
+A better trigger implementation that gets called automatically
+when storing stuff and is independant from the folder type.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab.php                |   50 +---------
+ horde-webmail/lib/Horde/Kolab/Storage/Data.php   |   10 ++-
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |  125 ++++++++++++++++++++--
+ 3 files changed, 128 insertions(+), 57 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab.php b/horde-webmail/lib/Horde/Kolab.php
+index 70e9fc1..4338b8e 100644
+--- a/horde-webmail/lib/Horde/Kolab.php
++++ b/horde-webmail/lib/Horde/Kolab.php
+@@ -711,7 +711,7 @@ class Kolab {
+      * Returns an array of application-specific constants, that are used in
+      * a generic manner throughout the library.
+      *
+-     * FIXME: Move to IMAP.php
++     * @deprecated
+      *
+      * @param string $app  The application whose constants to query.
+      *
+@@ -811,52 +811,4 @@ class Kolab {
+             }
+         }
+     }
+-
+-    /**
+-     * Triggers the freebusy update for the given share uid.
+-     *
+-     * @return boolean True if update was successfull, false otherwise.
+-     */
+-    function triggerFreeBusyUpdate($share_uid)
+-    {
+-        global $conf;
+-
+-        $folder_path = rawurldecode($share_uid);
+-        if (!preg_match(";(shared\.|INBOX[/]?|user/([^/]+)/)([^@]+)(@.*)?;", $folder_path, $matches)) {
+-            return PEAR::raiseError(sprintf(_("Owner of folder %s cannot be determined."), $folder_path));
+-        }
+-
+-        if (substr($matches[1], 0, 6) == 'INBOX/') {
+-            $owner =  Auth::getAuth();
+-        } elseif (substr($matches[1], 0, 5) == 'user/') {
+-            $domain = strstr(Auth::getAuth(), '@');
+-            $user_domain = isset($matches[4]) ? $matches[4] : $domain;
+-            $owner = $matches[2] . $user_domain;
+-        } elseif ($matches[1] == 'shared.') {
+-            return PEAR::raiseError(sprintf(_("Cannot trigger shared folder %s."), $folder_path));
+-        }
+-        $folder = isset($matches[3]) ? $matches[3] : '';
+-
+-        $url = 'https://' . Kolab::getServer("imap") .
+-            '/freebusy/trigger/' . $owner . '/' . $folder . '.pfb';
+-
+-        // now start the request
+-        $options['method'] = 'GET';
+-        $options['timeout'] = 5;
+-        $options['allowRedirects'] = true;
+-
+-        if (isset($conf['http']['proxy']) && !empty($conf['http']['proxy']['proxy_host'])) {
+-            $options = array_merge($options, $conf['http']['proxy']);
+-        }
+-        require_once 'HTTP/Request.php';
+-        $http = new HTTP_Request($url, $options);
+-        $http->setBasicAuth(Auth::getAuth(), Auth::getCredential('password'));
+-        @$http->sendRequest();
+-        if ($http->getResponseCode() != 200) {
+-            return PEAR::raiseError(sprintf(_("Unable to trigger free/busy update for folder %s on URL %s"),
+-                                            $share_uid, $url));
+-        }
+-
+-        return true;
+-    }
+ }
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Data.php b/horde-webmail/lib/Horde/Kolab/Storage/Data.php
+index 2560e0a..4e3b39c 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Data.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Data.php
+@@ -219,7 +219,7 @@ class Kolab_Data {
+             return true;
+         }
+         foreach ($this->_cache->uids as $id => $object_uid) {
+-            $result = $this->_folder->deleteMessage($id);
++            $result = $this->_folder->deleteMessage($id, false);
+             if (is_a($result, 'PEAR_Error')) {
+                 return $result;
+             }
+@@ -230,6 +230,14 @@ class Kolab_Data {
+             unset($this->_cache->uids[$id]);
+         }
+         $this->_cache->save();
++
++        $result = $this->_folder->trigger();
++        if (is_a($result, 'PEAR_Error')) {
++            Horde::logMessage(sprintf('Failed triggering folder %s!',
++                                      $this->_folder->name),
++                              __FILE__, __LINE__, PEAR_LOG_ERR);
++        }
++
+         return true;
+     }
+ 
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index ab9ecfd..827faa9 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -335,7 +335,22 @@ class Kolab_Folder {
+                     return $result;
+                 }
+ 
++                $result = $this->trigger();
++                if (is_a($result, 'PEAR_Error')) {
++                    Horde::logMessage(sprintf('Failed triggering folder %s!',
++                                              $this->name),
++                                      __FILE__, __LINE__, PEAR_LOG_ERR);
++                }
++
+                 $this->name = $this->new_name;
++
++                $result = $this->trigger();
++                if (is_a($result, 'PEAR_Error')) {
++                    Horde::logMessage(sprintf('Failed triggering folder %s!',
++                                              $this->name),
++                                      __FILE__, __LINE__, PEAR_LOG_ERR);
++                }
++
+                 $this->new_name = null;
+                 $this->_title = null;
+             }
+@@ -409,6 +424,14 @@ class Kolab_Folder {
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
++
++        $result = $this->trigger();
++        if (is_a($result, 'PEAR_Error')) {
++            Horde::logMessage(sprintf('Failed triggering folder %s!',
++                                      $this->name),
++                              __FILE__, __LINE__, PEAR_LOG_ERR);
++        }
++
+         return true;
+     }
+ 
+@@ -638,11 +661,12 @@ class Kolab_Folder {
+     /**
+      * Delete the specified message from this folder.
+      *
+-     * @param  string $id IMAP id of the message to be deleted.
++     * @param  string  $id      IMAP id of the message to be deleted.
++     * @param  boolean $trigger Should the folder be triggered?
+      *
+      * @return boolean|PEAR_Error True if successful.
+      */
+-    function deleteMessage($id)
++    function deleteMessage($id, $trigger = true)
+     {
+         if (is_a($this->_imap, 'PEAR_Error')) {
+             return $this->_imap;
+@@ -663,6 +687,16 @@ class Kolab_Folder {
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
++
++        if ($trigger) {
++            $result = $this->trigger();
++            if (is_a($result, 'PEAR_Error')) {
++                Horde::logMessage(sprintf('Failed triggering folder %s!',
++                                          $this->name),
++                                  __FILE__, __LINE__, PEAR_LOG_ERR);
++            }
++        }
++
+         return true;
+     }
+ 
+@@ -695,6 +729,14 @@ class Kolab_Folder {
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
++
++        $result = $this->trigger();
++        if (is_a($result, 'PEAR_Error')) {
++            Horde::logMessage(sprintf('Failed triggering folder %s!',
++                                      $this->name),
++                              __FILE__, __LINE__, PEAR_LOG_ERR);
++        }
++
+         return true;
+     }
+ 
+@@ -713,7 +755,16 @@ class Kolab_Folder {
+             return $folder;
+         }
+         $folder->tainted = true;
+-        return $this->moveMessage($id, $folder->name);
++
++        $success = $this->moveMessage($id, $folder->name);
++
++        $result = $folder->trigger();
++        if (is_a($result, 'PEAR_Error')) {
++            Horde::logMessage(sprintf('Failed triggering folder %s!',
++                                      $this->name),
++                              __FILE__, __LINE__, PEAR_LOG_ERR);
++        }
++        return $success;
+     }
+ 
+     /**
+@@ -831,6 +882,14 @@ class Kolab_Folder {
+                 return $result;
+             }
+         }
++
++        $result = $this->trigger();
++        if (is_a($result, 'PEAR_Error')) {
++            Horde::logMessage(sprintf('Failed triggering folder %s!',
++                                      $this->name),
++                              __FILE__, __LINE__, PEAR_LOG_ERR);
++        }
++
+         return true;
+     }
+ 
+@@ -951,6 +1010,58 @@ class Kolab_Folder {
+     }
+ 
+     /**
++     * Triggers any required updates after changes within the
++     * folder. This is currently only required for handling free/busy
++     * information with Kolab.
++     *
++     * @return boolean|PEAR_Error True if successfull.
++     */
++    function trigger()
++    {
++        global $conf;
++
++        $type =  $this->getType();
++        if (is_a($type, 'PEAR_Error')) {
++            return $type;
++        }
++
++        $owner = $this->getOwner();
++        if (is_a($owner, 'PEAR_Error')) {
++            return $owner;
++        }
++
++        switch($type) {
++        case 'event':
++            $session = &Horde_Kolab_Session::singleton();
++            $url = sprintf('%s/trigger/%s/%s.pfb',
++                           $session->freebusy_server, $owner, $this->name);
++            break;
++        default:
++            return true;
++        }
++
++        // now start the request
++        $options['method'] = 'GET';
++        $options['timeout'] = 5;
++        $options['allowRedirects'] = true;
++
++        if (isset($conf['http']['proxy']) && !empty($conf['http']['proxy']['proxy_host'])) {
++            $options = array_merge($options, $conf['http']['proxy']);
++        }
++
++        require_once 'HTTP/Request.php';
++        $http = new HTTP_Request($url, $options);
++        $http->setBasicAuth(Auth::getAuth(), Auth::getCredential('password'));
++        @$http->sendRequest();
++        if ($http->getResponseCode() != 200) {
++            return PEAR::raiseError(sprintf(_("Unable to trigger free/busy update for folder %s on URL %s"),
++                                            $this->name, $url));
++        }
++
++        return true;
++    }
++
++    /**
+      * Checks to see if a user has a given permission.
+      *
+      * @param string $userid       The userid of the user.
+@@ -1056,7 +1167,7 @@ class Kolab_Folder {
+             if (!is_a($acl, 'PEAR_Error')) {
+                 return $acl;
+             }
+-            
++
+             $my_rights = $this->_imap->getMyrights($this->name);
+             if (is_a($my_rights, 'PEAR_Error')) {
+                 return $my_rights;
+@@ -1124,7 +1235,7 @@ class Kolab_Folder {
+     {
+         $this->_annotation_data = $this->getData('annotation');
+     }
+-    
++
+ 
+     /**
+      * Get an annotation value of this folder.
+@@ -1144,7 +1255,7 @@ class Kolab_Folder {
+             return $this->_imap->getAnnotation($key, 'value.shared',
+                                                $this->name);
+         }
+-        
++
+         if (!isset($this->_annotation_data)) {
+             $this->_getAnnotationData();
+         }
+@@ -1180,7 +1291,7 @@ class Kolab_Folder {
+                                                array('value.shared' => $value),
+                                                $this->name);
+         }
+-        
++
+         if (!isset($this->_annotation_data)) {
+             $this->_getAnnotationData();
+         }
+-- 
+tg: (a47b2ab..) t/framework/HK/GW/Kolab_Storage/Trigger (depends on: t/framework/HK/GW/Kolab_Storage/Foreign_owner.patch)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit f53c2ff7849165fa9cbf59d27a36276023d693c4
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 20:21:25 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Storage-Trigger.patch from the mercurial release queue.

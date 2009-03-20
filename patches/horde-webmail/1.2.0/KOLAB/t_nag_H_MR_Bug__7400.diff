@@ -1,0 +1,91 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/nag/H/MR/Bug_7400
+
+Fixes Horde bug [#7400] Error when marking task "completed"
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/nag/lib/Driver.php |   55 +++++++++++++++++++++----------------
+ 1 files changed, 31 insertions(+), 24 deletions(-)
+
+diff --git a/horde-webmail/nag/lib/Driver.php b/horde-webmail/nag/lib/Driver.php
+index 2cd926a..c8fd4ee 100644
+--- a/horde-webmail/nag/lib/Driver.php
++++ b/horde-webmail/nag/lib/Driver.php
+@@ -319,33 +319,40 @@ class Nag_Driver {
+ 
+         $new_task = $this->get($task->id);
+         $log_tasklist = $this->_tasklist;
+-        if ($task->tasklist != $tasklist) {
++        if (!is_null($tasklist) && $task->tasklist != $tasklist) {
+             /* Moving the task to another tasklist. */
+             $share = $GLOBALS['nag_shares']->getShare($task->tasklist);
+-            if (!is_a($share, 'PEAR_Error') &&
+-                $share->hasPermission(Auth::getAuth(), PERMS_DELETE)) {
+-                $share = $GLOBALS['nag_shares']->getShare($tasklist);
+-                if (!is_a($share, 'PEAR_Error') &&
+-                    $share->hasPermission(Auth::getAuth(), PERMS_EDIT)) {
+-                    $moved = $this->_move($task->id, $tasklist);
+-                    if (is_a($moved, 'PEAR_Error')) {
+-                        return $moved;
+-                    }
+-                    $new_storage = &Nag_Driver::singleton($tasklist);
+-                    $new_task = $new_storage->get($task->id);
+-
+-                    /* Log the moving of this item in the history log. */
+-                    if (!empty($task->uid)) {
+-                        $history = &Horde_History::singleton();
+-                        $history->log('nag:' . $task->tasklist . ':' . $task->uid, array('action' => 'delete'), true);
+-                        $history->log('nag:' . $tasklist . ':' . $task->uid, array('action' => 'add'), true);
+-                        $log_tasklist = $tasklist;
+-                    }
+-                } else {
+-                    $GLOBALS['notification']->push(sprintf(_("Access denied moving the task to %s."), $share->get('name')), 'horde.error');
+-                }
+-            } else {
++            if (is_a($share, 'PEAR_Error')) {
++                return $share;
++            }
++
++            if (!$share->hasPermission(Auth::getAuth(), PERMS_DELETE)) {
+                 $GLOBALS['notification']->push(sprintf(_("Access denied removing task from %s."), $share->get('name')), 'horde.error');
++                return false;
++            }
++
++            $share = $GLOBALS['nag_shares']->getShare($tasklist);
++            if (is_a($share, 'PEAR_Error')) {
++                return $share;
++            }
++
++            if (!$share->hasPermission(Auth::getAuth(), PERMS_EDIT)) {
++                $GLOBALS['notification']->push(sprintf(_("Access denied moving the task to %s."), $share->get('name')), 'horde.error');
++            }
++
++            $moved = $this->_move($task->id, $tasklist);
++            if (is_a($moved, 'PEAR_Error')) {
++                return $moved;
++            }
++            $new_storage = &Nag_Driver::singleton($tasklist);
++            $new_task = $new_storage->get($task->id);
++
++            /* Log the moving of this item in the history log. */
++            if (!empty($task->uid)) {
++                $history = &Horde_History::singleton();
++                $history->log('nag:' . $task->tasklist . ':' . $task->uid, array('action' => 'delete'), true);
++                $history->log('nag:' . $tasklist . ':' . $task->uid, array('action' => 'add'), true);
++                $log_tasklist = $tasklist;
+             }
+         }
+ 
+-- 
+tg: (6938161..) t/nag/H/MR/Bug_7400 (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit e1ffc45a709692e0d13252f21ce6af7a91a6f42c
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Thu Jan 29 22:46:42 2009 +0100
+
+    Included patch nag/H-MR-bug_7400.patch from the mercurial patch queue.

@@ -1,0 +1,143 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/dimp/H/GW/AclView
+
+Provide a possibility to edit IMAP folder acls within DIMP.
+
+kolab/issue3455 (There is no convenient/dimp-like way in dimp to set folder acls)
+https://www.intevation.de/roundup/kolab/issue3455
+
+[#8060] Additional entry in the folder popup to set IMAP ACLs
+http://bugs.horde.org/ticket/8060
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/dimp/js/DimpBase.js            |    1 +
+ horde-webmail/dimp/lib/DIMP.php              |    1 +
+ horde-webmail/dimp/templates/index/index.inc |    1 +
+ horde-webmail/imp/acl.php                    |   12 ++++++++++--
+ horde-webmail/imp/templates/acl/acl.html     |    6 ++++++
+ 5 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/dimp/js/DimpBase.js b/horde-webmail/dimp/js/DimpBase.js
+index 39a728b..c4eb9f4 100644
+--- a/horde-webmail/dimp/js/DimpBase.js
++++ b/horde-webmail/dimp/js/DimpBase.js
+@@ -1941,6 +1941,7 @@ var DimpBase = {
+         C({ d: $('ctx_folder_rename'), f: function() { this.renameFolder(DimpCore.DMenu.element()); }.bind(this), ns: true });
+         C({ d: $('ctx_folder_empty'), f: function() { if (window.confirm(DIMP.text.empty_folder)) { DimpCore.doAction('EmptyFolder', { folder: DimpCore.DMenu.element().readAttribute('mbox') }, [], this._emptyFolderCallback.bind(this)); } }.bind(this), ns: true });
+         C({ d: $('ctx_folder_delete'), f: function() { if (window.confirm(DIMP.text.delete_folder)) { DimpCore.doAction('DeleteFolder', { folder: DimpCore.DMenu.element().readAttribute('mbox') }, [], this.bcache.get('folderC') || this.bcache.set('folderC', this._folderCallback.bind(this))); } }.bind(this), ns: true });
++        C({ d: $('ctx_folder_rights'), f: function() { this.go('app:horde', DIMP.conf.folder_rights + '&' + $H({ folder: DimpCore.DMenu.element().readAttribute('mbox') }).toQueryString() ) }.bind(this), ns: true });
+         [ 'ctx_folder_seen', 'ctx_folder_unseen' ].each(function(a) {
+             C({ d: $(a), f: function(type) { this.flag(type, null, DimpCore.DMenu.element().readAttribute('mbox')); }.bind(this, a == 'ctx_folder_seen' ? 'allSeen' : 'allUnseen'), ns: true });
+         }, this);
+diff --git a/horde-webmail/dimp/lib/DIMP.php b/horde-webmail/dimp/lib/DIMP.php
+index 0aa3b78..92a1e55 100644
+--- a/horde-webmail/dimp/lib/DIMP.php
++++ b/horde-webmail/dimp/lib/DIMP.php
+@@ -145,6 +145,7 @@ class DIMP {
+             'message_url' => Horde::url($dimp_webroot . '/message.php'),
+             'compose_url' => Horde::url($dimp_webroot . '/compose.php'),
+             'prefs_url' => str_replace('&amp;', '&', Horde::getServiceLink('options', 'dimp')),
++	    'folder_rights' => Util::addParameter(Horde::url($registry->get('webroot', 'imp') . '/acl.php', true), array('app' => 'imp', 'group'=> 'acl'), null, false),
+ 
+             'sortthread' => SORTTHREAD,
+             'sortdate' => SORTDATE,
+diff --git a/horde-webmail/dimp/templates/index/index.inc b/horde-webmail/dimp/templates/index/index.inc
+index 21939e0..7c02fe7 100644
+--- a/horde-webmail/dimp/templates/index/index.inc
++++ b/horde-webmail/dimp/templates/index/index.inc
+@@ -323,6 +323,7 @@ function _createDA($text, $image, $id = null, $class = '', $show_text = true)
+  <a id="ctx_folder_rename"><?php echo $folder_edit . _("Rename Folder") ?></a>
+  <a id="ctx_folder_empty"><?php echo $delete . _("Empty Folder") ?></a>
+  <a id="ctx_folder_delete"><?php echo Horde::img('folders/folder_delete.png') . _("Delete Folder") ?></a>
++ <a id="ctx_folder_rights"><?php echo Horde::img('folders/folder.png') . _("Share Folder") ?></a>
+  <div id="ctx_folder_seen_sep" class="sep"></div>
+  <a id="ctx_folder_seen"><?php echo $mailseen . _("Mark all as Read") ?></a>
+  <a id="ctx_folder_unseen"><?php echo $mailunseen . _("Mark all as New") ?></a>
+diff --git a/horde-webmail/imp/acl.php b/horde-webmail/imp/acl.php
+index cfa285f..851d8de 100644
+--- a/horde-webmail/imp/acl.php
++++ b/horde-webmail/imp/acl.php
+@@ -162,14 +162,22 @@ if (is_callable(array('Horde', 'loadConfiguration'))) {
+ }
+ $app = 'imp';
+ $chunk = Util::nonInputVar('chunk');
+-Prefs_UI::generateHeader(null, $chunk);
++if ($_SESSION['imp']['default_view'] != 'dimp') {
++    Prefs_UI::generateHeader(null, $chunk);
++} else {
++    require $registry->get('templates', $app) . '/common-header.inc';
++    $GLOBALS['notification']->notify(array('listeners' => 'status'));
++}
+ 
+ /* Set up template. */
+ $t = new IMP_Template();
+ $t->setOption('gettext', true);
+ $t->set('aclurl', Horde::applicationUrl('acl.php'));
+ $t->set('forminput', Util::formInput());
+-$t->set('aclnavcell', Util::bufferOutput(array('Prefs_UI', 'generateNavigationCell'), 'acl'));
++$t->set('imp_view', $_SESSION['imp']['default_view'] != 'dimp');
++if ($_SESSION['imp']['default_view'] != 'dimp') {
++    $t->set('aclnavcell', Util::bufferOutput(array('Prefs_UI', 'generateNavigationCell'), 'acl'));
++}
+ $t->set('changefolder', Horde::link('#', _("Change Folder"), 'smallheader', '', 'ACLFolderChange(true); return false;'));
+ $t->set('sharedimg', Horde::img('shared.png', _("Change Folder")));
+ $t->set('options', IMP::flistSelect('', true, array(), $folder));
+diff --git a/horde-webmail/imp/templates/acl/acl.html b/horde-webmail/imp/templates/acl/acl.html
+index 79580aa..72cf1c5 100644
+--- a/horde-webmail/imp/templates/acl/acl.html
++++ b/horde-webmail/imp/templates/acl/acl.html
+@@ -7,6 +7,7 @@
+  <gettext>Share mail folders</gettext>
+ </div>
+ 
++<if:imp_view>
+ <div class="header">
+  <ul>
+   <li>
+@@ -17,6 +18,7 @@
+  <span class="smallheader"><tag:current /></span>
+ </div>
+ </form>
++</if:imp_view>
+ 
+ <form method="post" name="acl" id="acl" action="<tag:aclurl />">
+ <input type="hidden" name="actionID" value="imp_acl_set" />
+@@ -76,9 +78,13 @@
+ </tr>
+ <tr>
+  <td colspan = "<tag:maxrule />" class="header" valign="middle">
++<if:imp_view>
+   <input type="button" class="button" id="fbutton" name="fbutton" onclick="$('acl').submit(); $('acl').disable();" value="<gettext>Save</gettext>" />
+   <input type="button" class="button" id="resetbut" name="resetbut" onclick="ACLFolderChange(true); return false;" value="<gettext>Reset</gettext>" />
+   <input type="button" class="button" id="back" name="back" onclick="$('acl').disable(); document.location.href='<tag:prefsurl />'" value="<gettext>Return to Options</gettext>" />
++<else:imp_view>
++  <input type="submit" class="button" id="fbutton" name="fbutton" value="<gettext>Save</gettext>" />
++</if:imp_view>
+  </td>
+  <td class="header">&nbsp;</td>
+ </tr>
+-- 
+tg: (caf5e96..) t/dimp/H/GW/AclView (depends on: t/dimp/H/GW/FoldersView)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit cac1482cec6c96a8a1d7fb7c0e8c2433877728f5
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Mar 13 12:04:03 2009 +0000
+
+    Complete the patch description.
+
+commit 7a349ad9da06264378e84e54d7424f5dc78a9154
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Mar 13 12:00:43 2009 +0000
+
+    Reduce the functionality of the ACL view when calling from DIMP. In addition add the call to the acl settings page within the folder context menu.
+
+commit 2fdc4d0fcd6e4956129f6ec11501112568b99c6d
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 19:59:30 2009 +0000
+
+    Completed a draft.

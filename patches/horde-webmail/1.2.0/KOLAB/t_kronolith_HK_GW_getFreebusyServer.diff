@@ -1,0 +1,59 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/kronolith/HK/GW/getFreebusyServer
+
+Use the capability to retrieve the Free/Busy server provided in Kolab_Server.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/kronolith/lib/Storage/kolab.php |   23 +++++++++++++++--------
+ 1 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/horde-webmail/kronolith/lib/Storage/kolab.php b/horde-webmail/kronolith/lib/Storage/kolab.php
+index a099702..5f4c8bb 100644
+--- a/horde-webmail/kronolith/lib/Storage/kolab.php
++++ b/horde-webmail/kronolith/lib/Storage/kolab.php
+@@ -29,17 +29,24 @@ class Kronolith_Storage_kolab extends Kronolith_Storage {
+     {
+         global $conf;
+ 
+-        if (!is_callable('Kolab', 'getServer')) {
+-            $server = $conf['kolab']['imap']['server'];
++        @include_once 'Horde/Kolab/Session.php';
++
++        if (class_exists('Horde_Kolab_Session')) {
++            $session = &Horde_Kolab_Session::singleton();
++            $server = $session->freebusy_server;
++        } else if (!is_callable('Kolab', 'getServer')) {
++            $server = sprintf('%s://%s:%d/freebusy/',
++                              $conf['storage']['freebusy']['protocol'],
++                              $conf['kolab']['imap']['server'],
++                              $conf['storage']['freebusy']['port']);
+         } else {
+-            $server = Kolab::getServer('imap');
++            $server = sprintf('%s://%s:%d/freebusy/',
++                              $conf['storage']['freebusy']['protocol'],
++                              Kolab::getServer('imap'),
++                              $conf['storage']['freebusy']['port']);
+         }
+ 
+-        $fb_url = sprintf('%s://%s:%d/freebusy/%s.xfb',
+-                          $conf['storage']['freebusy']['protocol'],
+-                          $server,
+-                          $conf['storage']['freebusy']['port'],
+-                          $email);
++        $fb_url = sprintf('%s/%s.xfb', $server, $email);
+ 
+         $options['method'] = 'GET';
+         $options['timeout'] = 5;
+-- 
+tg: (e52fa15..) t/kronolith/HK/GW/getFreebusyServer (depends on: t/framework/HK/GW/Kolab_Server/getFreebusyServer)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit e5954131256e7fba29a3dd6827f872114b1ddcb7
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 20:16:49 2009 +0000
+
+    Added patch kronolith/HK-GW-Kolab_Server-getFreeBusyServer.patch from the mercurial release queue.

@@ -1,0 +1,43 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Server/HK/GW/FixBodyHeaderBreakInTestDriver
+
+Fixes handling the line break between mail header and body in the IMAP test driver.
+
+STATUS: MERGED
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/IMAP/test.php |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP/test.php b/horde-webmail/lib/Horde/Kolab/IMAP/test.php
+index 5a804af..6e1f0e4 100644
+--- a/horde-webmail/lib/Horde/Kolab/IMAP/test.php
++++ b/horde-webmail/lib/Horde/Kolab/IMAP/test.php
+@@ -550,7 +550,7 @@ class Horde_Kolab_IMAP_test extends Horde_Kolab_IMAP {
+      */
+     function appendMessage($msg)
+     {
+-        $split = strpos('\r\n\r\n', $msg);
++        $split = strpos($msg, "\r\n\r\n");
+         $mail = array('header' => substr($msg, 0, $split + 2),
+                       'body' => substr($msg, $split + 3));
+         return $this->_appendMessage($mail);
+-- 
+tg: (655d2e8..) t/Kolab_Server/HK/GW/FixBodyHeaderBreakInTestDriver (depends on: t/imp/H/GW/LoginRetries)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit a632bbd56954bed61abb308bd8d8d5551887ba84
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Mar 13 00:16:18 2009 +0100
+
+    Four patches went missing when I reordered the patch queue. The reordering was an operation I shouldn't have done. This commit removes the attempt to readd the four patches at a later queue position.
+
+commit 8a3ca1d315a184f38667fc10e7f34488301d5d47
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Mar 9 06:00:41 2009 +0000
+
+    Add missing to sync Kolab_Server with horde fw3.

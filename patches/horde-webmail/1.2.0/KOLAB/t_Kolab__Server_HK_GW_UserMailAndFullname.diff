@@ -1,0 +1,150 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Server/HK/GW/UserMailAndFullname
+
+Identify the users full name and make it accessible via the Kolab session handler.
+
+FIXME: This has been reported by Thomas to be only partially working (fullname not be correctly accessible).
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server/Object.php    |    5 ++++
+ .../lib/Horde/Kolab/Server/Object/address.php      |   10 +++++++++
+ .../lib/Horde/Kolab/Server/Object/user.php         |    2 +
+ horde-webmail/lib/Horde/Kolab/Session.php          |   21 ++++++++++++++++++-
+ 4 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object.php b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+index 663281e..e3b38e0 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+@@ -33,6 +33,7 @@ define('KOLAB_ATTR_CN',           'cn');
+ define('KOLAB_ATTR_GIVENNAME',    'givenName');
+ define('KOLAB_ATTR_FN',           'fn');
+ define('KOLAB_ATTR_LNFN',         'lnfn');
++define('KOLAB_ATTR_FNLN',         'fnln');
+ define('KOLAB_ATTR_MAIL',         'mail');
+ define('KOLAB_ATTR_SID',          'uid');
+ define('KOLAB_ATTR_ACL',          'acl');
+@@ -366,6 +367,10 @@ class Horde_Kolab_Server_Object {
+             $gn = $this->_get(KOLAB_ATTR_GIVENNAME, true);
+             $sn = $this->_get(KOLAB_ATTR_SN, true);
+             return sprintf('%s, %s', $sn, $gn);
++        case KOLAB_ATTR_FNLN:
++            $gn = $this->_get(KOLAB_ATTR_GIVENNAME, true);
++            $sn = $this->_get(KOLAB_ATTR_SN, true);
++            return sprintf('%s %s', $gn, $sn);
+         default:
+             return false;
+         }
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/address.php b/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
+index bcf905e..8f3aac2 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
+@@ -55,6 +55,16 @@ class Horde_Kolab_Server_Object_address extends Horde_Kolab_Server_Object {
+     );
+ 
+     /**
++     * Attributes derived from the LDAP values.
++     *
++     * @var array
++     */
++    var $_derived_attributes = array(
++        KOLAB_ATTR_LNFN,
++        KOLAB_ATTR_FNLN,
++    );
++
++    /**
+      * The attributes required when creating an object of this class.
+      *
+      * @var array
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+index 62b71e8..99b5975 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+@@ -69,6 +69,8 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+     var $_derived_attributes = array(
+         KOLAB_ATTR_ID,
+         KOLAB_ATTR_USERTYPE,
++        KOLAB_ATTR_LNFN,
++        KOLAB_ATTR_FNLN,
+     );
+ 
+     /**
+diff --git a/horde-webmail/lib/Horde/Kolab/Session.php b/horde-webmail/lib/Horde/Kolab/Session.php
+index d47f8b0..bcbda7e 100644
+--- a/horde-webmail/lib/Horde/Kolab/Session.php
++++ b/horde-webmail/lib/Horde/Kolab/Session.php
+@@ -55,6 +55,13 @@ class Horde_Kolab_Session {
+     var $user_mail;
+ 
+     /**
++     * Full name.
++     *
++     * @var string
++     */
++    var $user_name = '';
++
++    /**
+      * True if the Kolab_Server login was successfull.
+      *
+      * @var boolean|PEAR_Error
+@@ -171,6 +178,11 @@ class Horde_Kolab_Session {
+                         $this->user_id = $result;
+                     }
+ 
++                    $result = $user_object->get(KOLAB_ATTR_FNLN);
++                    if (!empty($result) && !is_a($result, 'PEAR_Error')) {
++                        $this->user_name = $result;
++                    }
++
+                     $result = $user_object->getServer('imap');
+                     if (!empty($result) && !is_a($result, 'PEAR_Error')) {
+                         $server = explode(':', $result, 2);
+@@ -249,6 +261,8 @@ class Horde_Kolab_Session {
+             $params['user'] = $user;
+             if (isset($credentials['password'])) {
+                 $params['pass'] = $credentials['password'];
++            } else {
++                $params['pass'] = Auth::getCredential('password');
+             }
+         }
+         return Horde_Kolab_Server::singleton($params);
+@@ -332,9 +346,12 @@ class Horde_Kolab_Session {
+             $session = $hs->query('kolab_session');
+         }
+ 
++        if (empty($user)) {
++            $user = Auth::getAuth();
++        }
++
+         if ($destruct || empty($session)
+-            || (!empty($user) &&  $user != $session->user_mail
+-                && $user != $session->user_id)) {
++            || ($user != $session->user_mail && $user != $session->user_id)) {
+             $session = new Horde_Kolab_Session($user, $credentials);
+         }
+ 
+-- 
+tg: (a5a1f3e..) t/Kolab_Server/HK/GW/UserMailAndFullname (depends on: t/Kolab_Server/HK/GW/DenyLogin)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 4c997afbb54e494cdcc52969b158d2817ce84d44
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Feb 7 10:02:15 2009 +0000
+
+    If we are authenticated and create a session without any information, the user will be set but the getServer() method has no access to the password. So it should be fetched here.
+
+commit 3a9e1f04cf73d8576104715c48a8a26c8cd9c190
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 18:07:49 2009 +0000
+
+    Added fixme in the patch description.
+
+commit c69914c9e65d971428760fc139da66fb962e0016
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 18:06:20 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Server-User_Id.patch from the mercurial release queue.

@@ -1,0 +1,42 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/imp/H/GW/LoginRetries
+
+Fix the number of retries the c-client libraries uses when connecting to the IMAP server.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/imp/config/servers.php |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/imp/config/servers.php b/horde-webmail/imp/config/servers.php
+index 1c6e537..d050122 100644
+--- a/horde-webmail/imp/config/servers.php
++++ b/horde-webmail/imp/config/servers.php
+@@ -264,7 +264,7 @@ if ($GLOBALS['conf']['kolab']['enabled']) {
+         $imapParams = array(
+ 			'hostspec' => $server,
+ 			'port'     => $GLOBALS['conf']['kolab']['imap']['port'],
+-            'protocol' => $GLOBALS['conf']['auth']['params']['protocol']
++            'protocol' => 'imap/novalidate-cert',
+         );
+     }
+ 
+@@ -284,5 +284,6 @@ if ($GLOBALS['conf']['kolab']['enabled']) {
+         'acl'        => array(
+             'driver' => 'rfc2086',
+         ),
++        'login_tries' => 1,
+     );
+ }
+-- 
+tg: (4f99941..) t/imp/H/GW/LoginRetries (depends on: t/imp/H/GW/DefaultLoginView)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 7540b6dc7fee180870333d1cbd8e2a173bdae751
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 20:27:01 2009 +0000
+
+    Fix the number of login retries.

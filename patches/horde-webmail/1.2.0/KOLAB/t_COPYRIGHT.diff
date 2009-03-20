@@ -1,0 +1,233 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/COPYRIGHT
+
+Fixes the copyright information.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Format.php           |    6 +++---
+ horde-webmail/lib/Horde/Kolab/Format/Date.php      |    7 ++++---
+ horde-webmail/lib/Horde/Kolab/Format/XML.php       |    6 +++---
+ .../lib/Horde/Kolab/Format/XML/annotation.php      |    6 +++---
+ .../lib/Horde/Kolab/Format/XML/contact.php         |    6 +++---
+ .../Horde/Kolab/Format/XML/distributionlist.php    |    6 +++---
+ horde-webmail/lib/Horde/Kolab/Format/XML/event.php |    6 +++---
+ .../lib/Horde/Kolab/Format/XML/hprefs.php          |    6 +++---
+ horde-webmail/lib/Horde/Kolab/Format/XML/note.php  |    6 +++---
+ horde-webmail/lib/Horde/Kolab/Format/XML/task.php  |    6 +++---
+ 10 files changed, 31 insertions(+), 30 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Format.php b/horde-webmail/lib/Horde/Kolab/Format.php
+index 372fa4f..cae1966 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format.php
++++ b/horde-webmail/lib/Horde/Kolab/Format.php
+@@ -14,12 +14,12 @@ require_once 'PEAR.php';
+  * The Horde_Kolab_Format:: class provides the means to read/write the
+  * Kolab format.
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format.php,v 1.4.2.3 2008/08/01 07:13:20 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format.php,v 1.4.2.4 2008/12/12 11:39:03 wrobel Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2008 Klarälvdalens Datakonsult AB
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
+  * @since   Horde 3.2
+  * @author  Gunnar Wrobel <wrobel@pardus.de>
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/Date.php b/horde-webmail/lib/Horde/Kolab/Format/Date.php
+index da1e9c2..58244b2 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/Date.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/Date.php
+@@ -10,13 +10,14 @@
+ /**
+  * Kolab date handling functions. Based upon Kolab.php from Stuart Binge.
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/Date.php,v 1.2.2.3 2008/08/01 07:13:20 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/Date.php,v 1.2.2.5 2009/01/06 15:23:13 jan Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2004-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
++ * @author  Stuart Binge <omicron@mighty.co.za>
+  * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
+  * @package Kolab_Format
+  */
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML.php b/horde-webmail/lib/Horde/Kolab/Format/XML.php
+index fefa362..2472c83 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML.php
+@@ -95,12 +95,12 @@ define('HORDE_KOLAB_XML_TYPE_MULTIPLE', 8);
+  * For implementing a new format type you will have to inherit this
+  * class and provide a _load/_save function.
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML.php,v 1.5.2.6 2008/09/16 16:22:54 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML.php,v 1.5.2.10 2008/12/12 11:39:04 wrobel Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2008 Klarälvdalens Datakonsult AB
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
+  * @since   Horde 3.2
+  * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML/annotation.php b/horde-webmail/lib/Horde/Kolab/Format/XML/annotation.php
+index cff091f..d3a8981 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML/annotation.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML/annotation.php
+@@ -10,12 +10,12 @@
+ /**
+  * Kolab XML handler for IMAP folder annotations.
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/annotation.php,v 1.1.2.3 2008/08/13 10:54:19 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/annotation.php,v 1.1.2.5 2009/01/06 15:23:14 jan Exp $
+  *
+- * Copyright 2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2008-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
+  * @since   Horde 3.2
+  * @author  Gunnar Wrobel <wrobel@pardus.de>
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML/contact.php b/horde-webmail/lib/Horde/Kolab/Format/XML/contact.php
+index 66fa525..ffdfbc7 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML/contact.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML/contact.php
+@@ -10,12 +10,12 @@
+ /**
+  * Kolab XML handler for contact groupware objects
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/contact.php,v 1.2.2.5 2008/08/21 04:31:49 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/contact.php,v 1.2.2.6 2008/12/12 11:39:04 wrobel Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2008 Klarälvdalens Datakonsult AB
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
+  * @since   Horde 3.2
+  * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML/distributionlist.php b/horde-webmail/lib/Horde/Kolab/Format/XML/distributionlist.php
+index 4c789f6..d628be7 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML/distributionlist.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML/distributionlist.php
+@@ -10,12 +10,12 @@
+ /**
+  * Kolab XML handler for distributionlist groupware objects
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/distributionlist.php,v 1.2.2.4 2008/08/13 10:54:19 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/distributionlist.php,v 1.2.2.5 2008/12/12 11:39:04 wrobel Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2008 Klarälvdalens Datakonsult AB
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
+  * @since   Horde 3.2
+  * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML/event.php b/horde-webmail/lib/Horde/Kolab/Format/XML/event.php
+index 38d8850..9f71239 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML/event.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML/event.php
+@@ -13,12 +13,12 @@ require_once 'Horde/Kolab/Format/Date.php';
+ /**
+  * Kolab XML handler for event groupware objects.
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/event.php,v 1.2.2.2 2008/08/01 07:13:21 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/event.php,v 1.2.2.3 2008/12/12 11:39:04 wrobel Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2008 Klarälvdalens Datakonsult AB
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
+  * @since   Horde 3.2
+  * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML/hprefs.php b/horde-webmail/lib/Horde/Kolab/Format/XML/hprefs.php
+index 22a94bc..f45b26c 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML/hprefs.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML/hprefs.php
+@@ -10,12 +10,12 @@
+ /**
+  * Kolab XML handler for client preferences.
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/hprefs.php,v 1.2.2.3 2008/08/20 20:25:28 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/hprefs.php,v 1.2.2.7 2009/01/06 15:23:14 jan Exp $
+  *
+- * Copyright 2007 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2009 The Horde Project (http://www.horde.org/)
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
+  * @since   Horde 3.2
+  * @author  Gunnar Wrobel <wrobel@pardus.de>
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML/note.php b/horde-webmail/lib/Horde/Kolab/Format/XML/note.php
+index 84c6326..37b1d73 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML/note.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML/note.php
+@@ -10,12 +10,12 @@
+ /**
+  * Kolab XML handler for note groupware objects.
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/note.php,v 1.2.2.4 2008/08/13 10:54:19 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/note.php,v 1.2.2.5 2008/12/12 11:39:04 wrobel Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2008 Klarälvdalens Datakonsult AB
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
+  * @since   Horde 3.2
+  * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML/task.php b/horde-webmail/lib/Horde/Kolab/Format/XML/task.php
+index d700b89..5c71267 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML/task.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML/task.php
+@@ -10,12 +10,12 @@
+ /**
+  * Kolab XML handler for task groupware objects.
+  *
+- * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/task.php,v 1.2.2.5 2008/08/13 10:54:19 wrobel Exp $
++ * $Horde: framework/Kolab_Format/lib/Horde/Kolab/Format/XML/task.php,v 1.2.2.6 2008/12/12 11:39:04 wrobel Exp $
+  *
+- * Copyright 2007-2008 The Horde Project (http://www.horde.org/)
++ * Copyright 2007-2008 Klarälvdalens Datakonsult AB
+  *
+  * See the enclosed file COPYING for license information (LGPL). If you
+- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+  *
+  * @since   Horde 3.2
+  * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
+-- 
+tg: (6e63b1b..) t/COPYRIGHT (depends on: t/Kolab_Server/HK/GW/FixAddrForIdOrMail)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit a3542e35d21c42304c3809074411981bfc88d8b3
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Tue Feb 24 06:12:30 2009 +0000
+
+    Synced the Kolab_Format package with horde-fw3.

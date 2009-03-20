@@ -1,0 +1,151 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/turba/HK/GW/PhotoSupport
+
+Support photos in turba.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/turba/config/sources.php.dist |    4 +-
+ horde-webmail/turba/lib/Driver/kolab.php    |   54 +++++++++++++++-----------
+ horde-webmail/turba/lib/Object.php          |    5 ++-
+ 3 files changed, 38 insertions(+), 25 deletions(-)
+
+diff --git a/horde-webmail/turba/config/sources.php.dist b/horde-webmail/turba/config/sources.php.dist
+index eae2039..3d5adf4 100644
+--- a/horde-webmail/turba/config/sources.php.dist
++++ b/horde-webmail/turba/config/sources.php.dist
+@@ -893,6 +893,8 @@ if (!empty($GLOBALS['conf']['kolab']['enabled'])) {
+             'nameSuffix'        => 'suffix',
+             'initials'          => 'initials',
+             'nickname'          => 'nick-name',
++            'photo'             => 'photo',
++            'phototype'         => 'phototype',
+             'gender'            => 'gender',
+             'birthday'          => 'birthday',
+             'spouse'            => 'spouse-name',
+@@ -939,7 +941,7 @@ if (!empty($GLOBALS['conf']['kolab']['enabled'])) {
+         'tabs' => array(
+             _("Personal") => array('name', 'firstname', 'lastname', 'middlenames',
+                                    'namePrefix', 'nameSuffix', 'initials', 'nickname',
+-                                   'gender', 'birthday', 'spouse', 'anniversary',
++                                   'photo', 'gender', 'birthday', 'spouse', 'anniversary',
+                                    'children'),
+             _("Location") => array('homeStreet', 'homeCity', 'homeProvince',
+                                    'homePostalCode', 'homeCountry', 'workStreet',
+diff --git a/horde-webmail/turba/lib/Driver/kolab.php b/horde-webmail/turba/lib/Driver/kolab.php
+index f97f75a..a585950 100644
+--- a/horde-webmail/turba/lib/Driver/kolab.php
++++ b/horde-webmail/turba/lib/Driver/kolab.php
+@@ -751,6 +751,14 @@ class Turba_Driver_kolab_wrapper_new extends Turba_Driver_kolab_wrapper {
+             if (isset($contact['email'])) {
+                 unset($contact['email']);
+             }
++            if (isset($contact['picture'])) {
++                $name = $contact['picture'];
++                if (isset($contact['_attachments'][$name])) {
++                    $contact['photo'] =  $this->_store->_data->getAttachment($contact['_attachments'][$name]['key']);
++                    $contact['phototype'] = $contact['_attachments'][$name]['type'];
++                }
++            }
++
+             $contacts[$id] = $contact;
+         }
+ 
+@@ -1088,29 +1096,11 @@ class Turba_Driver_kolab_wrapper_new extends Turba_Driver_kolab_wrapper {
+             $attributes['full-name'] = $attributes['given-name'] . ' ' . $attributes['full-name'];
+         }
+ 
+-        $group = false;
+-        if (isset($attributes['__type']) && $attributes['__type'] == 'Group') {
+-            $group = true;
+-            $result = $this->_store->setObjectType('distribution-list');
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
+-            $this->_convertMembers($attributes);
+-        }
+-
+-        $object_id = $this->_store->save($attributes, null);
+-        if (is_a($object_id, 'PEAR_Error')) {
+-            return $object_id;
+-        }
+-
+-        if ($group) {
+-            $result = $this->_store->setObjectType('contact');
+-            if (is_a($result, 'PEAR_Error')) {
+-                return $result;
+-            }
++        $result = $this->_store($attributes);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
+         }
+-
+-        return $object_id;
++        return true;
+     }
+ 
+     /**
+@@ -1126,9 +1116,19 @@ class Turba_Driver_kolab_wrapper_new extends Turba_Driver_kolab_wrapper {
+         }
+ 
+         if ($object_key != 'uid') {
+-            return PEAR::raiseError(sprintf(_("Key for saving must be a UID not %s!"), $object_key));
++            return PEAR::raiseError(sprintf(_("Key for saving must be \'uid\' not %s!"), $object_key));
+         }
+ 
++        return $this->_store($attributes, $object_id);
++    }
++
++    /**
++     * Stores an object in the Kolab message store.
++     *
++     * @return string  The object id, possibly updated.
++     */
++    function _store($attributes, $object_id = null)
++    {
+         $group = false;
+         if (isset($attributes['__type']) && $attributes['__type'] == 'Group') {
+             $group = true;
+@@ -1139,6 +1139,14 @@ class Turba_Driver_kolab_wrapper_new extends Turba_Driver_kolab_wrapper {
+             $this->_convertMembers($attributes);
+         }
+ 
++        if (isset($attributes['photo']) && isset($attributes['phototype'])) {
++            $attributes['_attachments']['photo.attachment'] = array('type' => $attributes['phototype'],
++                                                                    'content' => $attributes['photo']);
++            $attributes['picture'] = 'photo.attachment';
++            unset($attributes['photo']);
++            unset($attributes['phototype']);
++        }
++
+         $result = $this->_store->save($attributes, $object_id);
+         if (is_a($result, 'PEAR_Error')) {
+             return $result;
+diff --git a/horde-webmail/turba/lib/Object.php b/horde-webmail/turba/lib/Object.php
+index ed7f65f..57c9368 100644
+--- a/horde-webmail/turba/lib/Object.php
++++ b/horde-webmail/turba/lib/Object.php
+@@ -249,7 +249,10 @@ class Turba_Object {
+      */
+     function addFile($info)
+     {
+-        $this->_vfsInit();
++        $result = $this->_vfsInit();
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
+ 
+         $dir = TURBA_VFS_PATH . '/' . $this->getValue('__uid');
+         $file = $info['name'];
+-- 
+tg: (ea9082a..) t/turba/HK/GW/PhotoSupport (depends on: t/framework/HK/GW/Vfs/KolabDriver)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 051c43e74fd790df114eb5a9c6aefc6f86c82d96
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Jan 31 00:14:04 2009 +0000
+
+    Added patch /turba/HK-GW-Photo_support.patch from the mercurial release queue.

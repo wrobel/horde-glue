@@ -1,0 +1,46 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Storage/HK/GW/MultipleListCaches
+
+Fix testing when authenticating twice. Using different caches
+is required in that case.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/List.php |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/List.php b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+index 6e6a16e..d7af1b2 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/List.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+@@ -107,15 +107,15 @@ class Kolab_List {
+             $list = $session->query('kolab_folderlist');
+         }
+ 
+-        if (empty($list)) {
+-            $list = new Kolab_List();
++        if (empty($list[Auth::getAuth()])) {
++            $list[Auth::getAuth()] = new Kolab_List();
+         }
+ 
+         if (!empty($GLOBALS['conf']['kolab']['imap']['cache_folders'])) {
+             register_shutdown_function(array(&$list, 'shutdown'));
+         }
+ 
+-        return $list;
++        return $list[Auth::getAuth()];
+     }
+ 
+     /**
+-- 
+tg: (017e19d..) t/Kolab_Storage/HK/GW/MultipleListCaches (depends on: t/imp/HK/GW/AuthForInvitations)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 1e071de95f289b72a7b03bbffba4e533406e2b2e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Feb 23 22:57:52 2009 +0000
+
+    Use different List caches so that we avoid problems when authenticating twice during testing.

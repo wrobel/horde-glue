@@ -1,0 +1,592 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/ListObjects
+
+Implement listing objects in the Kolab user database.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server.php        |   31 +++
+ horde-webmail/lib/Horde/Kolab/Server/Object.php |    1 +
+ horde-webmail/lib/Horde/Kolab/Server/ldap.php   |  260 +++++++++++++++++++++--
+ horde-webmail/lib/Horde/Kolab/Server/test.php   |  110 +++++++++-
+ 4 files changed, 371 insertions(+), 31 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server.php b/horde-webmail/lib/Horde/Kolab/Server.php
+index 33441d5..0d6fbd7 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server.php
++++ b/horde-webmail/lib/Horde/Kolab/Server.php
+@@ -394,4 +394,35 @@ class Horde_Kolab_Server {
+         }
+         return $dn;
+     }
++
++    /**
++     * List all objects of a specific type
++     *
++     * @param string $type   The type of the objects to be listed
++     * @param array  $params Additional parameters.
++     *
++     * @return array|PEAR_Error An array of Kolab objects.
++     */
++    function listObjects($type, $params = null)
++    {
++        if (!in_array($type, $this->valid_types)) {
++            return PEAR::raiseError(sprintf(_("Invalid Kolab object type \"%s\"."), 
++                                            $type));
++        }
++
++        return $this->_listObjects($type, $params);
++    }
++
++    /**
++     * List all objects of a specific type
++     *
++     * @param string $type   The type of the objects to be listed
++     * @param array  $params Additional parameters.
++     *
++     * @return array|PEAR_Error An array of Kolab objects.
++     */
++    function _listObjects($type, $params = null)
++    {
++        return array();
++    }
+ };
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object.php b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+index b4ae799..1d49fa7 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+@@ -32,6 +32,7 @@ define('KOLAB_ATTR_HOMESERVER',   'kolabHomeServer');
+ define('KOLAB_ATTR_IPOLICY',      'kolabInvitationPolicy');
+ define('KOLAB_ATTR_FBPAST',       'kolabFreeBusyPast');
+ define('KOLAB_ATTR_FBFUTURE',     'kolabFreeBusyFuture');
++define('KOLAB_ATTR_FOLDERTYPE',   'kolabFolderType');
+ 
+ /**
+  * This class provides methods to deal with Kolab objects stored in
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/ldap.php b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+index 9ed679f..ed5bc84 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/ldap.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+@@ -133,11 +133,12 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+      * @param string  $filter     Filter criteria.
+      * @param array   $attributes Restrict the search result to
+      *                            these attributes.
++     * @param string  $base       The base location for searching.
+      *
+      * @return array|PEAR_Error A LDAP search result.
+      */
+-    function _search($filter,
+-                     $attributes = null) {
++    function _search($filter, $attributes = null, $base = null)
++    {
+         if (!$this->_bound) {
+             $result = $this->_bind();
+             if (is_a($result, 'PEAR_Error')) {
+@@ -145,10 +146,14 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             }
+         }
+ 
++        if (empty($base)) {
++            $base = $this->_base_dn;
++        }
++
+         if (isset($attributes)) {
+-            $result = @ldap_search($this->_connection, $this->_base_dn, $filter, $attributes);
++            $result = @ldap_search($this->_connection, $base, $filter, $attributes);
+         } else {
+-            $result = @ldap_search($this->_connection, $this->_base_dn, $filter);
++            $result = @ldap_search($this->_connection, $base, $filter);
+         }
+         if (!$result && $this->_errno()) {
+             return PEAR::raiseError(sprintf(_("LDAP Error: Failed to search using filter %s. Error was: %s"),
+@@ -247,18 +252,65 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     }
+ 
+     /**
++     * Return the next entry of a result.
++     *
++     * @param resource $entry   The current LDAP entry.
++     *
++     * @return resource  The next entry of the result.
++     */
++    function _nextEntry($entry)
++    {
++        return @ldap_next_entry($this->_connection, $entry);
++    }
++
++    /**
+      * Return the entries of a result.
+      *
+      * @param resource $result   The LDAP search result.
++     * @param int      $from     Only return results after this position.
++     * @param int      $to       Only return results until this position.
+      *
+      * @return array  The entries of the result.
+      */
+-    function _getEntries($result)
++    function _getEntries($result, $from = -1, $to = -1)
+     {
++        if ($from >= 0 || $to >= 0) {
++            $result = array();
++            $i = 0;
++            for ($entry = $this->_firstEntry($result);
++                 $entry != false;
++                 $entry = $this->_nextEntry($entry)) {
++                if (!$entry  && $this->_errno()) {
++                    return false;
++                }
++                if ($i > $from && ($i <= $to || $to == -1)) {
++                    $attributes = $this->_getAttributes($entry);
++                    if (!$attributes  && $this->_errno()) {
++                        return false;
++                    }
++                    $result[] = $attributes;
++                }
++                $i++;
++            }
++            return $result;
++        }
+         return @ldap_get_entries($this->_connection, $result);
+     }
+ 
+     /**
++     * Sort the entries of a result.
++     *
++     * @param resource $result    The LDAP search result.
++     * @param string   $attribute The attribute used for sorting.
++     *
++     * @return boolean  True if sorting succeeded.
++     */
++    function _sort($result, $attribute)
++    {
++        return @ldap_sort($this->_connection, $result, $attribute);
++    }
++
++    /**
+      * Return the current LDAP error number.
+      *
+      * @return int  The current LDAP error number.
+@@ -285,15 +337,46 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+      */
+ 
+     /**
++     * Return the DNs of a result.
++     *
++     * @param resource $result   The LDAP search result.
++     * @param int      $from     Only return results after this position.
++     * @param int      $to       Only return results until this position.
++     *
++     * @return array  The DNs of the result.
++     */
++    function _getDns($result, $from = -1, $to = -1)
++    {
++        $dns = array();
++        $entry = $this->_firstEntry($result);
++        $i = 0;
++        for ($entry = $this->_firstEntry($result);
++             $entry != false;
++             $entry = $this->_nextEntry($entry)) {
++            if ($i > $from && ($i <= $to || $to == -1)) {
++                $dn = $this->_getDn($entry);
++                if (!$dn  && $this->_errno()) {
++                    return false;
++                }
++                $dns[] = $dn;
++            }
++            $i++;
++        }
++        if ($this->_errno()) {
++            return false;
++        }
++        return $dns;
++    }
++
++    /**
+      * Identify the DN of the first result entry.
+      *
+-     * @param array $result The LDAP search result.
++     * @param array $result   The LDAP search result.
+      * @param int   $restrict A KOLAB_SERVER_RESULT_* result restriction.
+      *
+      * @return string|PEAR_Error The DN.
+      */
+-    function _dnFromResult($result,
+-                           $restrict = KOLAB_SERVER_RESULT_SINGLE)
++    function _dnFromResult($result, $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+         switch ($restrict) {
+         case KOLAB_SERVER_RESULT_STRICT:
+@@ -320,20 +403,15 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             }
+             return $dn;
+         case KOLAB_SERVER_RESULT_MANY:
+-            $entries = $this->_getEntries($result);
+-            if (!$entries) {
+-                return false;
+-            }
++            $entries = $this->_getDns($result);
+             if (!$entries  && $this->_errno()) {
+                 return PEAR::raiseError(sprintf(_("Search failed. Error was: %s"),
+                                                 $this->_error()));
+             }
+-            unset($entries['count']);
+-            $result = array();
+-            foreach ($entries as $entry) {
+-                $result[] = $entry['dn'];
++            if (!$entries) {
++                return false;
+             }
+-            return $result;
++            return $entries;
+         }
+         return false;
+     }
+@@ -387,13 +465,13 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             return $result;
+         case KOLAB_SERVER_RESULT_MANY:
+             $entries = $this->_getEntries($result);
+-            if (!$entries) {
+-                return false;
+-            }
+             if (!$entries  && $this->_errno()) {
+                 return PEAR::raiseError(sprintf(_("Search failed. Error was: %s"),
+                                                 $this->_error()));
+             }
++            if (!$entries) {
++                return false;
++            }
+             unset($entries['count']);
+             $result = array();
+             $i = 0;
+@@ -677,4 +755,146 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         }
+         return $result;
+     }
++
++    /**
++     * List all objects of a specific type
++     *
++     * @param string $type   The type of the objects to be listed
++     * @param array  $params Additional parameters.
++     *
++     * @return array|PEAR_Error An array of Kolab objects.
++     */
++    function _listObjects($type, $params = null)
++    {
++        if (empty($params['base_dn'])) {
++            $base = $this->_base_dn;
++        } else {
++            $base = $params['base_dn'];
++        }
++
++        switch ($type) {
++        case KOLAB_OBJECT_USER:
++            $filter = '(&(objectClass=kolabInetOrgPerson)(uid=*)(mail=*)(sn=*))';
++            $attributes = array(
++                KOLAB_ATTR_SN,
++                KOLAB_ATTR_CN,
++                KOLAB_ATTR_UID,
++                KOLAB_ATTR_MAIL,
++                KOLAB_ATTR_DELETED,
++            );
++            $sort = KOLAB_ATTR_SN;
++            break;
++        case KOLAB_OBJECT_ADDRESS:
++            $filter = '(&(objectClass=inetOrgPerson)(!(uid=*))(sn=*))';
++            $attributes = array(
++                KOLAB_ATTR_SN,
++                KOLAB_ATTR_CN,
++                KOLAB_ATTR_MAIL,
++                KOLAB_ATTR_DELETED,
++            );
++            $sort = KOLAB_ATTR_SN;
++            break;
++        case KOLAB_OBJECT_ADMINISTRATOR:
++            $filter = '(&(cn=*)(objectClass=inetOrgPerson)(uid=*)(sn=*))';
++            $attributes = array(
++                KOLAB_ATTR_SN,
++                KOLAB_ATTR_CN,
++                KOLAB_ATTR_UID,
++                KOLAB_ATTR_DELETED,
++            );
++            $sort = KOLAB_ATTR_SN;
++            break;
++        case KOLAB_OBJECT_DOMAINMAINTAINER:
++            $filter = '(&(cn=*)(objectClass=kolabInetOrgPerson)(!(uid=manager))(sn=*))';
++            $attributes = array(
++                KOLAB_ATTR_SN,
++                KOLAB_ATTR_CN,
++                KOLAB_ATTR_UID,
++                KOLAB_ATTR_DELETED,
++            );
++            $sort = KOLAB_ATTR_SN;
++            break;
++        case KOLAB_OBJECT_GROUP:
++            $filter = '(&(!(cn=domains))(objectClass=kolabGroupOfNames))';
++            $attributes = array(
++                KOLAB_ATTR_CN,
++                KOLAB_ATTR_MAIL,
++                KOLAB_ATTR_DELETED,
++            );
++            $sort = KOLAB_ATTR_CN;
++            break;
++        case KOLAB_OBJECT_MAINTAINER:
++            $filter = '(&(cn=*)(objectClass=inetOrgPerson)(!(uid=manager))(sn=*))';
++            $attributes = array(
++                KOLAB_ATTR_SN,
++                KOLAB_ATTR_CN,
++                KOLAB_ATTR_UID,
++                KOLAB_ATTR_DELETED,
++            );
++            $sort = KOLAB_ATTR_SN;
++            break;
++        case KOLAB_OBJECT_SHAREDFOLDER:
++            $filter = '(objectClass=kolabSharedFolder)';
++            $attributes = array(
++                KOLAB_ATTR_CN,
++                KOLAB_ATTR_DELETED,
++                KOLAB_ATTR_FOLDERTYPE,
++            );
++            $sort = KOLAB_ATTR_CN;
++            break;
++        case KOLAB_OBJECT_SERVER:
++            $filter = '(&((k=kolab))(objectClass=kolab))';
++            $attributes = false;
++            $sort = false;
++            break;
++        }
++
++        if (isset($params['attributes'])) {
++            $attributes = $params['attributes'];
++        }
++
++        if (isset($params['sort'])) {
++            $sort = $params['sort'];
++        }
++
++        $result = $this->_search($filter, $attributes, $base);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++
++        if ($sort) {
++            $this->_sort($result, $sort);
++        }
++
++        if (isset($params['from'])) {
++            $from = $params['from'];
++        } else {
++            $from = -1;
++        }
++
++        if (isset($params['to'])) {
++            $sort = $params['to'];
++        } else {
++            $to = -1;
++        }
++
++        $entries = $this->_getDns($result, $from, $to);
++        if (!$entries  && $this->_errno()) {
++            return PEAR::raiseError(sprintf(_("Search failed. Error was: %s"),
++                                            $this->_error()));
++        }
++        if (!$entries) {
++            return false;
++        }
++
++        $objects = array();
++        foreach ($entries as $dn) {
++            $result = $this->fetch($dn, $type);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++            $objects[] = $result;
++        }
++        return $objects;
++    }
+ }
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/test.php b/horde-webmail/lib/Horde/Kolab/Server/test.php
+index 94945e0..d4ece0d 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/test.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/test.php
+@@ -47,6 +47,27 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     var $_error = '';
+ 
+     /**
++     * Attribute used for sorting.
++     *
++     * @var string
++     */
++    var $_sort_by;
++
++    /**
++     * A result cache for iterating over the result.
++     *
++     * @var array
++     */
++    var $_current_result;
++
++    /**
++     * An index into the current result for iterating.
++     *
++     * @var int
++     */
++    var $_current_index;
++
++    /**
+      * Parse LDAP filter.
+      * Partially derived from Net_LDAP_Filter.
+      *
+@@ -126,7 +147,7 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+      *
+      * @return array|PEAR_Error A LDAP serach result.
+      */
+-    function _search($filter, $attributes = null) {
++    function _search($filter, $attributes = null, $base = null) {
+         $filter = $this->_parse($filter);
+         if (is_a($filter, 'PEAR_Error')) {
+             return $filter;
+@@ -135,6 +156,16 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+         if (empty($result)) {
+             return null;
+         }
++        if ($base) {
++            $subtree = array();
++            foreach ($result as $entry) {
++                if (strpos($entry['dn'], $base)) {
++                    $subtree[] = $entry;
++                }
++            }
++            $result = $subtree;
++        }
++
+         return $result;
+     }
+ 
+@@ -156,7 +187,7 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+                     switch ($filter['log']) {
+                     case '=':
+                         $value = $element['data'][$filter['att']];
+-                        if ($value == $filter['val']
++                        if ($filter['val'] == '*' || $value == $filter['val']
+                             || (is_array($value)
+                                 && in_array($filter['val'], $value))) {
+                             if (empty($attributes)) {
+@@ -290,32 +321,58 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     }
+ 
+     /**
+-     * Return the first entry of a result.
+-     *
+-     * @param array $result   The LDAP search result.
++     * Return the current entry of a result.
+      *
+-     * @return mixe  The first entry of the result or false.
++     * @return mixe  The current entry of the result or false.
+      */
+-    function _firstEntry($result)
++    function _fetchEntry()
+     {
+-        if (is_array($result)) {
+-            $data = array_keys($result[0]['data']);
++        if (is_array($this->_current_result)
++            && $this->_current_index < count($this->_current_result)) {
++            $data = array_keys($this->_current_result[$this->_current_index]['data']);
+             $data['count'] = 1;
+-            $data['dn'] = array($result[0]['dn']);
++            $data['dn'] = array($this->_current_result[$this->_current_index]['dn']);
+             $data['dn']['count'] = 1;
+-            foreach ($result[0]['data'] as $attr => $value) {
++            foreach ($this->_current_result[$this->_current_index]['data'] as $attr => $value) {
+                 if (!is_array($value)) {
+                     $value = array($value);
+                 }
+                 $data[$attr] = $value;
+                 $data[$attr]['count'] = count($value);
+             }
++            $this->_current_index++;
+             return $data;
+         }
+         return false;
+     }
+ 
+     /**
++     * Return the first entry of a result.
++     *
++     * @param array $result   The LDAP search result.
++     *
++     * @return mixe  The first entry of the result or false.
++     */
++    function _firstEntry($result)
++    {
++        $this->_current_result = $result;
++        $this->_current_index = 0;
++        return $this->_fetchEntry();
++    }
++
++    /**
++     * Return the next entry of a result.
++     *
++     * @param resource $entry   The current LDAP entry.
++     *
++     * @return resource  The next entry of the result.
++     */
++    function _nextEntry($entry)
++    {
++        return $this->_fetchEntry();
++    }
++
++    /**
+      * Return the entries of a result.
+      *
+      * @param array $result   The LDAP search result.
+@@ -338,6 +395,37 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+     }
+ 
+     /**
++     * Sort the entries of a result.
++     *
++     * @param resource $result    The LDAP search result.
++     * @param string   $attribute The attribute used for sorting.
++     *
++     * @return boolean  True if sorting succeeded.
++     */
++    function _sort(&$result, $attribute)
++    {
++        $this->_sort_by = $attribute;
++        usort($result, array($this, '_resultSort'));
++        return false;
++    }
++
++    /**
++     * Sort two entries.
++     *
++     * @param array $a First entry.
++     * @param array $b Second entry.
++     *
++     * @return int  Comparison result.
++     */
++    function _resultSort($a, $b)
++    {
++        $x = isset($a['data'][$this->_sort_by][0])?$a['data'][$this->_sort_by][0]:'';
++        $y = isset($b['data'][$this->_sort_by][0])?$b['data'][$this->_sort_by][0]:'';
++        return strcasecmp($x, $y);
++    }
++
++
++    /**
+      * Return the current LDAP error number.
+      *
+      * @return int  The current LDAP error number.
+-- 
+tg: (53715c4..) t/framework/HK/GW/Kolab_Server/ListObjects (depends on: t/framework/HK/GW/Kolab_Storage/Restructuring_Fixes)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 25572367d02bd92e5e9c2e329695bd780851d67e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 22:45:52 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Server-ListObjects.patch from the mercurial release queue.

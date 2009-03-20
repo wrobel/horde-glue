@@ -1,0 +1,296 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Storgae/FixedUpdateTriggering
+
+Complete/fix the triggering when updating folders.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |  143 +++++++++++++++++-----
+ 1 files changed, 110 insertions(+), 33 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index ddcfbe8..64a438b 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -110,6 +110,13 @@ class Kolab_Folder {
+     var $_owner;
+ 
+     /**
++     * The pure folder.
++     *
++     * @var string
++     */
++    var $_subpath;
++
++    /**
+      * Additional Horde folder attributes.
+      *
+      * @var array
+@@ -330,23 +337,15 @@ class Kolab_Folder {
+ 
+                 $result = $this->trigger();
+                 if (is_a($result, 'PEAR_Error')) {
+-                    Horde::logMessage(sprintf('Failed triggering folder %s!',
+-                                              $this->name),
+-                                      __FILE__, __LINE__, PEAR_LOG_ERR);
+-                }
+-
+-                $this->name = $this->new_name;
+-
+-                $result = $this->trigger();
+-                if (is_a($result, 'PEAR_Error')) {
+-                    Horde::logMessage(sprintf('Failed triggering folder %s!',
+-                                              $this->name),
++                    Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
++                                              $this->name, $result->getMessage()),
+                                       __FILE__, __LINE__, PEAR_LOG_ERR);
+                 }
+ 
++                $this->name     = $this->new_name;
+                 $this->new_name = null;
+-                $this->_title = null;
+-                $this->_owner = null;
++                $this->_title   = null;
++                $this->_owner   = null;
+             }
+         }
+ 
+@@ -400,6 +399,14 @@ class Kolab_Folder {
+             }
+             $this->_attributes = $attributes;
+         }
++
++        $result = $this->trigger();
++        if (is_a($result, 'PEAR_Error')) {
++            Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
++                                      $this->name, $result->getMessage()),
++                              __FILE__, __LINE__, PEAR_LOG_ERR);
++        }
++
+         return true;
+     }
+ 
+@@ -417,8 +424,8 @@ class Kolab_Folder {
+ 
+         $result = $this->trigger();
+         if (is_a($result, 'PEAR_Error')) {
+-            Horde::logMessage(sprintf('Failed triggering folder %s!',
+-                                      $this->name),
++            Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
++                                      $this->name, $result->getMessage()),
+                               __FILE__, __LINE__, PEAR_LOG_ERR);
+         }
+ 
+@@ -443,6 +450,8 @@ class Kolab_Folder {
+                 return PEAR::raiseError(sprintf(_("Owner of folder %s cannot be determined."), $name));
+             }
+ 
++            $this->_subpath = $matches[3];
++
+             if (substr($matches[1], 0, 6) == 'INBOX/') {
+                 $this->_owner = Auth::getAuth();
+             } elseif (substr($matches[1], 0, 5) == 'user/') {
+@@ -457,6 +466,30 @@ class Kolab_Folder {
+     }
+ 
+     /**
++     * Returns the subpath of the folder.
++     *
++     * @return string|PEAR_Error  The subpath of this folder.
++     */
++    function getSubpath()
++    {
++        if (!isset($this->_subpath)) {
++            if (!isset($this->name) && isset($this->new_name)) {
++                $name = $this->new_name;
++            } else {
++                $name = $this->name;
++            }
++
++            if (!preg_match(";(shared\.|INBOX[/]?|user/([^/]+)[/]?)([^@]*)(@.*)?;", $name, $matches)) {
++                return PEAR::raiseError(sprintf(_("Subpath of folder %s cannot be determined."), $name));
++            }
++
++            $this->_subpath = $matches[3];
++
++        }
++        return $this->_subpath;
++    }
++
++    /**
+      * Returns a readable title for this folder.
+      *
+      * @return string  The folder title.
+@@ -684,8 +717,8 @@ class Kolab_Folder {
+         if ($trigger) {
+             $result = $this->trigger();
+             if (is_a($result, 'PEAR_Error')) {
+-                Horde::logMessage(sprintf('Failed triggering folder %s!',
+-                                          $this->name),
++                Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
++                                          $this->name, $result->getMessage()),
+                                   __FILE__, __LINE__, PEAR_LOG_ERR);
+             }
+         }
+@@ -727,8 +760,8 @@ class Kolab_Folder {
+ 
+         $result = $this->trigger();
+         if (is_a($result, 'PEAR_Error')) {
+-            Horde::logMessage(sprintf('Failed triggering folder %s!',
+-                                      $this->name),
++            Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
++                                      $this->name, $result->getMessage()),
+                               __FILE__, __LINE__, PEAR_LOG_ERR);
+         }
+ 
+@@ -753,10 +786,10 @@ class Kolab_Folder {
+ 
+         $success = $this->moveMessage($id, $folder->name);
+ 
+-        $result = $folder->trigger();
++        $result = $this->trigger();
+         if (is_a($result, 'PEAR_Error')) {
+-            Horde::logMessage(sprintf('Failed triggering folder %s!',
+-                                      $this->name),
++            Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
++                                      $this->name, $result->getMessage()),
+                               __FILE__, __LINE__, PEAR_LOG_ERR);
+         }
+         return $success;
+@@ -870,7 +903,7 @@ class Kolab_Folder {
+                                 }
+                                 $mime_message->_generateIdMap($mime_message->_parts);
+                             }
+-                        }                        
++                        }
+                     }
+                 }
+             }
+@@ -991,8 +1024,8 @@ class Kolab_Folder {
+ 
+         $result = $this->trigger();
+         if (is_a($result, 'PEAR_Error')) {
+-            Horde::logMessage(sprintf('Failed triggering folder %s!',
+-                                      $this->name),
++            Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
++                                      $this->name, $result->getMessage()),
+                               __FILE__, __LINE__, PEAR_LOG_ERR);
+         }
+ 
+@@ -1142,17 +1175,38 @@ class Kolab_Folder {
+             return $owner;
+         }
+ 
++        $subpath = $this->getSubpath();
++        if (is_a($subpath, 'PEAR_Error')) {
++            return $subpath;
++        }
++
+         switch($type) {
+         case 'event':
+             $session = &Horde_Kolab_Session::singleton();
+             $url = sprintf('%s/trigger/%s/%s.pfb',
+-                           $session->freebusy_server, $owner, $this->name);
++                           $session->freebusy_server, $owner, $subpath);
+             break;
+         default:
+             return true;
+         }
+ 
+-        // now start the request
++        $result = $this->triggerUrl($url);
++        if (is_a($result, 'PEAR_Error')) {
++            return PEAR::raiseError(sprintf(_("Failed triggering folder %s. Error was: %s"),
++                                            $this->name, $result->getMessage()));
++        }
++        return $result;
++    }
++
++    /**
++     * Triggers a URL.
++     *
++     * @param string $url The URL to be triggered.
++     *
++     * @return boolean|PEAR_Error True if successfull.
++     */
++    function triggerUrl($url)
++    {
+         $options['method'] = 'GET';
+         $options['timeout'] = 5;
+         $options['allowRedirects'] = true;
+@@ -1166,10 +1220,9 @@ class Kolab_Folder {
+         $http->setBasicAuth(Auth::getAuth(), Auth::getCredential('password'));
+         @$http->sendRequest();
+         if ($http->getResponseCode() != 200) {
+-            return PEAR::raiseError(sprintf(_("Unable to trigger free/busy update for folder %s on URL %s"),
+-                                            $this->name, $url));
++            return PEAR::raiseError(sprintf(_("Unable to trigger URL %s. Response: %s"),
++                                            $url, $http->getResponseCode()));
+         }
+-
+         return true;
+     }
+ 
+@@ -1315,7 +1368,19 @@ class Kolab_Folder {
+             return true;
+         }
+ 
+-        return $imap->setACL($this->name, $user, $acl);
++        $iresult = $imap->setACL($this->name, $user, $acl);
++        if (is_a($iresult, 'PEAR_Error')) {
++            return $iresult;
++        }
++
++        $result = $this->trigger();
++        if (is_a($result, 'PEAR_Error')) {
++            Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
++                                      $this->name, $result->getMessage()),
++                              __FILE__, __LINE__, PEAR_LOG_ERR);
++        }
++
++        return $iresult;
+     }
+ 
+     /**
+@@ -1339,7 +1404,19 @@ class Kolab_Folder {
+             return true;
+         }
+ 
+-        return $imap->deleteACL($this->name, $user);
++        $iresult = $imap->deleteACL($this->name, $user);
++        if (is_a($iresult, 'PEAR_Error')) {
++            return $iresult;
++        }
++
++        $result = $this->trigger();
++        if (is_a($result, 'PEAR_Error')) {
++            Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
++                                      $this->name, $result->getMessage()),
++                              __FILE__, __LINE__, PEAR_LOG_ERR);
++        }
++
++        return $iresult;
+     }
+ 
+ 
+@@ -1349,7 +1426,7 @@ class Kolab_Folder {
+      *
+      * @return array|PEAR_Error  The anotations of this folder.
+      */
+-    function _getAnnotationData() 
++    function _getAnnotationData()
+     {
+         $this->_annotation_data = $this->getData('annotation');
+     }
+-- 
+tg: (2cf9df2..) t/framework/HK/GW/Kolab_Storgae/FixedUpdateTriggering (depends on: t/framework/HK/GW/Kolab_Server/ImprovedServerFallbacks)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 18952be0440a4f12a6ea15bb4683f13d1cc9f061
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 16:18:48 2009 +0000
+
+    Added patch framework/HK-GW-Kolab_Storage-Trigger_fix.patch from the mercurial release queue.

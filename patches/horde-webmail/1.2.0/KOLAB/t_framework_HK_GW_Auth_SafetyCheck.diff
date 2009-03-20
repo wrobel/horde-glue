@@ -1,0 +1,35 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Auth/SafetyCheck
+
+A tiny safety check.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Auth/kolab.php |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Auth/kolab.php b/horde-webmail/lib/Horde/Auth/kolab.php
+index b790c1e..ae846c8 100644
+--- a/horde-webmail/lib/Horde/Auth/kolab.php
++++ b/horde-webmail/lib/Horde/Auth/kolab.php
+@@ -60,7 +60,7 @@ class Auth_kolab extends Auth {
+             return false;
+         }
+ 
+-        if ($conf['auth']['params']['login_block'] != 1) {
++        if (!isset($conf['auth']['params']) || $conf['auth']['params']['login_block'] != 1) {
+             // Return if feature is disabled.
+             return $session->auth;
+         }
+-- 
+tg: (a71d158..) t/framework/HK/GW/Auth/SafetyCheck (depends on: t/framework/HK/GW/Kolab/MoveIMAP)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 1b1b2443155c09a313726728cc3eda6dc01b3bb6
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 23:33:46 2009 +0000
+
+    Added patch /release/HK-GW-Kolab_Freebusy-Use_new_Kolab_Server.patch from the mercurial release queue.

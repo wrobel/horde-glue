@@ -1,0 +1,110 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Prefs_KolabImapApplicationTag
+
+Switches from the "categories" tag in the Kolab IMAP preferences
+driver to the new "application" tag.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ .../lib/Horde/Kolab/Format/XML/hprefs.php          |   48 ++++++++++++++++++++
+ horde-webmail/lib/Horde/Prefs/kolab_imap.php       |    4 +-
+ 2 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML/hprefs.php b/horde-webmail/lib/Horde/Kolab/Format/XML/hprefs.php
+index e646ad6..22a94bc 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML/hprefs.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML/hprefs.php
+@@ -46,6 +46,10 @@ class Horde_Kolab_Format_XML_hprefs extends Horde_Kolab_Format_XML {
+         /** Specific preferences fields, in kolab format specification order
+          */
+         $this->_fields_specific = array(
++            'application' => array (
++                'type'    => HORDE_KOLAB_XML_TYPE_STRING,
++                'value'   => HORDE_KOLAB_XML_VALUE_MAYBE_MISSING,
++            ),
+             'pref' => array(
+                 'type'    => HORDE_KOLAB_XML_TYPE_MULTIPLE,
+                 'value'   => HORDE_KOLAB_XML_VALUE_MAYBE_MISSING,
+@@ -58,4 +62,48 @@ class Horde_Kolab_Format_XML_hprefs extends Horde_Kolab_Format_XML {
+ 
+         parent::Horde_Kolab_Format_XML();
+     }
++
++    /**
++     * Load an object based on the given XML string.
++     *
++     * @param string $xmltext  The XML of the message as string.
++     *
++     * @return array|PEAR_Error The data array representing the object.
++     */
++    function load(&$xmltext)
++    {
++        $object = parent::load($xmltext);
++
++        if (empty($object['application'])) {
++            if (!empty($object['categories'])) {
++                $object['application'] = $object['categories'];
++                unset($object['categories']);
++            } else {
++                return PEAR::raiseError('Preferences XML object is missing an application setting.');
++            }
++        }
++
++        return $object;
++    }
++
++    /**
++     * Convert the data to a XML string.
++     *
++     * @param array $attributes  The data array representing the note.
++     *
++     * @return string|PEAR_Error The data as XML string.
++     */
++    function save($object)
++    {
++        if (empty($object['application'])) {
++            if (!empty($object['categories'])) {
++                $object['application'] = $object['categories'];
++                unset($object['categories']);
++            } else {
++                return PEAR::raiseError('Preferences XML object is missing an application setting.');
++            }
++        }
++
++        return parent::save($object);
++    }
+ }
+diff --git a/horde-webmail/lib/Horde/Prefs/kolab_imap.php b/horde-webmail/lib/Horde/Prefs/kolab_imap.php
+index db332c6..4a24e6a 100644
+--- a/horde-webmail/lib/Horde/Prefs/kolab_imap.php
++++ b/horde-webmail/lib/Horde/Prefs/kolab_imap.php
+@@ -163,7 +163,7 @@ class Prefs_kolab_imap extends Prefs {
+         }
+ 
+         foreach ($prefs as $pref) {
+-            if ($pref['categories'] == $scope) {
++            if ($pref['application'] == $scope) {
+                 return $pref;
+             }
+         }
+@@ -218,7 +218,7 @@ class Prefs_kolab_imap extends Prefs {
+             }
+ 
+             $object = array('uid' => $prefs_uid,
+-                            'categories' => $scope,
++                            'application' => $scope,
+                             'pref' => $new_values);
+ 
+             $result = $this->_connection->_storage->save($object, $old_uid);
+-- 
+tg: (6938161..) t/framework/HK/GW/Prefs_KolabImapApplicationTag (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 68891b53f52ce54e318990731b1e6c7ecb5d3544
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Thu Jan 29 22:07:23 2009 +0000
+
+    Added patch release/HK-GW-Prefs-KolabImapApplicationTag.patch from the mercurial release queue.

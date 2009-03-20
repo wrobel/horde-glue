@@ -1,0 +1,87 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/RequireIMAP
+
+Add missing requires.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab.php         |    7 +++++++
+ horde-webmail/lib/Horde/Kolab/Session.php |   19 ++++++++++++++++---
+ 2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab.php b/horde-webmail/lib/Horde/Kolab.php
+index 9ed8949..2ec113d 100644
+--- a/horde-webmail/lib/Horde/Kolab.php
++++ b/horde-webmail/lib/Horde/Kolab.php
+@@ -805,4 +805,11 @@ class Kolab {
+             return '';
+         }
+     }
++
++    /**
++     * @deprecated
++     */
++    function triggerFreeBusyUpdate()
++    {
++    }
+ }
+diff --git a/horde-webmail/lib/Horde/Kolab/Session.php b/horde-webmail/lib/Horde/Kolab/Session.php
+index fa58066..d7c56d8 100644
+--- a/horde-webmail/lib/Horde/Kolab/Session.php
++++ b/horde-webmail/lib/Horde/Kolab/Session.php
+@@ -192,6 +192,19 @@ class Horde_Kolab_Session {
+     }
+ 
+     /**
++     * Returns the properties that need to be serialized.
++     *
++     * @return array  List of serializable properties.
++     */
++    function __sleep()
++    {
++        $properties = get_object_vars($this);
++        unset($properties['_imap']);
++        $properties = array_keys($properties);
++        return $properties;
++    }
++
++    /**
+      * Get the Kolab Server connection.
+      *
+      * @param string $user        The session will be setup for the user with
+@@ -238,14 +251,14 @@ class Horde_Kolab_Session {
+     {
+         if (!isset($this->_imap)) {
+ 
++            /** We need the Kolab IMAP library now. */
++            require_once 'Horde/Kolab/IMAP.php';
++
+             $params = $this->getImapParams();
+             if (is_a($params, 'PEAR_Error')) {
+                 return $params;
+             }
+ 
+-            /** We need the Kolab IMAP library now. */
+-            require_once 'Horde/Kolab/IMAP.php';
+-
+             $imap = &Horde_Kolab_IMAP::singleton($params['hostspec'],
+                                                  $params['port'], true, false);
+             if (is_a($imap, 'PEAR_Error')) {
+-- 
+tg: (d4fffeb..) t/framework/HK/GW/Kolab_Server/RequireIMAP (depends on: t/framework/HK/GW/Auth/SafetyCheck)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit d0f864a8b75a23948f9b85032773a95ba81fd96e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Feb 1 23:32:59 2009 +0000
+
+    Removed patch remains.
+
+commit c788193b98fbbceb373fa2c5f61306a53a5d2e05
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 23:58:08 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Storage-Require_IMAP.patch from the mercurial release queue.

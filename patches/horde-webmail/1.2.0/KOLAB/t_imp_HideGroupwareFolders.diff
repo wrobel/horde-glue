@@ -1,0 +1,147 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/imp/HideGroupwareFolders
+
+Hides special Kolab groupware folders.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/imp/config/conf.xml       |    4 +++
+ horde-webmail/imp/config/hooks.php.dist |   11 +++++++-
+ horde-webmail/imp/lib/IMAP/Tree.php     |   40 ++++++++++++++++++++++++++++--
+ 3 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/horde-webmail/imp/config/conf.xml b/horde-webmail/imp/config/conf.xml
+index 9be5108..517556e 100644
+--- a/horde-webmail/imp/config/conf.xml
++++ b/horde-webmail/imp/config/conf.xml
+@@ -445,6 +445,10 @@
+    a custom function to provide additional information/custom formatting of
+    messages in the mailbox message list? If so, make sure you define
+    _imp_hook_msglist_format() in hooks.php.">false</configboolean>
++   <configboolean name="display_folder" required="false" desc="Should we use a 
++   custom function to dynamically determine if we show a specified folder?
++   If so, make sure you define _imp_hook_display_folder() in 
++   hooks.php.">false</configboolean>
+   </configsection>
+  </configtab>
+ 
+diff --git a/horde-webmail/imp/config/hooks.php.dist b/horde-webmail/imp/config/hooks.php.dist
+index 98e429e..f690ef5 100644
+--- a/horde-webmail/imp/config/hooks.php.dist
++++ b/horde-webmail/imp/config/hooks.php.dist
+@@ -426,7 +426,7 @@ if (!empty($GLOBALS['conf']['kolab']['enabled'])) {
+             case 'contact':
+                 return $GLOBALS['registry']->get('webroot', 'turba');
+ 
+-            case 'prefs':
++            case 'h-prefs':
+                 return $GLOBALS['registry']->get('webroot', 'horde') . '/services/prefs.php?app=horde';
+ 
+             default:
+@@ -480,7 +480,7 @@ if (!empty($GLOBALS['conf']['kolab']['enabled'])) {
+                     );
+                     break;
+ 
+-                case 'prefs':
++                case 'h-prefs':
+                     $icons[$name] = array(
+                         'icon' => 'prefs.png',
+                         'icondir' => $GLOBALS['registry']->getImageDir('horde'),
+@@ -493,6 +493,13 @@ if (!empty($GLOBALS['conf']['kolab']['enabled'])) {
+             return $icons;
+         }
+     }
++    if (!function_exists('_imp_hook_display_folder')) {
++        function _imp_hook_display_folder($mailbox)
++        {
++            $type = Kolab::getMailboxType($mailbox);
++            return empty($type) || $type == 'mail';
++        }
++    }
+ }
+ 
+ // Sample function for returning the quota. Uses the PECL ssh2
+diff --git a/horde-webmail/imp/lib/IMAP/Tree.php b/horde-webmail/imp/lib/IMAP/Tree.php
+index ce69fe8..e249c1c 100644
+--- a/horde-webmail/imp/lib/IMAP/Tree.php
++++ b/horde-webmail/imp/lib/IMAP/Tree.php
+@@ -32,6 +32,7 @@ define('IMPTREE_ELT_IS_POLLED', 32);
+ define('IMPTREE_ELT_NEED_SORT', 64);
+ define('IMPTREE_ELT_VFOLDER', 128);
+ define('IMPTREE_ELT_NONIMAP', 256);
++define('IMPTREE_ELT_INVISIBLE', 512);
+ 
+ /* The isOpen() expanded mode constants. */
+ define('IMPTREE_OPEN_NONE', 0);
+@@ -395,6 +396,13 @@ class IMP_Tree {
+         /* Convert 'INBOX' to localized name. */
+         $elt['l'] = ($elt['v'] == 'INBOX') ? _("Inbox") : String::convertCharset($tmp[$elt['c']], 'UTF7-IMAP');
+ 
++        if (!empty($GLOBALS['conf']['hooks']['display_folder'])) {
++            if (!Horde::callHook('_imp_hook_display_folder', array($elt['v']),
++                                 'imp')) {
++                $this->_setInvisible($elt, true);
++            }
++        }
++
+         if ($_SESSION['imp']['base_protocol'] != 'pop3') {
+             if ($elt['c'] != 0) {
+                 $elt['p'] = implode(is_null($ns_info) ? $this->_delimiter : $ns_info['delimiter'], array_slice($tmp, 0, $elt['c']));
+@@ -1274,6 +1282,31 @@ class IMP_Tree {
+     }
+ 
+     /**
++     * Set the invisible attribute for an element.
++     *
++     * @access private
++     *
++     * @param array &$elt    A tree element.
++     * @param boolean $bool  The setting.
++     */
++    function _setInvisible(&$elt, $bool)
++    {
++        $this->_setAttribute($elt, IMPTREE_ELT_INVISIBLE, $bool);
++    }
++
++    /**
++     * Is the element invisible?
++     *
++     * @param array $elt  A tree element.
++     *
++     * @return integer  True if the element is invisible.
++     */
++    function isInvisible($elt)
++    {
++        return $elt['a'] & IMPTREE_ELT_INVISIBLE;
++    }
++
++    /**
+      * Flag the element as needing its children to be sorted.
+      *
+      * @access private
+@@ -1441,9 +1474,10 @@ class IMP_Tree {
+      */
+     function _activeElt($elt)
+     {
+-        return ($this->_showunsub ||
+-                ($this->isSubscribed($elt) && !$this->isContainer($elt)) ||
+-                $this->hasChildren($elt));
++        return (!$this->isInvisible($elt) &&
++                ($this->_showunsub || 
++                 ($this->isSubscribed($elt) && !$this->isContainer($elt)) ||
++                 $this->hasChildren($elt)));
+     }
+ 
+     /**
+-- 
+tg: (6938161..) t/imp/HideGroupwareFolders (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 1614756bd145f6c129efc989a7b52e8a3e5e3e61
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Thu Feb 5 22:07:03 2009 +0000
+
+    Added patch imp/HK-MP-Hide_groupware_folders.patch from the mercurial patch queue.

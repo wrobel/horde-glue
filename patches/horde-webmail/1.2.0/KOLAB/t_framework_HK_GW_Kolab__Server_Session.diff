@@ -1,0 +1,274 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/framework/HK/GW/Kolab_Server/Session
+
+Adds the Kolab Session handler.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Session.php |  246 +++++++++++++++++++++++++++++
+ 1 files changed, 246 insertions(+), 0 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Session.php b/horde-webmail/lib/Horde/Kolab/Session.php
+new file mode 100644
+index 0000000..83e4ec1
+--- /dev/null
++++ b/horde-webmail/lib/Horde/Kolab/Session.php
+@@ -0,0 +1,246 @@
++<?php
++/**
++ * @package Kolab_Server
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Session.php,v 1.4 2008/09/22 16:15:51 wrobel Exp $
++ */
++
++/** We need the Auth library */
++require_once 'Horde/Auth.php';
++
++/**
++ * The Horde_Kolab_Session class holds additional user details for the current
++ * session.
++ *
++ * The core user credentials (login, pass) are kept within the Auth module and
++ * can be retrieved using <code>Auth::getAuth()</code> respectively
++ * <code>Auth::getCredential('password')</code>. Any additional Kolab user data
++ * relevant for the user session should be accessed via the Horde_Kolab_Session
++ * class.
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Session.php,v 1.4 2008/09/22 16:15:51 wrobel Exp $
++ *
++ * Copyright 2008 The Horde Project (http://www.horde.org/)
++ *
++ * See the enclosed file COPYING for license information (LGPL). If you
++ * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ *
++ * @author  Gunnar Wrobel <wrobel@pardus.de>
++ * @package Kolab_Server
++ */
++class Horde_Kolab_Session {
++
++    /**
++     * User ID.
++     *
++     * @var string
++     */
++    var $user_id;
++
++    /**
++     * Primary user mail address.
++     *
++     * @var string
++     */
++    var $user_mail;
++
++    /**
++     * The connection parameters for the IMAP server.
++     *
++     * @var array|PEAR_Error
++     */
++    var $_imap_params;
++
++    /**
++     * The free/busy server for the current user.
++     *
++     * @var array|PEAR_Error
++     */
++    var $freebusy_server;
++
++    /**
++     * Constructor.
++     *
++     * @param string $user The session will be setup for the user with this ID.
++     */
++    function Horde_Kolab_Session($user = null)
++    {
++        global $conf;
++
++        if (empty($user)) {
++            $user = Auth::getAuth();
++            if (empty($user)) {
++                $user = 'anonymous';
++            } else if (!strpos($user, '@')) {
++                $user = $user . '@' . (!empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost');
++            }
++        }
++
++        $this->user_id = $user;
++        $this->_imap_params = array();
++
++        $user_object = $this->_fetchUser($user);
++        if (!is_a($user_object, 'PEAR_Error')) {
++            $result = $user_object->get(KOLAB_ATTR_MAIL);
++            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
++                $this->user_mail = $result;
++            }
++
++            $result = $user_object->get(KOLAB_ATTR_UID);
++            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
++                $this->user_id = $result;
++            }
++
++            $result = $user_object->getServer('imap');
++            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
++                $server = explode(':', $result, 2);
++                if (!empty($server[0])) {
++                    $this->_imap_params['hostspec'] = $server[0];
++                }
++                if (!empty($server[1])) {
++                    $this->_imap_params['port'] = $server[1];
++                }
++            }
++
++            $result = $user_object->getServer('freebusy');
++            if (!empty($result) && !is_a($result, 'PEAR_Error')) {
++                $this->freebusy_server = $result;
++            }
++        }
++
++        if (empty($conf['kolab']['imap']['allow_special_users'])
++            && (is_a($user_object, 'PEAR_Error')
++                || !is_a($user_object, 'Horde_Kolab_Server_Object_user'))) {
++            $this->_imap_params = PEAR::raiseError(_('Access to special Kolab users is denied.'));
++            return;
++        }
++
++        if (empty($this->user_mail)) {
++            $this->user_mail = $user;
++        }
++
++        if (!isset($this->_imap_params['hostspec'])) {
++            if (isset($conf['kolab']['imap']['server'])) {
++                $this->_imap_params['hostspec'] = $conf['kolab']['imap']['server'];
++            } else {
++                $this->_imap_params['hostspec'] = 'localhost';
++            }
++        }
++
++        if (!isset($this->_imap_params['port'])) {
++            if (isset($conf['kolab']['imap']['port'])) {
++                $this->_imap_params['port'] = $conf['kolab']['imap']['port'];
++            } else {
++                $this->_imap_params['port'] = 143;
++            }
++        }
++
++        $this->_imap_params['protocol'] = 'imap/notls/novalidate-cert';
++
++        if (!isset($this->freebusy_server)) {
++            if (isset($conf['kolab']['freebusy']['server'])) {
++                $this->freebusy_server = $conf['kolab']['freebusy']['server'];
++            } else {
++                $this->freebusy_server = 'localhost';
++            }
++        }
++    }
++
++    /**
++     * Fetch the Kolab_Object representing the current user.
++     *
++     * @param string $user The id of the user to retrieve.
++     *
++     * @return Kolab_Object_user|PEAR_Error The object representing
++     *                                      the current user.
++     */
++    function _fetchUser($user = null)
++    {
++        if (empty($user)) {
++            $user = Auth::getAuth();
++            if (empty($user)) {
++                return PEAR::raiseError(_('Anonymous user.'));
++            }
++        }
++
++        /** We need the Kolab Server access. */
++        require_once 'Horde/Kolab/Server.php';
++        $server = Horde_Kolab_Server::singleton();
++        if (is_a($server, 'PEAR_Error')) {
++            return $server;
++        }
++
++        $dn = $server->dnForUidOrMail($user);
++        if (empty($dn)) {
++            return PEAR::raiseError(_('No such user.'));
++        }
++        if (is_a($dn, 'PEAR_Error')) {
++            return $dn;
++        }
++
++        return $server->fetch($dn);
++    }
++
++    /**
++     * Get the IMAP connection parameters.
++     *
++     * @return array|PEAR_Error The IMAP connection parameters.
++     */
++    function &getImapParams()
++    {
++        return $this->_imap_params;
++    }
++
++    /**
++     * Attempts to return a reference to a concrete Horde_Kolab_Session instance.
++     *
++     * It will only create a new instance if no Horde_Kolab_Session instance
++     * currently exists or if a user ID has been specified that does not match the
++     * user ID/user mail of the current session.
++     *
++     * This method must be invoked as:
++     *   <code>$var = &Horde_Kolab_Session::singleton();</code>
++     *
++     * @static
++     *
++     * @param string $user The session will be setup for the user with this ID.
++     *
++     * @return Horde_Kolab_Session  The concrete Session reference.
++     */
++    function &singleton($user = null)
++    {
++        static $session;
++
++        if (!isset($session)) {
++            /**
++             * Horde_Kolab_Server currently has no caching so we mainly
++             * cache some user information here as reading this data
++             * may be expensive when running in a multi-host
++             * environment.
++             */
++            require_once 'Horde/SessionObjects.php';
++            $hs = &Horde_SessionObjects::singleton();
++            $session = $hs->query('kolab_session');
++        }
++
++        if (empty($session)
++            || (!empty($user) &&  $user != $session->user_mail
++                && $user != $session->user_id)) {
++            $session = new Horde_Kolab_Session($user);
++        }
++
++        register_shutdown_function(array(&$session, 'shutdown'));
++
++        return $session;
++    }
++
++    /**
++     * Stores the object in the session cache.
++     */
++    function shutdown()
++    {
++        require_once 'Horde/SessionObjects.php';
++        $session = &Horde_SessionObjects::singleton();
++        $session->overwrite('kolab_session', $this, false);
++    }
++}
+-- 
+tg: (6938161..) t/framework/HK/GW/Kolab_Server/Session (depends on: master)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 1211d81d2f9da103a0a7387eb1e4956eec48004d
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jan 30 20:11:36 2009 +0000
+
+    Added patch release/HK-GW-Kolab_Server-SessionMove.patch from the mercurial release queue.

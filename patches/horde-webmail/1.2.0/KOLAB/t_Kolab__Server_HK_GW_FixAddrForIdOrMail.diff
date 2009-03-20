@@ -1,0 +1,74 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Server/HK/GW/FixAddrForIdOrMail
+
+Downcase the array of returned mail addresses. Ensure we always return
+an array.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/IMAP/test.php   |    2 +-
+ horde-webmail/lib/Horde/Kolab/Server/ldap.php |    7 ++++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/IMAP/test.php b/horde-webmail/lib/Horde/Kolab/IMAP/test.php
+index ce5609a..b6f1e49 100644
+--- a/horde-webmail/lib/Horde/Kolab/IMAP/test.php
++++ b/horde-webmail/lib/Horde/Kolab/IMAP/test.php
+@@ -75,7 +75,7 @@ class Horde_Kolab_IMAP_test extends Horde_Kolab_IMAP {
+         $tls = ($tls) ? 'tls' : 'notls';
+         $this->_connected = $login . ':' . $password . ':' . $tls;
+         $this->_user = $login;
+-        $this->_mbox = null;
++        unset($this->_mbox);
+         $this->_mboxname = null;
+     }
+ 
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/ldap.php b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+index d4079b8..5ff4786 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/ldap.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+@@ -721,7 +721,10 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             . Horde_LDAP::quote($id) . ')))';
+         $result = $this->_attrsForFilter($filter, array('mail', 'alias'),
+                                          KOLAB_SERVER_RESULT_STRICT);
+-        if (empty($result) || is_a($result, 'PEAR_Error')) {
++        if (empty($result)) {
++            return array();
++        }
++        if (is_a($result, 'PEAR_Error')) {
+             return $result;
+         }
+         $addrs = array_merge((array) $result['mail'], (array) $result['alias']);
+@@ -746,6 +749,8 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             }
+         }
+ 
++        $addrs = array_map('strtolower', $addrs);
++
+         return $addrs;
+     }
+ 
+-- 
+tg: (0bd4e3e..) t/Kolab_Server/HK/GW/FixAddrForIdOrMail (depends on: t/Kolab_Storage/HK/GW/MultipleListCaches)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 799ad34f530b4f3936ffa7ac278a64443b3c3d5e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Tue Feb 24 05:53:09 2009 +0000
+
+    Fix recursive tg dependency.
+
+commit 64ac03c4ba437b3ce0fa994f0030a6fca9643f23
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Tue Feb 24 05:52:00 2009 +0000
+
+    New TopGit dependency: t/Kolab_Storage/HK/GW/MultipleListCaches
+
+commit f3c256bfe91fcea559d5d8f08dabf1c280f33b11
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Tue Feb 24 00:05:22 2009 +0100
+
+    Fix addrsForIdOrMail.

@@ -1,0 +1,126 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView
+
+Add a separate configuration for the start/end hour of the free/buy view.
+
+kolab/issue3454 (Calendar day start/end hour preference in the kolab web client is confusing)
+https://www.intevation.de/roundup/kolab/issue3454
+
+[#8058] The 'day_hour_start' preference is confusing
+http://bugs.horde.org/ticket/8058
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/kronolith/config/prefs.php |   20 +++++++++++++++++++-
+ horde-webmail/kronolith/lib/FBView.php   |    4 ++--
+ horde-webmail/kronolith/lib/prefs.php    |    8 ++++++++
+ 3 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/horde-webmail/kronolith/config/prefs.php b/horde-webmail/kronolith/config/prefs.php
+index 22c08c3..357aebc 100644
+--- a/horde-webmail/kronolith/config/prefs.php
++++ b/horde-webmail/kronolith/config/prefs.php
+@@ -11,7 +11,7 @@ $prefGroups['view'] = array(
+     'desc' => _("Select confirmation options, how to display the different views and choose default view."),
+     'members' => array('confirm_delete', 'defaultview',
+                        'time_between_days', 'week_start_monday',
+-                       'day_hour_start', 'day_hour_end', 'day_hour_force',
++                       'day_hour_start', 'day_hour_end', 'day_hour_force', 'fb_day_hour_start', 'fb_day_hour_end',
+                        'slots_per_hour', 'show_icons', 'show_time', 'show_location',
+                        'show_legend', 'show_panel', 'show_fb_legend', 'show_shared_side_by_side', 'show_external_colors'),
+ );
+@@ -147,6 +147,24 @@ $_prefs['day_hour_force'] = array(
+     'desc' => _("Restrict day and week views to these time slots, even if there <strong>are</strong> earlier or later events?"),
+ );
+ 
++// start of the time range in day/week views:
++$_prefs['fb_day_hour_start'] = array(
++    'value' => 16,
++    'locked' => false,
++    'shared' => false,
++    'type' => 'select',
++    'desc' => _("What time should the free/busy day and week views start?")
++);
++
++// end of the time range in day/week views:
++$_prefs['fb_day_hour_end'] = array(
++    'value' => 48,
++    'locked' => false,
++    'shared' => false,
++    'type' => 'select',
++    'desc' => _("What time should the free/busy day and week views end?")
++);
++
+ // number of slots in each hour:
+ $_prefs['slots_per_hour'] = array(
+     'value' => 1,
+diff --git a/horde-webmail/kronolith/lib/FBView.php b/horde-webmail/kronolith/lib/FBView.php
+index db402d3..153d7fb 100644
+--- a/horde-webmail/kronolith/lib/FBView.php
++++ b/horde-webmail/kronolith/lib/FBView.php
+@@ -40,8 +40,8 @@ class Kronolith_FreeBusy_View {
+     {
+         global $prefs;
+ 
+-        $this->_startHour = floor($prefs->getValue('day_hour_start') / 2);
+-        $this->_endHour = floor(($prefs->getValue('day_hour_end') + 1) / 2);
++        $this->_startHour = floor($prefs->getValue('fb_day_hour_start') / 2);
++        $this->_endHour = floor(($prefs->getValue('fb_day_hour_end') + 1) / 2);
+ 
+         $this->_render($day);
+ 
+diff --git a/horde-webmail/kronolith/lib/prefs.php b/horde-webmail/kronolith/lib/prefs.php
+index 9bac73e..310311f 100644
+--- a/horde-webmail/kronolith/lib/prefs.php
++++ b/horde-webmail/kronolith/lib/prefs.php
+@@ -145,6 +145,14 @@ if (!$prefs->isLocked('day_hour_start') || !$prefs->isLocked('day_hour_end')) {
+     $day_hour_end_options = $day_hour_start_options;
+ }
+ 
++if (!$prefs->isLocked('fb_day_hour_start') || !$prefs->isLocked('fb_day_hour_end')) {
++    $fb_day_hour_start_options = array();
++    for ($i = 0; $i <= 48; ++$i) {
++        $fb_day_hour_start_options[$i] = date(($prefs->getValue('twentyFour')) ? 'G:i' : 'g:ia', mktime(0, $i * 30, 0));
++    }
++    $fb_day_hour_end_options = $fb_day_hour_start_options;
++}
++
+ /**
+  * Do anything that we need to do as a result of certain preferences
+  * changing.
+-- 
+tg: (f372fd5..) t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView (depends on: t/KOLAB)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 46e51a0b3ac05f99f061b583877d591fe159610b
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Mar 14 01:09:28 2009 +0000
+
+    Provide the possible options for the new settings.
+
+commit b38d16500bec5590fac1979e1adca5f36d62a39b
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Mar 14 01:05:24 2009 +0000
+
+    Fix description.
+
+commit e59f898bdd1328cbad986f88707f0de7a128e1a7
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Mar 13 12:47:11 2009 +0000
+
+    Create a second set of day_hour_start/end preferences specifically for the free/busy view.
+
+commit a80e8995ca1e5bd800b7d9d519849054ed24a521
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Mar 9 06:25:23 2009 +0000
+
+    Fix patch hierarchy.
+
+commit 49fad3b2f6b4695da346984b5f72e50702558cbd
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Mar 8 09:10:51 2009 +0000
+
+    A config change so that the user gets less confused.
