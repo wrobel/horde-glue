@@ -150,3 +150,7 @@ revcmp-horde:
 	do                       \
 	  $(REVBIN) horde-fw3/framework/$$MODULE/ horde-cvs/framework/$$MODULE/; \
 	done
+
+.PHONY: check-series
+check-series:
+	diff -Naur -I '^tg:' -I '^commit [0-9a-f]*' -I '^Date: ' -I ' @version   CVS: \$Id:' kolab-cvs/server/patches/horde-webmail/1.2.0/tg/ patches/horde-webmail/1.2.0/KOLAB/
