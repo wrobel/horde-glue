@@ -9,6 +9,7 @@ t_kronolith_HK_GW_AuthenticatedFreeBusy.diff -p1
 t_nag_H_MR_Bug__7400.diff -p1
 t_GLOBAL_HK_GW_Config.diff -p1
 t_GLOBAL_HK_GW_ConfigOpenPKG.diff -p1
+t_GLOBAL_HK_GW_ConfigTemplateSupport.diff -p1
 t_kronolith_HK_GW_SyncMLrefresh.diff -p1
 t_turba_HK_GW_FixAddressbookDeletion.diff -p1
 t_turba_HK_GW_FixSyncMLAttributeDeletion.diff -p1

@@ -12,25 +12,31 @@ http://bugs.horde.org/ticket/8059
 Signed-off-by: Gunnar Wrobel <p@rdus.de>
 
 ---
- horde-webmail/dimp/config/menu.php               |    6 ++++++
+ horde-webmail/dimp/config/menu.php               |    9 ++++++++-
  horde-webmail/imp/folders.php                    |   17 ++++++++++++-----
  horde-webmail/imp/templates/folders/actions.html |    2 ++
- 3 files changed, 20 insertions(+), 5 deletions(-)
+ 3 files changed, 22 insertions(+), 6 deletions(-)
 
 diff --git a/horde-webmail/dimp/config/menu.php b/horde-webmail/dimp/config/menu.php
-index 5dcf354..99a4b8c 100644
+index 842c4c5..226931d 100644
 --- a/horde-webmail/dimp/config/menu.php
 +++ b/horde-webmail/dimp/config/menu.php
-@@ -28,3 +28,9 @@
+@@ -28,7 +28,14 @@
  //         'text' => 'Say Hi!',
  //         'icon' => $GLOBALS['registry']->getImageDir('horde') . '/horde.png'),
  // );
++
 +$site_menu = array(
 +    'folders' => array(
 +        'action' => 'DimpBase.go("app:horde", "' . Horde::url($GLOBALS['registry']->get('webroot', 'imp') . '/folders.php', true) . '")',
 +        'text' => _('Folders'),
 +        'icon' => $GLOBALS['registry']->getImageDir('imp') . '/folders/folder.png'),
 +);
++
+ if (file_exists(dirname(__FILE__) . '/menu.local.php')) {
+   require_once(dirname(__FILE__) . '/menu.local.php');
+ }
+-
 diff --git a/horde-webmail/imp/folders.php b/horde-webmail/imp/folders.php
 index a0425aa..c46b0e5 100644
 --- a/horde-webmail/imp/folders.php
@@ -100,7 +106,7 @@ index f882a82..8e39b8a 100644
       <option value="expunge_folder"><gettext>Purge</gettext></option>
  </if:notrash>
 -- 
-tg: (64fe2e5..) t/dimp/H/GW/FoldersView (depends on: t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView)
+tg: (663169c..) t/dimp/H/GW/FoldersView (depends on: t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView)
 -- 
 TOPGIT patch commit log
 =======================
