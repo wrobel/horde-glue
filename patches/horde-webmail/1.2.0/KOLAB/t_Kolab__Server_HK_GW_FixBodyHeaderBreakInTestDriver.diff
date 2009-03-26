@@ -25,7 +25,7 @@ index 5a804af..6e1f0e4 100644
                        'body' => substr($msg, $split + 3));
          return $this->_appendMessage($mail);
 -- 
-tg: (655d2e8..) t/Kolab_Server/HK/GW/FixBodyHeaderBreakInTestDriver (depends on: t/imp/H/GW/LoginRetries)
+tg: (563a168..) t/Kolab_Server/HK/GW/FixBodyHeaderBreakInTestDriver (depends on: t/imp/H/GW/LoginRetries)
 -- 
 TOPGIT patch commit log
 =======================

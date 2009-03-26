@@ -14,14 +14,14 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  3 files changed, 11 insertions(+), 1 deletions(-)
 
 diff --git a/horde-webmail/imp/config/conf.php b/horde-webmail/imp/config/conf.php
-index 3a0f1d6..6cea64b 100644
+index 3a0f1d6..b0d8772 100644
 --- a/horde-webmail/imp/config/conf.php
 +++ b/horde-webmail/imp/config/conf.php
 @@ -13,6 +13,7 @@ $conf['user']['allow_resume_all'] = false;
  $conf['user']['allow_view_source'] = true;
  $conf['user']['alternate_login'] = false;
  $conf['user']['redirect_on_logout'] = false;
-+$conf['user']['default_view'] = 'dimp';
++$conf['user']['default_view'] = 'imp';
  $conf['user']['select_view'] = true;
  $conf['server']['change_server'] = false;
  $conf['server']['change_port'] = false;
@@ -63,6 +63,12 @@ tg: (3a70f58..) t/imp/H/GW/DefaultLoginView (depends on: t/imp/H/JS/bug7739)
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 580072bc0b627e05bfe3053efbd31b4215019923
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Thu Mar 26 19:22:37 2009 +0000
+
+    Merge change from http://kolab.org/cgi-bin/viewcvs-kolab.cgi/server/patches/horde-webmail/1.2.0/tg/t_imp_H_GW_DefaultLoginView.diff.diff?r1=1.3&r2=1.4
 
 commit e2430d5bafced289bb0b8ac9d073fca9a4e9bb4a
 Author: Gunnar Wrobel <p@rdus.de>
