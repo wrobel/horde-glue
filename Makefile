@@ -153,4 +153,4 @@ revcmp-horde:
 
 .PHONY: check-series
 check-series:
-	diff -Naur -I '^tg:' -I '^commit [0-9a-f]*' -I '^Date: ' -I ' @version   CVS: \$Id:' kolab-cvs/server/patches/horde-webmail/1.2.0/tg/ patches/horde-webmail/1.2.0/KOLAB/
+	diff -Naur -I '^tg:' -I '^commit [0-9a-f]*' -I '^Date: ' -I ' @version   CVS: \$$Id:' kolab-cvs/server/patches/horde-webmail/1.2.0/tg/ patches/horde-webmail/1.2.0/KOLAB/
