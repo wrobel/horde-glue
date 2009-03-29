@@ -35,7 +35,7 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
 ---
  horde-webmail/config/hooks.php              |    4 ++++
  horde-webmail/config/mime_drivers.php       |    4 ++++
- horde-webmail/config/motd.php               |    4 ++++
+ horde-webmail/config/motd.php               |    7 +++++++
  horde-webmail/config/nls.php                |    4 ++++
  horde-webmail/config/prefs.php              |    4 ++++
  horde-webmail/config/registry.php           |    4 ++++
@@ -78,7 +78,7 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  horde-webmail/turba/config/mime_drivers.php |    4 ++++
  horde-webmail/turba/config/prefs.php        |    4 ++++
  horde-webmail/turba/config/sources.php      |    4 ++++
- 45 files changed, 180 insertions(+), 0 deletions(-)
+ 45 files changed, 183 insertions(+), 0 deletions(-)
 
 diff --git a/horde-webmail/config/hooks.php b/horde-webmail/config/hooks.php
 index 1fb2f6e..c7e41a2 100644
@@ -105,16 +105,22 @@ index e963402..da0e14a 100644
 +}
 +
 diff --git a/horde-webmail/config/motd.php b/horde-webmail/config/motd.php
-index 9f0b57b..98c0f3c 100644
+index 9f0b57b..bca4c41 100644
 --- a/horde-webmail/config/motd.php
 +++ b/horde-webmail/config/motd.php
-@@ -4,3 +4,7 @@
- <br />
- <table width="100%"><tr><td align="center"><img src="themes/graphics/horde-power1.png" alt="Powered by Horde" /></td></tr></table>
+@@ -1,6 +1,13 @@
+ <!-- This file contains any "Message Of The Day" Type information -->
+ <!-- It will be included below the log-in form on the login page. -->
  
++<?php
 +if (file_exists(dirname(__FILE__) . '/motd.local.php')) {
 +  require_once(dirname(__FILE__) . '/motd.local.php');
 +}
++?>
++
+ <br />
+ <table width="100%"><tr><td align="center"><img src="themes/graphics/horde-power1.png" alt="Powered by Horde" /></td></tr></table>
+ 
 +
 diff --git a/horde-webmail/config/nls.php b/horde-webmail/config/nls.php
 index 21a3d19..8720096 100644
@@ -285,16 +291,19 @@ index 1019aaf..786934b 100644
 +}
 +
 diff --git a/horde-webmail/imp/config/motd.php b/horde-webmail/imp/config/motd.php
-index 70803c9..3146471 100644
+index 70803c9..60a33f5 100644
 --- a/horde-webmail/imp/config/motd.php
 +++ b/horde-webmail/imp/config/motd.php
-@@ -39,3 +39,7 @@
- ?>
- <br />
- <table width="100%"><tr><td align="center"><?php echo Horde::img('horde-power1.png', _("Powered by Horde"), '', $registry->getImageDir('horde')) ?></td></tr></table>
+@@ -36,6 +36,10 @@
+ //
+ // echo '<a class="small" href="' . $SERVER_HTTP_URL . '" target="_parent">' . _("Click here for Standard HTTP") . '</a> - <a class="small" href="' . $SERVER_SSL_URL . '" target="_parent">' . _("Click here for Secure HTTPS") . '</a></div>';
+ 
 +if (file_exists(dirname(__FILE__) . '/motd.local.php')) {
 +  require_once(dirname(__FILE__) . '/motd.local.php');
 +}
+ ?>
+ <br />
+ <table width="100%"><tr><td align="center"><?php echo Horde::img('horde-power1.png', _("Powered by Horde"), '', $registry->getImageDir('horde')) ?></td></tr></table>
 +
 diff --git a/horde-webmail/imp/config/prefs.php b/horde-webmail/imp/config/prefs.php
 index e1f6426..02a28ab 100644
@@ -625,6 +634,12 @@ tg: (b375ec9..) t/GLOBAL/HK/GW/ConfigTemplateSupport (depends on: t/GLOBAL/HK/GW
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 1714037ef074301c0fd987b217fee5a0a1cac71b
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Thu Mar 26 21:08:33 2009 +0000
+
+    Fix the inclusion statements for the motd.php files.
 
 commit caf19136c96afa98cf1fc7f3a66cc74af6cb286a
 Author: Gunnar Wrobel <p@rdus.de>
