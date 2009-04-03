@@ -4,7 +4,7 @@
 		      current-dir
 		      "lib:"
 		      current-dir
-		      "pear:"
+		      "pear/php:"
 		      current-dir
 		      "horde-release/horde-webmail/pear:"
 		      "/usr/share/php5:"
