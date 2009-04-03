@@ -8,3 +8,4 @@ storage/*
 *.rej
 p.p
 CVS
+.pearrc
