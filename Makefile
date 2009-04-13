@@ -48,7 +48,7 @@ $(TEST_HEAD_PKGS:%=test-HEAD-%): lib
 	  CWD=`pwd`; \
 	  rm -f log/$@-HEAD-phpunit.log; \
 	  for TEST in $$ALL_TESTS; do \
-	    cd $$TEST && phpunit -d include_path=".:$$CWD/lib:$$CWD/pear:$$CWD/horde-release/horde-webmail/pear:/usr/share/php5:/usr/share/php" -d log_errors=1 -d error_log="$$CWD/logs/php-errors.log" AllTests.php 2>&1 | tee -a $$CWD/log/$@-HEAD-phpunit.log | grep "^OK" > /dev/null || PHPUNIT="FAIL"; \
+	    cd $$TEST && phpunit -d include_path=".:$$CWD/lib:$$CWD/pear/php:$$CWD/horde-release/horde-webmail/pear:/usr/share/php5:/usr/share/php" -d log_errors=1 -d error_log="$$CWD/logs/php-errors.log" AllTests.php 2>&1 | tee -a $$CWD/log/$@-HEAD-phpunit.log | grep "^OK" > /dev/null || PHPUNIT="FAIL"; \
 	    cd $$CWD; \
 	  done; \
 	  if [ -n "$$PHPUNIT" ]; then \
@@ -86,7 +86,7 @@ $(TEST_CVS_PKGS:%=test-CVS-%): lib
 	  CWD=`pwd`; \
 	  rm -f log/$@-CVS-phpunit.log; \
 	  for TEST in $$ALL_TESTS; do \
-	    cd $$TEST && phpunit -d include_path=".:$$CWD/lib:$$CWD/pear:$$CWD/horde-release/horde-webmail/pear:/usr/share/php5:/usr/share/php" -d log_errors=1 -d error_log="$$CWD/logs/php-errors.log" AllTests.php  2>&1 | tee -a $$CWD/log/$@-CVS-phpunit.log | grep "^OK" > /dev/null || PHPUNIT="FAIL"; \
+	    cd $$TEST && phpunit -d include_path=".:$$CWD/lib:$$CWD/pear/php:$$CWD/horde-release/horde-webmail/pear:/usr/share/php5:/usr/share/php" -d log_errors=1 -d error_log="$$CWD/logs/php-errors.log" AllTests.php  2>&1 | tee -a $$CWD/log/$@-CVS-phpunit.log | grep "^OK" > /dev/null || PHPUNIT="FAIL"; \
 	    cd $$CWD; \
 	  done; \
 	  if [ -n "$$PHPUNIT" ]; then \
