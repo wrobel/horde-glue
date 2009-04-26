@@ -14,7 +14,7 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  1 files changed, 6 insertions(+), 2 deletions(-)
 
 diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
-index 6596559..8c74322 100644
+index 8fff162..27435cb 100644
 --- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
 +++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
 @@ -1208,8 +1208,6 @@ class Kolab_Folder {
@@ -40,7 +40,7 @@ index 6596559..8c74322 100644
          $options['timeout'] = 5;
          $options['allowRedirects'] = true;
 -- 
-tg: (31b7419..) t/Kolab_Storage/HK/GW/SuppressTriggering (depends on: t/COPYRIGHT2)
+tg: (de63071..) t/Kolab_Storage/HK/GW/SuppressTriggering (depends on: t/COPYRIGHT2)
 -- 
 TOPGIT patch commit log
 =======================

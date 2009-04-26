@@ -87,7 +87,7 @@ index ddb86e5..f14a8e4 100644
  
          if (!$GLOBALS['prefs']->getValue('use_vinbox')) {
 -- 
-tg: (38b4949..) t/imp/H/JS/bug7739 (depends on: t/imp/H/MS/bug7438)
+tg: (020ffd6..) t/imp/H/JS/bug7739 (depends on: t/imp/H/MS/bug7438)
 -- 
 TOPGIT patch commit log
 =======================

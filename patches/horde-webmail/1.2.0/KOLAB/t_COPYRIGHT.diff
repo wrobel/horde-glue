@@ -221,7 +221,7 @@ index d700b89..5c71267 100644
   * @since   Horde 3.2
   * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
 -- 
-tg: (6e63b1b..) t/COPYRIGHT (depends on: t/Kolab_Server/HK/GW/FixAddrForIdOrMail)
+tg: (ddbe461..) t/COPYRIGHT (depends on: t/Kolab_Server/HK/GW/FixAddrForIdOrMail)
 -- 
 TOPGIT patch commit log
 =======================

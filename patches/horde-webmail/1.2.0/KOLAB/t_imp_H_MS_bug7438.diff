@@ -47,7 +47,7 @@ index 7e5c045..e2f0daa 100644
  
  /* No session, and no login attempt. Just go to the login page. */
 -- 
-tg: (461f8df..) t/imp/H/MS/bug7438 (depends on: t/COPYRIGHT3)
+tg: (6151e7a..) t/imp/H/MS/bug7438 (depends on: t/COPYRIGHT3)
 -- 
 TOPGIT patch commit log
 =======================

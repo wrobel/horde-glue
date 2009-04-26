@@ -11,7 +11,7 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  2 files changed, 23 insertions(+), 5 deletions(-)
 
 diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
-index 36844f9..1da391b 100644
+index 36844f9..29775cd 100644
 --- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
 +++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
 @@ -406,6 +406,22 @@ class Kolab_Folder {
@@ -27,7 +27,7 @@ index 36844f9..1da391b 100644
 +                        }
 +                    }
 +                    if (isset($params['fbrelevance'])) {
-+                        $result = $this->setFbrelevance(join(' ', $params['fbrelevance']));
++                        $result = $this->setFbrelevance($params['fbrelevance']);
 +                        if (is_a($result, 'PEAR_Error')) {
 +                            return $result;
 +                        }
@@ -81,6 +81,12 @@ tg: (84604ae..) t/framework/HK/GW/Kolab/XfbFixes (depends on: t/framework/HK/GW/
 -- 
 TOPGIT patch commit log
 =======================
+
+commit c20af1d5f227a4444951676bdee250d88069d891
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 10:53:52 2009 +0200
+
+    This came from the old mercurial patch queue but it seems to be incorrect as the fbrelevance is a simple integer and no array. It was also never commited upstream this way. So lets fix this and test it with the web client.
 
 commit 07447788c136353d40cc6c5b4d9f1d1f0d13ef76
 Author: Gunnar Wrobel <p@rdus.de>

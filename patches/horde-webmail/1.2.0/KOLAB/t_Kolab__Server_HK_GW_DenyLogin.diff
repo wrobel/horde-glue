@@ -164,7 +164,7 @@ index a0e3cf3..d47f8b0 100644
                      if (!empty($result) && !is_a($result, 'PEAR_Error')) {
                          $this->user_mail = $result;
 -- 
-tg: (f425aea..) t/Kolab_Server/HK/GW/DenyLogin (depends on: t/framework/HK/GW/iCalendar/QuotedParameters)
+tg: (bcc8a71..) t/Kolab_Server/HK/GW/DenyLogin (depends on: t/framework/HK/GW/iCalendar/QuotedParameters)
 -- 
 TOPGIT patch commit log
 =======================

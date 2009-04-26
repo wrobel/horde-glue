@@ -10,7 +10,7 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  1 files changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
-index 1da391b..6596559 100644
+index 29775cd..8fff162 100644
 --- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
 +++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
 @@ -265,8 +265,9 @@ class Kolab_Folder {
@@ -26,7 +26,7 @@ index 1da391b..6596559 100644
          return rawurlencode($this->name);
      }
 -- 
-tg: (1f4cc03..) t/framework/HK/GW/Kolab_Storage/ShareIdFix (depends on: t/framework/HK/GW/DB/SqliteErrorChecking)
+tg: (15d3f17..) t/framework/HK/GW/Kolab_Storage/ShareIdFix (depends on: t/framework/HK/GW/DB/SqliteErrorChecking)
 -- 
 TOPGIT patch commit log
 =======================

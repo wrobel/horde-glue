@@ -66,7 +66,7 @@ index 1f8fe1e..4f6beab 100644
                          $this->_msgs[$key][] = array('error', sprintf(_("Error sending reply: %s."), $status->getMessage()));
                      } else {
 -- 
-tg: (066c7a2..) t/imp/HK/GW/AuthForInvitations (depends on: t/Kolab_Server/HK/GW/UserMailAndFullname)
+tg: (08f7d72..) t/imp/HK/GW/AuthForInvitations (depends on: t/Kolab_Server/HK/GW/UserMailAndFullname)
 -- 
 TOPGIT patch commit log
 =======================

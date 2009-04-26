@@ -1,0 +1,91 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Format/HK/GW/HandleEmptyXmlParserReturn
+
+Correct handling of empty return values from the XML parser. An empty
+return might occur if the XML document is broken (e.g. broken encoding).
+
+ISSUE: kolab/issue3520 (calendar with certain entries does not display in web client)
+ISSUE: kolab/issue3525 (free/busy regeneration aborts for unparsable events)
+ISSUE: kolab/issue3528 (Events with broken encoding should work)
+
+LINK: https://www.intevation.de/roundup/kolab/issue3520
+LINK: https://www.intevation.de/roundup/kolab/issue3525
+LINK: https://www.intevation.de/roundup/kolab/issue3528
+
+STATUS: MERGED
+
+REF: http://cvs.horde.org/diff.php/framework/Kolab_Format/lib/Horde/Kolab/Format/XML.php?r1=1.5.2.10&r2=1.5.2.11
+REF: http://cvs.horde.org/diff.php/framework/Kolab_Format/lib/Horde/Kolab/Format/XML.php?r1=1.15&r2=1.16
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Format/XML.php |   22 +++++++++++++++++++++-
+ 1 files changed, 21 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Format/XML.php b/horde-webmail/lib/Horde/Kolab/Format/XML.php
+index d3d7def..3ed41b9 100644
+--- a/horde-webmail/lib/Horde/Kolab/Format/XML.php
++++ b/horde-webmail/lib/Horde/Kolab/Format/XML.php
+@@ -364,6 +364,9 @@ class Horde_Kolab_Format_XML
+     /**
+      * Load an object based on the given XML string.
+      *
++     * @todo Check encoding of the returned array. It seems to be ISO-8859-1 at
++     * the moment and UTF-8 would seem more appropriate.
++     *
+      * @param string $xmltext  The XML of the message as string.
+      *
+      * @return array|PEAR_Error The data array representing the object.
+@@ -371,7 +374,24 @@ class Horde_Kolab_Format_XML
+     function load(&$xmltext)
+     {
+         $noderoot = $this->_parseXml($xmltext);
+-        if ($noderoot === false) {
++        if (is_a($noderoot, 'PEAR_Error') || empty($noderoot)) {
++            /**
++             * If the first call does not return successfully this might mean we
++             * got an attachment with broken encoding. There are some Kolab
++             * client versions in the wild that might have done that. So the
++             * next section starts a second attempt by guessing the encoding and
++             * trying again.
++             */
++            if (strcasecmp(mb_detect_encoding($xmltext, 'UTF-8, ISO-8859-1'), 'UTF-8') !== 0) {
++                $xmltext = mb_convert_encoding($xmltext, 'UTF-8', 'ISO-8859-1');
++            }
++            $noderoot = $this->_parseXml($xmltext);
++        }
++
++        if (is_a($noderoot, 'PEAR_Error')) {
++            return $noderoot;
++        }
++        if (empty($noderoot)) {
+             return false;
+         }
+ 
+-- 
+tg: (2d1588f..) t/Kolab_Format/HK/GW/HandleEmptyXmlParserReturn (depends on: t/kronolith/HK/GW/XfbAccess)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit adba3be1192f9ea9fb90c4418da8e4f5fc388c4e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Apr 25 22:14:40 2009 +0200
+
+    Merged the patch in slightly modified form upstream.
+
+commit 1883efc257b2e50646e11da79cc47fb0f7f328ca
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Thu Apr 2 11:36:17 2009 +0200
+
+    Correct handling of empty return values from the XML parser. An empty
+    return might occur if the XML document is broken (e.g. broken encoding).
+    
+    ISSUE: kolab/issue3520 (calendar with certain entries does not display in web client)
+    ISSUE: kolab/issue3525 (free/busy regeneration aborts for unparsable events)
+    ISSUE: kolab/issue3528 (Events with broken encoding should work)
+    
+    LINK: https://www.intevation.de/roundup/kolab/issue3520
+    LINK: https://www.intevation.de/roundup/kolab/issue3525
+    LINK: https://www.intevation.de/roundup/kolab/issue3528

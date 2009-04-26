@@ -372,7 +372,7 @@ index bcbda7e..135bcb5 100644
                                                   $params['port'], true, false);
              if (is_a($imap, 'PEAR_Error')) {
 -- 
-tg: (7a64fc0..) t/COPYRIGHT2 (depends on: t/Kolab_Server/HK/GW/FixNotics)
+tg: (eb5c780..) t/COPYRIGHT2 (depends on: t/Kolab_Server/HK/GW/FixNotics)
 -- 
 TOPGIT patch commit log
 =======================

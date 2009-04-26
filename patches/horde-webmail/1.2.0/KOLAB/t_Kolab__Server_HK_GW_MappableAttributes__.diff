@@ -1,0 +1,955 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Server/HK/GW/MappableAttributes_
+
+Allow to configure mapped LDAP attributes.
+
+STATUS: MERGED
+
+REF: http://lists.horde.org/archives/cvs/Week-of-Mon-20090420/087641.html
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Server.php           |   15 +-
+ horde-webmail/lib/Horde/Kolab/Server/Object.php    |    2 +
+ .../lib/Horde/Kolab/Server/Object/address.php      |   33 ++-
+ .../lib/Horde/Kolab/Server/Object/adminrole.php    |   35 ++-
+ .../lib/Horde/Kolab/Server/Object/distlist.php     |   30 ++-
+ .../lib/Horde/Kolab/Server/Object/group.php        |   23 +-
+ .../lib/Horde/Kolab/Server/Object/server.php       |   21 +-
+ .../lib/Horde/Kolab/Server/Object/sharedfolder.php |   23 +-
+ .../lib/Horde/Kolab/Server/Object/user.php         |   43 ++-
+ horde-webmail/lib/Horde/Kolab/Server/ldap.php      |  339 ++++++++++++++++++--
+ horde-webmail/lib/Horde/Kolab/Server/test.php      |   20 +-
+ 11 files changed, 509 insertions(+), 75 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Server.php b/horde-webmail/lib/Horde/Kolab/Server.php
+index bf251f5..fd0bda7 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server.php
++++ b/horde-webmail/lib/Horde/Kolab/Server.php
+@@ -159,9 +159,12 @@ class Horde_Kolab_Server {
+             $driver = 'ldap';
+ 
+             $server_params = array('server'  => $conf['kolab']['ldap']['server'],
+-                                  'base_dn' => $conf['kolab']['ldap']['basedn'],
+-                                  'uid'     => $conf['kolab']['ldap']['phpdn'],
+-                                  'pass'    => $conf['kolab']['ldap']['phppw']);
++                                   'base_dn' => $conf['kolab']['ldap']['basedn'],
++                                   'uid'     => $conf['kolab']['ldap']['phpdn'],
++                                   'pass'    => $conf['kolab']['ldap']['phppw']);
++            if (isset($conf['kolab']['ldap']['map'])) {
++                $server_params['map'] = $conf['kolab']['ldap']['map'];
++            }
+         } else {
+             $driver        = null;
+             $server_params = array();
+@@ -473,7 +476,7 @@ class Horde_Kolab_Server {
+     function uidForId($id,
+                       $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+-        return $this->uidForAttr('uid', $id);
++        return $this->uidForAttr(KOLAB_ATTR_SID, $id);
+     }
+ 
+     /**
+@@ -513,7 +516,7 @@ class Horde_Kolab_Server {
+      */
+     function uidForIdOrMail($id)
+     {
+-        $uid = $this->uidForAttr('uid', $id);
++        $uid = $this->uidForAttr(KOLAB_ATTR_SID, $id);
+         if (!$uid) {
+             $uid = $this->uidForAttr('mail', $id);
+         }
+@@ -562,7 +565,7 @@ class Horde_Kolab_Server {
+      */
+     function uidForMailOrIdOrAlias($id)
+     {
+-        $uid = $this->uidForAttr('uid', $id);
++        $uid = $this->uidForAttr(KOLAB_ATTR_SID, $id);
+         if (!$uid) {
+             $uid = $this->uidForAttr('mail', $id);
+             if (!$uid) {
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object.php b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+index 2e5ada2..be9eca9 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object.php
+@@ -26,6 +26,7 @@ define('KOLAB_OBJECT_USER',             'Horde_Kolab_Server_Object_user');
+ define('KOLAB_OBJECT_SERVER',           'Horde_Kolab_Server_Object_server');
+ 
+ /** Define the possible Kolab object attributes */
++define('KOLAB_ATTR_OC',           'objectClass');
+ define('KOLAB_ATTR_UID',          'dn');
+ define('KOLAB_ATTR_ID',           'id');
+ define('KOLAB_ATTR_SN',           'sn');
+@@ -35,6 +36,7 @@ define('KOLAB_ATTR_FN',           'fn');
+ define('KOLAB_ATTR_LNFN',         'lnfn');
+ define('KOLAB_ATTR_FNLN',         'fnln');
+ define('KOLAB_ATTR_MAIL',         'mail');
++define('KOLAB_ATTR_ALIAS',        'alias');
+ define('KOLAB_ATTR_SID',          'uid');
+ define('KOLAB_ATTR_ACL',          'acl');
+ define('KOLAB_ATTR_MEMBER',       'member');
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/address.php b/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
+index 98ed518..bd6128f 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/address.php
+@@ -33,13 +33,6 @@
+ class Horde_Kolab_Server_Object_address extends Horde_Kolab_Server_Object {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
+-     *
+-     * @var string
+-     */
+-    var $filter = '(&(objectclass=inetOrgPerson)(!(uid=*))(sn=*))';
+-
+-    /**
+      * The attributes supported by this class
+      *
+      * @var array
+@@ -86,6 +79,32 @@ class Horde_Kolab_Server_Object_address extends Horde_Kolab_Server_Object {
+     );
+ 
+     /**
++     * The LDAP filter to retrieve this object type
++     *
++     * @return string
++     */
++    function getFilter()
++    {
++        $criteria = array('AND' => array(
++                              array('field' => KOLAB_ATTR_SN,
++                                    'op'    => '=',
++                                    'test'  => '*'),
++                              array('field' => KOLAB_ATTR_OC,
++                                    'op'    => '=',
++                                    'test'  => KOLAB_OC_INETORGPERSON),
++                              array('NOT' => array(
++                                        array('field' => KOLAB_ATTR_SID,
++                                              'op'    => '=',
++                                              'test'  => '*'),
++                                    ),
++                              ),
++                          ),
++        );
++        return $criteria;
++    }
++
++
++    /**
+      * Convert the object attributes to a hash.
+      *
+      * @param string $attrs The attributes to return.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php b/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
+index aea4410..b2571ff 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/adminrole.php
+@@ -32,13 +32,6 @@
+ class Horde_Kolab_Server_Object_adminrole extends Horde_Kolab_Server_Object {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
+-     *
+-     * @var string
+-     */
+-    var $filter = '(&(cn=*)(objectClass=inetOrgPerson)(!(uid=manager))(sn=*))';
+-
+-    /**
+      * The attributes supported by this class
+      *
+      * @var array
+@@ -87,6 +80,34 @@ class Horde_Kolab_Server_Object_adminrole extends Horde_Kolab_Server_Object {
+     );
+ 
+     /**
++     * The LDAP filter to retrieve this object type
++     *
++     * @return string
++     */
++    function getFilter()
++    {
++        $criteria = array('AND' => array(
++                              array('field' => KOLAB_ATTR_CN,
++                                    'op'    => '=',
++                                    'test'  => '*'),
++                              array('field' => KOLAB_ATTR_SN,
++                                    'op'    => '=',
++                                    'test'  => '*'),
++                              array('field' => KOLAB_ATTR_OC,
++                                    'op'    => '=',
++                                    'test'  => KOLAB_OC_INETORGPERSON),
++                              array('NOT' => array(
++                                        array('field' => KOLAB_ATTR_SID,
++                                              'op'    => '=',
++                                              'test'  => 'manager'),
++                                    ),
++                              ),
++                          ),
++        );
++        return $criteria;
++    }
++
++    /**
+      * Convert the object attributes to a hash.
+      *
+      * @param string $attrs The attributes to return.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php b/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php
+index 7965e0d..22e096e 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/distlist.php
+@@ -34,14 +34,6 @@ require_once 'Horde/Kolab/Server/Object/group.php';
+ class Horde_Kolab_Server_Object_distlist extends Horde_Kolab_Server_Object_group {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
+-     *
+-     * @var string
+-     */
+-    var $filter = '(&(objectClass=kolabGroupOfNames)(mail=*))';
+-
+-
+-    /**
+      * The attributes required when creating an object of this class.
+      *
+      * @var array
+@@ -49,4 +41,26 @@ class Horde_Kolab_Server_Object_distlist extends Horde_Kolab_Server_Object_group
+     var $_required_attributes = array(
+         KOLAB_ATTR_MAIL,
+     );
++
++    /**
++     * Return the filter string to retrieve this object type.
++     *
++     * @static
++     *
++     * @return string The filter to retrieve this object type from the server
++     *                database.
++     */
++    public static function getFilter()
++    {
++        $criteria = array('AND' => array(
++                              array('field' => KOLAB_ATTR_MAIL,
++                                    'op'    => '=',
++                                    'test'  => '*'),
++                              array('field' => KOLAB_ATTR_OC,
++                                    'op'    => '=',
++                                    'test'  => KOLAB_OC_KOLABGROUPOFNAMES),
++                          ),
++        );
++        return $criteria;
++    }
+ };
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/group.php b/horde-webmail/lib/Horde/Kolab/Server/Object/group.php
+index 91c1bd2..f58c905 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/group.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/group.php
+@@ -32,13 +32,6 @@
+ class Horde_Kolab_Server_Object_group extends Horde_Kolab_Server_Object {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
+-     *
+-     * @var string
+-     */
+-    var $filter = '(objectClass=kolabGroupOfNames)';
+-
+-    /**
+      * The attributes supported by this class
+      *
+      * @var array
+@@ -104,6 +97,22 @@ class Horde_Kolab_Server_Object_group extends Horde_Kolab_Server_Object {
+     }
+ 
+     /**
++     * Return the filter string to retrieve this object type.
++     *
++     * @return string The filter to retrieve this object type from the server
++     *                database.
++     */
++    public static function getFilter()
++    {
++        $criteria = array('AND' => array(array('field' => KOLAB_ATTR_OC,
++                                               'op'    => '=',
++                                               'test'  => KOLAB_OC_KOLABGROUPOFNAMES),
++                          ),
++        );
++        return $criteria;
++    }
++
++    /**
+      * Convert the object attributes to a hash.
+      *
+      * @param string $attrs The attributes to return.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/server.php b/horde-webmail/lib/Horde/Kolab/Server/Object/server.php
+index 965eb84..740417c 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/server.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/server.php
+@@ -32,11 +32,26 @@
+ class Horde_Kolab_Server_Object_server extends Horde_Kolab_Server_Object {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
++     * Return the filter string to retrieve this object type.
+      *
+-     * @var string
++     * @static
++     *
++     * @return string The filter to retrieve this object type from the server
++     *                database.
+      */
+-    var $filter = '(&((k=kolab))(objectclass=kolab))';
++    public static function getFilter()
++    {
++        $criteria = array('AND' => array(
++                              array('field' => 'k',
++                                    'op'    => '=',
++                                    'test'  => 'kolab'),
++                              array('field' => KOLAB_ATTR_OC,
++                                    'op'    => '=',
++                                    'test'  => KOLAB_OC_KOLAB),
++                          ),
++        );
++        return $criteria;
++    }
+ 
+     /**
+      * The attributes supported by this class
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php b/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php
+index 3b68862..b92f07b 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/sharedfolder.php
+@@ -33,13 +33,6 @@
+ class Horde_Kolab_Server_Object_sharedfolder extends Horde_Kolab_Server_Object {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
+-     *
+-     * @var string
+-     */
+-    var $filter = '(objectClass=kolabSharedFolder)';
+-
+-    /**
+      * The attributes supported by this class
+      *
+      * @var array
+@@ -89,6 +82,22 @@ class Horde_Kolab_Server_Object_sharedfolder extends Horde_Kolab_Server_Object {
+     }
+ 
+     /**
++     * Return the filter string to retrieve this object type.
++     *
++     * @return string The filter to retrieve this object type from the server
++     *                database.
++     */
++    public static function getFilter()
++    {
++        $criteria = array('AND' => array(array('field' => KOLAB_ATTR_OC,
++                                               'op'    => '=',
++                                               'test'  => KOLAB_OC_KOLABSHAREDFOLDER),
++                          ),
++        );
++        return $criteria;
++    }
++
++    /**
+      * Convert the object attributes to a hash.
+      *
+      * @param string $attrs The attributes to return.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+index d4e57a0..4846211 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/Object/user.php
+@@ -33,13 +33,6 @@
+ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+ 
+     /**
+-     * The LDAP filter to retrieve this object type
+-     *
+-     * @var string
+-     */
+-    var $filter = '(&(objectClass=kolabInetOrgPerson)(uid=*)(mail=*)(sn=*))';
+-
+-    /**
+      * The attributes supported by this class
+      *
+      * @var array
+@@ -154,6 +147,31 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+     }
+ 
+     /**
++     * The LDAP filter to retrieve this object type
++     *
++     * @return string
++     */
++    function getFilter()
++    {
++        $criteria = array('AND' => array(
++                              array('field' => KOLAB_ATTR_SN,
++                                    'op'    => '=',
++                                    'test'  => '*'),
++                              array('field' => KOLAB_ATTR_MAIL,
++                                    'op'    => '=',
++                                    'test'  => '*'),
++                              array('field' => KOLAB_ATTR_SID,
++                                    'op'    => '=',
++                                    'test'  => '*'),
++                              array('field' => KOLAB_ATTR_OC,
++                                    'op'    => '=',
++                                    'test'  => KOLAB_OC_KOLABINETORGPERSON),
++                          ),
++        );
++        return $criteria;
++    }
++
++    /**
+      * Convert the object attributes to a hash.
+      *
+      * @param string $attrs The attributes to return.
+@@ -185,6 +203,17 @@ class Horde_Kolab_Server_Object_user extends Horde_Kolab_Server_Object {
+     }
+ 
+     /**
++     * Get the group mail addresses for this object
++     *
++     * @return mixed|PEAR_Error An array of group addresses, false if no groups were
++     *                          found.
++     */
++    function getGroupAddresses()
++    {
++        return $this->_db->getGroupAddresses($this->_uid);
++    }
++
++    /**
+      * Returns the server url of the given type for this user.
+      *
+      * This method is used to encapsulate multidomain support.
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/ldap.php b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+index a50ba2c..c371b5a 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/ldap.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/ldap.php
+@@ -2,7 +2,7 @@
+ /**
+  * The driver for accessing the Kolab user database stored in LDAP.
+  *
+- * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/ldap.php,v 1.2.2.2 2008/08/01 07:56:19 wrobel Exp $
++ * $Horde: framework/Kolab_Server/lib/Horde/Kolab/Server/ldap.php,v 1.2.2.10 2009/02/24 07:39:47 wrobel Exp $
+  *
+  * PHP version 4
+  *
+@@ -210,6 +210,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         }
+ 
+         if (isset($attrs)) {
++            $this->mapKeys($attrs);
+             $result = @ldap_read($this->_connection, $dn, '(objectclass=*)', $attrs);
+         } else {
+             $result = @ldap_read($this->_connection, $dn, '(objectclass=*)');
+@@ -220,7 +221,7 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         }
+         $entry = $this->_firstEntry($result);
+         if (!$entry) {
+-            ldap_free_result($result);
++            @ldap_free_result($result);
+             return PEAR::raiseError(sprintf(_("LDAP Error: Empty result for: %s."),
+                                             $dn));
+         }
+@@ -229,7 +230,10 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             return PEAR::raiseError(sprintf(_("LDAP Error: No such dn: %s: %s"),
+                                             $dn, $this->_error()));
+         }
+-        ldap_free_result($result);
++        @ldap_free_result($result);
++
++        $this->unmapAttributes($object);
++
+         return $object;
+     }
+ 
+@@ -250,6 +254,8 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             }
+         }
+ 
++        $this->mapAttributes($data);
++
+         return @ldap_add($this->_connection, $dn, $data);
+     }
+ 
+@@ -681,9 +687,25 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+      */
+     function mailForIdOrMail($id)
+     {
+-        $filter = '(&(objectClass=kolabInetOrgPerson)(|(uid='.
+-            Horde_LDAP::quote($id) . ')(mail=' .
+-            Horde_LDAP::quote($id) . ')))';
++        $criteria = array('AND' =>
++                         array(
++                             array('field' => KOLAB_ATTR_OC,
++                                   'op'    => '=',
++                                   'test'  => KOLAB_OC_KOLABINETORGPERSON),
++                             array('OR' =>
++                                   array(
++                                       array('field' => KOLAB_ATTR_SID,
++                                             'op'    => '=',
++                                             'test'  => $id),
++                                       array('field' => KOLAB_ATTR_MAIL,
++                                             'op'    => '=',
++                                             'test'  => $id),
++                                   ),
++                             ),
++                         ),
++        );
++        $filter   = $this->searchQuery($criteria);
++
+         $result = $this->_attrsForFilter($filter, array('mail'),
+                                          KOLAB_SERVER_RESULT_STRICT);
+         if (is_a($result, 'PEAR_Error')) {
+@@ -702,9 +724,24 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+      */
+     function uidForIdOrMail($id)
+     {
+-        $filter = '(&(objectClass=kolabInetOrgPerson)(|(uid='.
+-            Horde_LDAP::quote($id) . ')(mail=' .
+-            Horde_LDAP::quote($id) . ')))';
++        $criteria = array('AND' =>
++                         array(
++                             array('field' => KOLAB_ATTR_OC,
++                                   'op'    => '=',
++                                   'test'  => KOLAB_OC_KOLABINETORGPERSON),
++                             array('OR' =>
++                                   array(
++                                       array('field' => KOLAB_ATTR_SID,
++                                             'op'    => '=',
++                                             'test'  => $id),
++                                       array('field' => KOLAB_ATTR_MAIL,
++                                             'op'    => '=',
++                                             'test'  => $id),
++                                   ),
++                             ),
++                         ),
++        );
++        $filter   = $this->searchQuery($criteria);
+         return $this->_dnForFilter($filter, KOLAB_SERVER_RESULT_STRICT);
+     }
+ 
+@@ -717,9 +754,25 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+      */
+     function addrsForIdOrMail($id)
+     {
+-        $filter = '(&(objectClass=kolabInetOrgPerson)(|(mail='
+-            . Horde_LDAP::quote($id) . ')(uid='
+-            . Horde_LDAP::quote($id) . ')))';
++        $criteria = array('AND' =>
++                         array(
++                             array('field' => KOLAB_ATTR_OC,
++                                   'op'    => '=',
++                                   'test'  => KOLAB_OC_KOLABINETORGPERSON),
++                             array('OR' =>
++                                   array(
++                                       array('field' => KOLAB_ATTR_SID,
++                                             'op'    => '=',
++                                             'test'  => $id),
++                                       array('field' => KOLAB_ATTR_MAIL,
++                                             'op'    => '=',
++                                             'test'  => $id),
++                                   ),
++                             ),
++                         ),
++        );
++        $filter   = $this->searchQuery($criteria);
++
+         $result = $this->_attrsForFilter($filter, array('mail', 'alias'),
+                                          KOLAB_SERVER_RESULT_STRICT);
+         if (empty($result)) {
+@@ -768,10 +821,27 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+      */
+     function uidForMailAddress($mail)
+     {
+-        $filter = '(&(objectClass=kolabInetOrgPerson)(|(uid='.
+-            Horde_LDAP::quote($mail) . ')(mail=' .
+-            Horde_LDAP::quote($mail) . ')(alias=' .
+-            Horde_LDAP::quote($mail) . ')))';
++        $criteria = array('AND' =>
++                         array(
++                             array('field' => KOLAB_ATTR_OC,
++                                   'op'    => '=',
++                                   'test'  => KOLAB_OC_KOLABINETORGPERSON),
++                             array('OR' =>
++                                   array(
++                                       array('field' => KOLAB_ATTR_ALIAS,
++                                             'op'    => '=',
++                                             'test'  => $mail),
++                                       array('field' => KOLAB_ATTR_MAIL,
++                                             'op'    => '=',
++                                             'test'  => $mail),
++                                       array('field' => KOLAB_ATTR_SID,
++                                             'op'    => '=',
++                                             'test'  => $mail),
++                                   ),
++                             ),
++                         ),
++        );
++        $filter   = $this->searchQuery($criteria);
+         return $this->_dnForFilter($filter);
+     }
+ 
+@@ -788,8 +858,17 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     function uidForAttr($attr, $value,
+                        $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+-        $filter = '(&(objectClass=kolabInetOrgPerson)(' . $attr .
+-            '=' . Horde_LDAP::quote($value) . '))';
++        $criteria = array('AND' =>
++                         array(
++                             array('field' => KOLAB_ATTR_OC,
++                                   'op'    => '=',
++                                   'test'  => KOLAB_OC_KOLABINETORGPERSON),
++			     array('field' => $attr,
++				   'op'    => '=',
++				   'test'  => $value),
++                             ),
++        );
++        $filter   = $this->searchQuery($criteria);
+         return $this->_dnForFilter($filter, $restrict);
+     }
+ 
+@@ -806,8 +885,17 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     function gidForAttr($attr, $value,
+                        $restrict = KOLAB_SERVER_RESULT_SINGLE)
+     {
+-        $filter = '(&(objectClass=kolabGroupOfNames)(' . $attr .
+-            '=' . Horde_LDAP::quote($value) . '))';
++        $criteria = array('AND' =>
++                         array(
++                             array('field' => KOLAB_ATTR_OC,
++                                   'op'    => '=',
++                                   'test'  => KOLAB_OC_KOLABGROUPOFNAMES),
++			     array('field' => $attr,
++				   'op'    => '=',
++				   'test'  => $value),
++                             ),
++        );
++        $filter   = $this->searchQuery($criteria);
+         return $this->_dnForFilter($filter, $restrict);
+     }
+ 
+@@ -854,6 +942,37 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+     }
+ 
+     /**
++     * Get the mail addresses for the group of this object.
++     *
++     * @param string $uid The UID of the object to fetch.
++     *
++     * @return array|PEAR_Error An array of group ids.
++     *
++     * @since 0.5.0
++     */
++    function getGroupAddresses($uid)
++    {
++        $filter = '(&(objectClass=kolabGroupOfNames)(member='
++            . Horde_LDAP::quote($uid) . '))';
++        $result = $this->_attrsForFilter($filter, array(KOLAB_ATTR_MAIL),
++                                         KOLAB_SERVER_RESULT_MANY);
++        if (empty($result)) {
++            return array();
++        }
++        $mails = array();
++        foreach ($result as $element) {
++            if (isset($element[KOLAB_ATTR_MAIL])) {
++                if (is_array($element[KOLAB_ATTR_MAIL])) {
++                    $mails = array_merge($mails, $element[KOLAB_ATTR_MAIL]);
++                } else {
++                    $mails[] = $element[KOLAB_ATTR_MAIL];
++                }
++            }
++        }
++        return $mails;
++    }
++
++    /**
+      * List all objects of a specific type
+      *
+      * @param string $type   The type of the objects to be listed
+@@ -874,7 +993,13 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+             return $result;
+         }
+         $vars   = get_class_vars($type);
+-        $filter = $vars['filter'];
++        $methods = get_class_methods($type);
++        if (!in_array('getFilter', $methods)) {
++            $filter = $vars['filter'];
++        } else {
++            $criteria = call_user_func(array($type, 'getFilter'));
++            $filter   = $this->searchQuery($criteria);
++        }
+         $sort   = $vars['sort_by'];
+ 
+         if (isset($params['sort'])) {
+@@ -993,4 +1118,176 @@ class Horde_Kolab_Server_ldap extends Horde_Kolab_Server {
+         }
+     }
+ 
++    /**
++     * Build a search query.
++     *
++     * Taken from the Turba LDAP driver.
++     *
++     * @param array $criteria The array of criteria.
++     *
++     * @return string  An LDAP query filter.
++     */
++    public function searchQuery($criteria)
++    {
++        require_once 'Net/LDAP2.php';
++
++        /* Accept everything. */
++        $filter = '(' . strtolower(KOLAB_ATTR_OC) . '=*)';
++
++        /* Build the LDAP filter. */
++        if (count($criteria)) {
++            $f = $this->buildSearchQuery($criteria);
++            if (is_a($f, 'Net_LDAP2_Filter')) {
++                $filter = $f->asString();
++            }
++        }
++        return $filter;
++    }
++
++    /**
++     * Build a piece of a search query.
++     *
++     * Taken from the Turba LDAP driver.
++     *
++     * @param array $criteria The array of criteria.
++     *
++     * @return string  An LDAP query fragment.
++     */
++    protected function &buildSearchQuery($criteria)
++    {
++        if (isset($criteria['field'])) {
++            require_once 'Horde/String.php';
++            require_once 'Horde/NLS.php';
++            $rhs     = $criteria['test'];
++            /* Keep this in for reference as we did not really test servers with different encoding yet */
++            //$rhs     = String::convertCharset($criteria['test'], NLS::getCharset(), $this->params['charset']);
++            switch ($criteria['op']) {
++            case '=':
++                $op = 'equals';
++                break;
++            }
++            return Net_LDAP2_Filter::create($this->mapField($criteria['field']),
++                                            $op, $rhs);
++        }
++        foreach ($criteria as $key => $vals) {
++            if (!empty($vals['OR'])
++                || !empty($vals['AND'])
++                || !empty($vals['NOT'])) {
++                $parts = $this->buildSearchQuery($vals);
++                if (count($parts) > 1) {
++                    if (!empty($vals['OR'])) {
++                        $operator = '|';
++                    } else if (!empty($vals['NOT'])) {
++                        $operator = '!';
++                    } else {
++                        $operator = '&';
++                    }
++                    return Net_LDAP2_Filter::combine($operator, $parts);
++                } else {
++                    return $parts[0];
++                }
++            } else {
++                $parts = array();
++                foreach ($vals as $test) {
++                    $parts[] = &$this->buildSearchQuery($test);
++                }
++                switch ($key) {
++                case 'OR':
++                    $operator = '|';
++                    break;
++                case 'AND':
++                    $operator = '&';
++                    break;
++                case 'NOT':
++                    $operator = '!';
++                    break;
++                }
++                if (count($parts) > 1) {
++                    return Net_LDAP2_Filter::combine($operator, $parts);
++                } else if ($operator == '!') {
++                    return Net_LDAP2_Filter::combine($operator, $parts[0]);
++                } else {
++                    return $parts[0];
++                }
++            }
++        }
++    }
++
++    /**
++     * Map attributes defined within this library their their real world
++     * counterparts.
++     *
++     * @param array $data The data that has been read and needs to be mapped.
++     *
++     * @return NULL
++     */
++    protected function unmapAttributes(&$data)
++    {
++        if (!empty($this->_params['map'])) {
++            foreach ($this->_params['map'] as $attribute => $map) {
++                if (isset($data[$map])) {
++                    $data[$attribute] = $data[$map];
++                    unset($data[$map]);
++                }
++            }
++        }
++    }
++
++    /**
++     * Map attributes defined within this library into their real world
++     * counterparts.
++     *
++     * @param array $data The data to be written.
++     *
++     * @return NULL
++     */
++    protected function mapAttributes(&$data)
++    {
++        if (!empty($this->_params['map'])) {
++            foreach ($this->_params['map'] as $attribute => $map) {
++                if (isset($data[$attribute])) {
++                    $data[$map] = $data[$attribute];
++                    unset($data[$attribute]);
++                }
++            }
++        }
++    }
++
++    /**
++     * Map attribute keys defined within this library into their real world
++     * counterparts.
++     *
++     * @param array $keys The attribute keys.
++     *
++     * @return NULL
++     */
++    protected function mapKeys(&$keys)
++    {
++        if (!empty($this->_params['map'])) {
++            foreach ($this->_params['map'] as $attribute => $map) {
++                $key = array_search($attribute, $keys);
++                if ($key !== false) {
++                    $keys[$key] = $map;
++                }
++            }
++        }
++    }
++
++    /**
++     * Map a single attribute key defined within this library into its real
++     * world counterpart.
++     *
++     * @param array $field The attribute name.
++     *
++     * @return The real name of this attribute on the server we connect to.
++     */
++    protected function mapField($field)
++    {
++        if (!empty($this->_params['map'])
++            && isset($this->_params['map'][$field])) {
++            return $this->_params['map'][$field];
++        }
++        return $field;
++    }
++
+ }
+diff --git a/horde-webmail/lib/Horde/Kolab/Server/test.php b/horde-webmail/lib/Horde/Kolab/Server/test.php
+index 47f985a..fc19c80 100644
+--- a/horde-webmail/lib/Horde/Kolab/Server/test.php
++++ b/horde-webmail/lib/Horde/Kolab/Server/test.php
+@@ -247,6 +247,10 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+             }
+         }
+ 
++        if (!empty($attributes)) {
++            $this->mapKeys($attributes);
++        }
++
+         $filter = $this->_parse($filter);
+         if (is_a($filter, 'PEAR_Error')) {
+             return $filter;
+@@ -265,6 +269,8 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+             $result = $subtree;
+         }
+ 
++        $this->unmapAttributes($result);
++
+         return $result;
+     }
+ 
+@@ -286,7 +292,8 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+                     switch ($filter['log']) {
+                     case '=':
+                         $value = $element['data'][$filter['att']];
+-                        if (($filter['val'] == '*' && !empty($value))
++                        if ((($filter['val'] == '*'  || $filter['val'] == '\2a')
++                             && !empty($value))
+                             || $value == $filter['val']
+                             || (is_array($value)
+                                 && in_array($filter['val'], $value))) {
+@@ -390,8 +397,12 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+                                             $dn));
+         }
+         if (empty($attrs)) {
+-            return $GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn]['data'];
++            $data = $GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn]['data'];
++            $this->unmapAttributes($data);
++            return $data;
+         } else {
++            $this->mapKeys($attrs);
++
+             $result = array();
+             $data   = $GLOBALS['KOLAB_SERVER_TEST_DATA'][$dn]['data'];
+ 
+@@ -401,6 +412,9 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+                     array_push($result, $attr);
+                 }
+             }
++
++            $this->unmapAttributes($result);
++
+             $result['count'] = 1;
+             return $result;
+         }
+@@ -423,6 +437,8 @@ class Horde_Kolab_Server_test extends Horde_Kolab_Server_ldap {
+             }
+         }
+ 
++        $this->mapAttributes($data);
++
+         $ldap_data = array();
+         foreach ($data as $key => $val) {
+             if (!is_array($val)) {
+-- 
+tg: (b86f5d3..) t/Kolab_Server/HK/GW/MappableAttributes_ (depends on: t/Prefs/HK/GW/FixLDAPAuthForIngo t/Text/Filter/SC/CH/Xss t/framework/HK/GW/Kolab_Format/ImprovedPreferencesHandling t/framework/HK/GW/Prefs_KolabImapApplicationTag t/framework/HK/GW/horde/conf_xmlUpdates t/kronolith/HK/GW/AuthenticatedFreeBusy t/nag/H/MR/Bug_7400 t/GLOBAL/HK/GW/SystemLibInclude t/kronolith/HK/GW/SyncMLrefresh t/turba/HK/GW/FixAddressbookDeletion t/turba/HK/GW/SyncMLrefresh t/imp/HideGroupwareFolders t/imp/SC/CH/SecIssues20090128 t/horde/SC/CH/SecIssues20090128 t/dimp/H/MS/FixBrokenFolderImages t/dimp/HK/GW/ItipHandling t/pear/HK/GW/AddNetIMAP t/pear/HK/GW/AddNetLDAP2_)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 98296a8e96f64476e450c62e46c1f125e35c20f6
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 09:03:52 2009 +0200
+
+    Add getGroupAddresses().
+
+commit e84042e7941b8f7e5a76f9de9baf9bf660a3467a
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 01:28:02 2009 +0200
+
+    Allow to configure mapped LDAP attributes.
+
+commit db709e264c26db8c9382a446795f78abb7e39a22
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 01:25:13 2009 +0200
+
+    Add all dependencies from t/KOLAB.

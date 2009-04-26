@@ -126,7 +126,7 @@ index d47f8b0..bcbda7e 100644
          }
  
 -- 
-tg: (a5a1f3e..) t/Kolab_Server/HK/GW/UserMailAndFullname (depends on: t/Kolab_Server/HK/GW/DenyLogin)
+tg: (86fa019..) t/Kolab_Server/HK/GW/UserMailAndFullname (depends on: t/Kolab_Server/HK/GW/DenyLogin)
 -- 
 TOPGIT patch commit log
 =======================

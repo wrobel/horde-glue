@@ -60,7 +60,7 @@ index decf66a..2a2db6a 100644
                  }
              }
 -- 
-tg: (af8ebe5..) t/framework/HK/GW/iCalendar/QuotedParameters (depends on: t/framework/HK/GW/Kolab_Storage/ShareIdFix)
+tg: (d0d48d3..) t/framework/HK/GW/iCalendar/QuotedParameters (depends on: t/framework/HK/GW/Kolab_Storage/ShareIdFix)
 -- 
 TOPGIT patch commit log
 =======================

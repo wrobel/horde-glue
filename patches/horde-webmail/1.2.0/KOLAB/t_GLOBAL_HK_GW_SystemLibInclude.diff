@@ -1,0 +1,44 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/GLOBAL/HK/GW/SystemLibInclude
+
+This includes the system wide php library again so that we can start
+to split the horde-webmail package into single parts.
+
+STATUS: CONFIG
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/core.php |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/core.php b/horde-webmail/lib/core.php
+index 656dae3..e85aa42 100644
+--- a/horde-webmail/lib/core.php
++++ b/horde-webmail/lib/core.php
+@@ -30,7 +30,7 @@ if (ini_get('register_globals')) {
+ /* If the Horde Framework packages are not installed in PHP's global
+  * include_path, you must add an ini_set() call here to add their location to
+  * the include_path. */
+-ini_set('include_path', dirname(__FILE__) . PATH_SEPARATOR . dirname(__FILE__) . '/../pear');
++ini_set('include_path', dirname(__FILE__) . PATH_SEPARATOR . dirname(__FILE__) . '/../pear' . PATH_SEPARATOR . ini_get('include_path'));
+ ini_set('log_errors', true);
+ ini_set('display_errors', '0');
+ ini_set('error_log', dirname(__FILE__) . '/../log/php-errors.log');
+-- 
+tg: (1714037..) t/GLOBAL/HK/GW/SystemLibInclude (depends on: t/GLOBAL/HK/GW/ConfigTemplateSupport)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 2e2b54a82d8f696b1d50e76e0af98e07ff4936ed
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 00:15:36 2009 +0200
+
+    Typo.
+
+commit bd93fe1db54fd373838302e4ab912a678bab10b5
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 00:08:47 2009 +0200
+
+    Include the system wide PHP libary so that we can start to split packages from the big horde-webmail installation.

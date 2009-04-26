@@ -59,7 +59,7 @@ index e6cd3c9..4644e93 100644
          $views[] = array('sel' => $view_cookie == 'imp',
                           'val' => 'imp', 'name' => _("Traditional"));
 -- 
-tg: (3a70f58..) t/imp/H/GW/DefaultLoginView (depends on: t/imp/H/JS/bug7739)
+tg: (4d97c89..) t/imp/H/GW/DefaultLoginView (depends on: t/imp/H/JS/bug7739)
 -- 
 TOPGIT patch commit log
 =======================

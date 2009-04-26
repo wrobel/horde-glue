@@ -23,7 +23,7 @@ index bf2acec..00e65f4 100644
          if (!isset($error_regexps)) {
              $error_regexps = array(
 -- 
-tg: (018dab9..) t/framework/HK/GW/DB/SqliteErrorChecking (depends on: t/framework/HK/GW/Kolab/XfbFixes)
+tg: (c20af1d..) t/framework/HK/GW/DB/SqliteErrorChecking (depends on: t/framework/HK/GW/Kolab/XfbFixes)
 -- 
 TOPGIT patch commit log
 =======================

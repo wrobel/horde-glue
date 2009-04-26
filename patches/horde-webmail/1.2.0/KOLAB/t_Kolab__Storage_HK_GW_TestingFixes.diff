@@ -1,0 +1,79 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Kolab_Storage/HK/GW/TestingFixes
+
+Fix the permission object in case we use setACL() directly.
+
+Also allows complex testing scenarios within FreeBusy. While this
+patch is irrelevant for the kolab-webclient it syncs the Kolab_Storage
+library.
+
+STATUS: MERGED
+
+REF: http://lists.horde.org/archives/cvs/Week-of-Mon-20090420/087647.html
+REF: http://lists.horde.org/archives/cvs/Week-of-Mon-20090420/087648.html
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Kolab/Storage/Folder.php |    5 +++++
+ horde-webmail/lib/Horde/Kolab/Storage/List.php   |    4 ++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+index fcd18b3..ee6652a 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
+@@ -1422,6 +1422,11 @@ class Kolab_Folder {
+             return $iresult;
+         }
+ 
++        if (!empty($this->_perms)) {
++            /** Refresh the cache after changing the permissions */
++            $this->_perms->getPerm();
++        }
++
+         $result = $this->trigger();
+         if (is_a($result, 'PEAR_Error')) {
+             Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/List.php b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+index 583f41f..a9bff36 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/List.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/List.php
+@@ -96,7 +96,7 @@ class Kolab_List {
+      *
+      * @return Kolab_Folders_List  The concrete List reference.
+      */
+-    function &singleton()
++    function &singleton($destruct = false)
+     {
+         static $list;
+ 
+@@ -107,7 +107,7 @@ class Kolab_List {
+             $list = $session->query('kolab_folderlist');
+         }
+ 
+-        if (empty($list[Auth::getAuth()])) {
++        if (empty($list[Auth::getAuth()]) || $destruct) {
+             $list[Auth::getAuth()] = new Kolab_List();
+         }
+ 
+-- 
+tg: (05b2002..) t/Kolab_Storage/HK/GW/TestingFixes (depends on: t/Kolab_Server/HK/GW/MappableAttributes_)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 0f2720ba809d71ff40332b0477a23aca4b90b17e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 10:22:03 2009 +0200
+
+    Fix the permission object in case we use setACL() directly.
+    
+    Also allows complex testing scenarios within FreeBusy. While this
+    patch is irrelevant for the kolab-webclient it syncs the Kolab_Storage
+    library.
+    
+    STATUS: MERGED
+    
+    REF: http://lists.horde.org/archives/cvs/Week-of-Mon-20090420/087647.html
+    REF: http://lists.horde.org/archives/cvs/Week-of-Mon-20090420/087648.html

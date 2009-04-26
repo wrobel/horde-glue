@@ -82,7 +82,7 @@ index 472a131..213d1f2 100644
   * See the enclosed file COPYING for license information (LGPL). If you
   * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
 diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
-index 8c74322..4d3e0f3 100644
+index 27435cb..fcd18b3 100644
 --- a/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
 +++ b/horde-webmail/lib/Horde/Kolab/Storage/Folder.php
 @@ -59,9 +59,9 @@ define('HORDE_ANNOT_SHARE_ATTR', '/vendor/horde/share-');
@@ -130,7 +130,7 @@ index 114fda9..8b3dd72 100644
   * See the enclosed file COPYING for license information (LGPL). If you
   * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
 -- 
-tg: (b79b990..) t/COPYRIGHT3 (depends on: t/Kolab_Storage/HK/GW/SuppressTriggering)
+tg: (82856c8..) t/COPYRIGHT3 (depends on: t/Kolab_Storage/HK/GW/SuppressTriggering)
 -- 
 TOPGIT patch commit log
 =======================
