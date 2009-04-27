@@ -1,0 +1,42 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Fbview/HK/GW/Config
+
+Configuration for the Kolab Fbview application.
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/config/conf.php |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/config/conf.php b/horde-webmail/config/conf.php
+index ae2acef..421ac6c 100644
+--- a/horde-webmail/config/conf.php
++++ b/horde-webmail/config/conf.php
+@@ -30,8 +30,7 @@ $conf['auth']['checkip'] = true;
+ $conf['auth']['checkbrowser'] = true;
+ $conf['auth']['alternate_login'] = false;
+ $conf['auth']['redirect_on_logout'] = false;
+-$conf['auth']['params']['app'] = 'imp';
+-$conf['auth']['driver'] = 'application';
++$conf['auth']['driver'] = 'kolab';
+ $conf['signup']['allow'] = false;
+ $conf['log']['priority'] = PEAR_LOG_DEBUG;
+ $conf['log']['ident'] = 'HORDE';
+-- 
+tg: (342156a..) t/Fbview/HK/GW/Config (depends on: t/Prefs/HK/GW/Fbview)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 5f20001f15a232b20c32ba3af1ff3e6522166d2b
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 23:04:52 2009 +0200
+
+    Configuration for the Kolab Fbview application.
+
+commit 273c43662bf5b7c46466c42a20bfcd13d0855313
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 23:04:14 2009 +0200
+
+    Use the kolab auth driver.

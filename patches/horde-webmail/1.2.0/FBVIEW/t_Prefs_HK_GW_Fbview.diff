@@ -1,0 +1,51 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/Prefs/HK/GW/Fbview
+
+Hard locking the preferences for the Kolab FBview system. This needs
+code changes as locking is not enough. Though by using the file based
+preferences system it should actually be enough if we lock the
+preferences. Should be fixed at some point.
+
+STATUS: HACK
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/lib/Horde/Prefs.php |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
+
+diff --git a/horde-webmail/lib/Horde/Prefs.php b/horde-webmail/lib/Horde/Prefs.php
+index efe7f8d..c0d2cd4 100644
+--- a/horde-webmail/lib/Horde/Prefs.php
++++ b/horde-webmail/lib/Horde/Prefs.php
+@@ -320,6 +320,16 @@ class Prefs {
+      */
+     function getValue($pref, $convert = true)
+     {
++        if ($pref == 'show_sidebar') {
++            return false;
++        }
++        if ($pref == 'initial_application') {
++            return 'kronolith';
++        }
++        if ($pref == 'defaultview') {
++            return 'attendees';
++        } 
++
+         static $charset;
+         if (!isset($charset)) {
+             $charset = NLS::getCharset();
+-- 
+tg: (7a177c9..) t/Prefs/HK/GW/Fbview (depends on: t/kronolith/HK/GW/FbviewMenu)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 342156af90879e615215e34633035c83bd26a591
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 22:40:30 2009 +0200
+
+    Hard locking the preferences for the Kolab FBview system. This needs
+    code changes as locking is not enough. Though by using the file based
+    preferences system it should actually be enough if we lock the
+    preferences. Should be fixed at some point.

@@ -1,0 +1,177 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/kronolith/HK/GW/FbviewMenu
+
+Imported kronolith/HK-GW-Fbview_menu.patch from the mercurial patch queue.
+
+STATUS: HACK
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/kronolith/attendees.php              |    1 +
+ horde-webmail/kronolith/calendars/create.php       |    2 +-
+ horde-webmail/kronolith/calendars/delete.php       |    2 +-
+ horde-webmail/kronolith/calendars/edit.php         |    2 +-
+ horde-webmail/kronolith/calendars/index.php        |    2 +-
+ horde-webmail/kronolith/calendars/remote_edit.php  |    2 +-
+ .../kronolith/calendars/remote_subscribe.php       |    2 +-
+ .../kronolith/calendars/remote_unsubscribe.php     |    2 +-
+ horde-webmail/kronolith/lib/Kronolith.php          |   27 ++++++++++++++++++++
+ horde-webmail/kronolith/templates/fbview-menu.inc  |    4 +++
+ 10 files changed, 39 insertions(+), 7 deletions(-)
+
+diff --git a/horde-webmail/kronolith/attendees.php b/horde-webmail/kronolith/attendees.php
+index e1b15c0..0812b56 100644
+--- a/horde-webmail/kronolith/attendees.php
++++ b/horde-webmail/kronolith/attendees.php
+@@ -274,6 +274,7 @@ Imple::factory('ContactAutoCompleter', array('triggerId' => 'newAttendees'));
+ 
+ $title = _("Edit attendees");
+ require KRONOLITH_TEMPLATES . '/common-header.inc';
++require KRONOLITH_TEMPLATES . '/fbview-menu.inc';
+ 
+ if ($browser->hasFeature('javascript')) {
+     Horde::addScriptFile('open_savedattlist_win.js');
+diff --git a/horde-webmail/kronolith/calendars/create.php b/horde-webmail/kronolith/calendars/create.php
+index 4daffc3..dc831dd 100644
+--- a/horde-webmail/kronolith/calendars/create.php
++++ b/horde-webmail/kronolith/calendars/create.php
+@@ -39,6 +39,6 @@ if ($form->validate($vars)) {
+ 
+ $title = $form->getTitle();
+ require KRONOLITH_TEMPLATES . '/common-header.inc';
+-require KRONOLITH_TEMPLATES . '/menu.inc';
++require KRONOLITH_TEMPLATES . '/fbview-menu.inc';
+ echo $form->renderActive($form->getRenderer(), $vars, 'create.php', 'post');
+ require $registry->get('templates', 'horde') . '/common-footer.inc';
+diff --git a/horde-webmail/kronolith/calendars/delete.php b/horde-webmail/kronolith/calendars/delete.php
+index cc9b357..b61f585 100644
+--- a/horde-webmail/kronolith/calendars/delete.php
++++ b/horde-webmail/kronolith/calendars/delete.php
+@@ -56,6 +56,6 @@ if ($form->validate(new Variables($_POST))) {
+ 
+ $title = $form->getTitle();
+ require KRONOLITH_TEMPLATES . '/common-header.inc';
+-require KRONOLITH_TEMPLATES . '/menu.inc';
++require KRONOLITH_TEMPLATES . '/fbview-menu.inc';
+ echo $form->renderActive($form->getRenderer(), $vars, 'delete.php', 'post');
+ require $registry->get('templates', 'horde') . '/common-footer.inc';
+diff --git a/horde-webmail/kronolith/calendars/edit.php b/horde-webmail/kronolith/calendars/edit.php
+index 6357a2c..ba4cd8e 100644
+--- a/horde-webmail/kronolith/calendars/edit.php
++++ b/horde-webmail/kronolith/calendars/edit.php
+@@ -59,6 +59,6 @@ if (isset($params['fbrelevance'])) {
+ }
+ $title = $form->getTitle();
+ require KRONOLITH_TEMPLATES . '/common-header.inc';
+-require KRONOLITH_TEMPLATES . '/menu.inc';
++require KRONOLITH_TEMPLATES . '/fbview-menu.inc';
+ echo $form->renderActive($form->getRenderer(), $vars, 'edit.php', 'post');
+ require $registry->get('templates', 'horde') . '/common-footer.inc';
+diff --git a/horde-webmail/kronolith/calendars/index.php b/horde-webmail/kronolith/calendars/index.php
+index 09f7b3e..aca8137 100644
+--- a/horde-webmail/kronolith/calendars/index.php
++++ b/horde-webmail/kronolith/calendars/index.php
+@@ -73,6 +73,6 @@ Horde::addScriptFile('popup.js', 'horde', true);
+ Horde::addScriptFile('tables.js', 'kronolith', true);
+ $title = _("Manage Calendars");
+ require KRONOLITH_TEMPLATES . '/common-header.inc';
+-require KRONOLITH_TEMPLATES . '/menu.inc';
++require KRONOLITH_TEMPLATES . '/fbview-menu.inc';
+ require KRONOLITH_TEMPLATES . '/calendar_list.php';
+ require $registry->get('templates', 'horde') . '/common-footer.inc';
+diff --git a/horde-webmail/kronolith/calendars/remote_edit.php b/horde-webmail/kronolith/calendars/remote_edit.php
+index 7ecb9c4..9827331 100644
+--- a/horde-webmail/kronolith/calendars/remote_edit.php
++++ b/horde-webmail/kronolith/calendars/remote_edit.php
+@@ -68,6 +68,6 @@ $vars->set('username', $username);
+ $vars->set('password', $password);
+ $title = $form->getTitle();
+ require KRONOLITH_TEMPLATES . '/common-header.inc';
+-require KRONOLITH_TEMPLATES . '/menu.inc';
++require KRONOLITH_TEMPLATES . '/fbview-menu.inc';
+ echo $form->renderActive($form->getRenderer(), $vars, 'remote_edit.php', 'post');
+ require $registry->get('templates', 'horde') . '/common-footer.inc';
+diff --git a/horde-webmail/kronolith/calendars/remote_subscribe.php b/horde-webmail/kronolith/calendars/remote_subscribe.php
+index 70d769d..5f81ed9 100644
+--- a/horde-webmail/kronolith/calendars/remote_subscribe.php
++++ b/horde-webmail/kronolith/calendars/remote_subscribe.php
+@@ -39,6 +39,6 @@ if ($form->validate($vars)) {
+ 
+ $title = $form->getTitle();
+ require KRONOLITH_TEMPLATES . '/common-header.inc';
+-require KRONOLITH_TEMPLATES . '/menu.inc';
++require KRONOLITH_TEMPLATES . '/fbview-menu.inc';
+ echo $form->renderActive($form->getRenderer(), $vars, 'remote_subscribe.php', 'post');
+ require $registry->get('templates', 'horde') . '/common-footer.inc';
+diff --git a/horde-webmail/kronolith/calendars/remote_unsubscribe.php b/horde-webmail/kronolith/calendars/remote_unsubscribe.php
+index 98f07d3..7bb5388 100644
+--- a/horde-webmail/kronolith/calendars/remote_unsubscribe.php
++++ b/horde-webmail/kronolith/calendars/remote_unsubscribe.php
+@@ -56,6 +56,6 @@ if ($form->validate(new Variables($_POST))) {
+ $vars->set('url', $calendar['url']);
+ $title = $form->getTitle();
+ require KRONOLITH_TEMPLATES . '/common-header.inc';
+-require KRONOLITH_TEMPLATES . '/menu.inc';
++require KRONOLITH_TEMPLATES . '/fbview-menu.inc';
+ echo $form->renderActive($form->getRenderer(), $vars, 'remote_unsubscribe.php', 'post');
+ require $registry->get('templates', 'horde') . '/common-footer.inc';
+diff --git a/horde-webmail/kronolith/lib/Kronolith.php b/horde-webmail/kronolith/lib/Kronolith.php
+index af37cc6..a9f0a28 100644
+--- a/horde-webmail/kronolith/lib/Kronolith.php
++++ b/horde-webmail/kronolith/lib/Kronolith.php
+@@ -2098,6 +2098,33 @@ class Kronolith {
+     }
+ 
+     /**
++     * Builds Kronolith's list of menu items.
++     */
++    function getFbviewMenu($returnType = 'object')
++    {
++        global $conf, $registry, $browser, $prefs;
++
++        /* Check here for guest calendars so that we don't get multiple
++         * messages after redirects, etc. */
++        if (!Auth::getAuth() && !count($GLOBALS['all_calendars'])) {
++            $GLOBALS['notification']->push(_("No calendars are available to guests."));
++        }
++
++        require_once 'Horde/Menu.php';
++        $menu = new Menu(HORDE_MENU_MASK_HELP | HORDE_MENU_MASK_LOGIN);
++
++        $menu->add(Horde::applicationUrl('attendees.php'), _("Attendees"), 'attendees.png', null, null, null, '__noselection');
++
++        $menu->add(Horde::applicationUrl('calendars/'), _("Calendars"), 'calendars.png', null, null, null, '__noselection');
++
++        if ($returnType == 'object') {
++            return $menu;
++        } else {
++            return $menu->render();
++        }
++    }
++
++    /**
+      * Used with usort() to sort events based on their start times.
+      */
+     function _sortEventStartTime($a, $b)
+diff --git a/horde-webmail/kronolith/templates/fbview-menu.inc b/horde-webmail/kronolith/templates/fbview-menu.inc
+new file mode 100644
+index 0000000..50626d0
+--- /dev/null
++++ b/horde-webmail/kronolith/templates/fbview-menu.inc
+@@ -0,0 +1,4 @@
++<div id="menu">
++ <?php echo Kronolith::getFbviewMenu('string') ?>
++</div>
++<?php $GLOBALS['notification']->notify(array('listeners' => 'status')) ?>
+-- 
+tg: (193d13d..) t/kronolith/HK/GW/FbviewMenu (depends on: t/KOLAB)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 7a177c9accd851d45c414f1ac63dc8a9a0cb35f1
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Apr 26 22:34:11 2009 +0200
+
+    Imported kronolith/HK-GW-Fbview_menu.patch from the mercurial patch queue.
