@@ -153,7 +153,7 @@ revcmp-horde:
 
 .PHONY: check-series
 check-series:
-	diff -Naur -I '^tg:' -I '^commit [0-9a-f]*' -I '^Date: ' -I ' @version   CVS: \$$Id:' kolab-cvs/server/patches/horde-webmail/1.2.0/tg/ patches/horde-webmail/1.2.0/KOLAB/
+	diff -Naur -I '^tg:' -I '^commit [0-9a-f]*' -I '^index [0-9a-f.]*' -I '^Date: ' -I '@version[ ]*CVS[:]* \$$Id:' --exclude="CVS" --exclude="series" kolab-cvs/server/kolab-webclient/patches/1.2.0/KOLAB/ patches/horde-webmail/1.2.0/KOLAB/
 
 .PHONY: pear-config
 pear-config:
