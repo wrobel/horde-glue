@@ -11,7 +11,7 @@ REVBIN = ./horde-rev-cmp.sh
 lib:
 	@php -c php.ini -q $(SYMLINK) --src horde-cvs/framework --dest lib > /dev/null
 	@php -c php.ini -q $(SYMLINK) --src horde/framework --dest lib > /dev/null
-	@php -c php.ini -q $(SYMLINK) --src horde-hatchery --dest lib --package horde-hatchery/koward > /dev/null
+	@php -c php.ini -q $(SYMLINK) --src horde-hatchery --dest lib --pkg horde-hatchery/koward > /dev/null
 	@echo "Successfully updated the libraries!"
 
 .PHONY: test-HEAD
