@@ -11,6 +11,7 @@ REVBIN = ./horde-rev-cmp.sh
 lib:
 	@php -c php.ini -q $(SYMLINK) --src horde-cvs/framework --dest lib > /dev/null
 	@php -c php.ini -q $(SYMLINK) --src horde/framework --dest lib > /dev/null
+	@php -c php.ini -q $(SYMLINK) --src horde-hatchery --dest lib --package horde-hatchery/koward > /dev/null
 	@echo "Successfully updated the libraries!"
 
 .PHONY: test-HEAD
@@ -160,3 +161,7 @@ pear-config:
 	pear config-create `pwd` .pearrc
 	pear -c .pearrc config-set php_ini `pwd`/php.ini
 	pear -c .pearrc config-set php_bin "/usr/bin/php -c `pwd`/php.ini"
+
+.PHONY: www-koward
+www-koward:
+	rsync -avz horde-hatchery/koward/www/ www/  --delete-after --exclude=".htaccess" --exclude="config/*.php" --exclude="log" --exclude="tmp" --exclude="storage"
