@@ -13,12 +13,13 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
 
 ---
  horde-webmail/dimp/config/menu.php               |    9 ++++++++-
+ horde-webmail/dimp/po/de_DE.po                   |    3 +++
  horde-webmail/imp/folders.php                    |   17 ++++++++++++-----
  horde-webmail/imp/templates/folders/actions.html |    2 ++
- 3 files changed, 22 insertions(+), 6 deletions(-)
+ 4 files changed, 25 insertions(+), 6 deletions(-)
 
 diff --git a/horde-webmail/dimp/config/menu.php b/horde-webmail/dimp/config/menu.php
-index 0c6ebe9..6c3f21d 100644
+index 0c6ebe9..b5e0a5c 100644
 --- a/horde-webmail/dimp/config/menu.php
 +++ b/horde-webmail/dimp/config/menu.php
 @@ -28,7 +28,14 @@
@@ -29,14 +30,28 @@ index 0c6ebe9..6c3f21d 100644
 +$site_menu = array(
 +    'folders' => array(
 +        'action' => 'DimpBase.go("app:horde", "' . Horde::url($GLOBALS['registry']->get('webroot', 'imp') . '/folders.php', true) . '")',
-+        'text' => _('Folders'),
-+        'icon' => $GLOBALS['registry']->getImageDir('imp') . '/folders/folder.png'),
++        'text' => _('Folder Subscription'),
++        'icon' => $GLOBALS['registry']->getImageDir('horde') . '/prefs.png'),
 +);
 +
  if (file_exists(dirname(__FILE__) . '/menu.local.php')) {
    require(dirname(__FILE__) . '/menu.local.php');
  }
 -
+diff --git a/horde-webmail/dimp/po/de_DE.po b/horde-webmail/dimp/po/de_DE.po
+index 65e8824..c1a6f52 100644
+--- a/horde-webmail/dimp/po/de_DE.po
++++ b/horde-webmail/dimp/po/de_DE.po
+@@ -16,6 +16,9 @@ msgstr ""
+ "Content-Transfer-Encoding: 8bit\n"
+ "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+ 
++msgid "Folder Subscription"
++mststr "Ordner verwalten"
++
+ #: lib/Views/ShowMessage.php:295
+ #, php-format
+ msgid "%d Attachment"
 diff --git a/horde-webmail/imp/folders.php b/horde-webmail/imp/folders.php
 index a0425aa..c46b0e5 100644
 --- a/horde-webmail/imp/folders.php
@@ -110,6 +125,12 @@ tg: (3678979..) t/dimp/H/GW/FoldersView (depends on: t/kronolith/H/GW/UseDayHour
 -- 
 TOPGIT patch commit log
 =======================
+
+commit ad147a4b42d61800400a2a779e884ee050358811
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Jun 22 00:06:14 2009 +0200
+
+    Fixed menu entry name, added translation, fixed image.
 
 commit a1966161022108d9bf4831a8613b1db9a4e68c4d
 Author: Gunnar Wrobel <p@rdus.de>

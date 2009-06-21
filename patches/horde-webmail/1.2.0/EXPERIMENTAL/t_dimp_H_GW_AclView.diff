@@ -12,12 +12,14 @@ http://bugs.horde.org/ticket/8060
 Signed-off-by: Gunnar Wrobel <p@rdus.de>
 
 ---
- horde-webmail/dimp/js/DimpBase.js            |    1 +
- horde-webmail/dimp/lib/DIMP.php              |    1 +
- horde-webmail/dimp/templates/index/index.inc |    1 +
- horde-webmail/imp/acl.php                    |   12 ++++++++++--
- horde-webmail/imp/templates/acl/acl.html     |    6 ++++++
- 5 files changed, 19 insertions(+), 2 deletions(-)
+ horde-webmail/dimp/js/DimpBase.js                  |    1 +
+ horde-webmail/dimp/lib/DIMP.php                    |    1 +
+ .../dimp/locale/de_DE/LC_MESSAGES/dimp.mo          |  Bin 168731 -> 168778 bytes
+ horde-webmail/dimp/po/de_DE.po                     |    3 +++
+ horde-webmail/dimp/templates/index/index.inc       |    1 +
+ horde-webmail/imp/acl.php                          |   12 ++++++++++--
+ horde-webmail/imp/templates/acl/acl.html           |    6 ++++++
+ 7 files changed, 22 insertions(+), 2 deletions(-)
 
 diff --git a/horde-webmail/dimp/js/DimpBase.js b/horde-webmail/dimp/js/DimpBase.js
 index 39a728b..c4eb9f4 100644
@@ -43,6 +45,20 @@ index 0aa3b78..92a1e55 100644
  
              'sortthread' => SORTTHREAD,
              'sortdate' => SORTDATE,
+diff --git a/horde-webmail/dimp/locale/de_DE/LC_MESSAGES/dimp.mo b/horde-webmail/dimp/locale/de_DE/LC_MESSAGES/dimp.mo
+index 2f1c11c..973776f 100644
+Binary files a/horde-webmail/dimp/locale/de_DE/LC_MESSAGES/dimp.mo and b/horde-webmail/dimp/locale/de_DE/LC_MESSAGES/dimp.mo differ
+diff --git a/horde-webmail/dimp/po/de_DE.po b/horde-webmail/dimp/po/de_DE.po
+index c1a6f52..6de9591 100644
+--- a/horde-webmail/dimp/po/de_DE.po
++++ b/horde-webmail/dimp/po/de_DE.po
+@@ -791,3 +791,6 @@ msgstr "entfernen"
+ #: lib/DIMP.php:191
+ msgid "results found"
+ msgstr "Ergebnisse gefunden"
++
++msgid "Share Folder"
++msgstr "Gemeinsame Ordner"
 diff --git a/horde-webmail/dimp/templates/index/index.inc b/horde-webmail/dimp/templates/index/index.inc
 index 21939e0..7c02fe7 100644
 --- a/horde-webmail/dimp/templates/index/index.inc
@@ -119,10 +135,16 @@ index 79580aa..72cf1c5 100644
   <td class="header">&nbsp;</td>
  </tr>
 -- 
-tg: (51407e6..) t/dimp/H/GW/AclView (depends on: t/dimp/H/GW/FoldersView)
+tg: (ad147a4..) t/dimp/H/GW/AclView (depends on: t/dimp/H/GW/FoldersView)
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 57041c04c322dd7dc57da5b171923b7ab000ec0a
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sun Jun 21 23:58:30 2009 +0200
+
+    German translation.
 
 commit cac1482cec6c96a8a1d7fb7c0e8c2433877728f5
 Author: Gunnar Wrobel <p@rdus.de>
