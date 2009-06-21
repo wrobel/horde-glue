@@ -18,7 +18,7 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  3 files changed, 22 insertions(+), 6 deletions(-)
 
 diff --git a/horde-webmail/dimp/config/menu.php b/horde-webmail/dimp/config/menu.php
-index 842c4c5..226931d 100644
+index 0c6ebe9..6c3f21d 100644
 --- a/horde-webmail/dimp/config/menu.php
 +++ b/horde-webmail/dimp/config/menu.php
 @@ -28,7 +28,14 @@
@@ -34,7 +34,7 @@ index 842c4c5..226931d 100644
 +);
 +
  if (file_exists(dirname(__FILE__) . '/menu.local.php')) {
-   require_once(dirname(__FILE__) . '/menu.local.php');
+   require(dirname(__FILE__) . '/menu.local.php');
  }
 -
 diff --git a/horde-webmail/imp/folders.php b/horde-webmail/imp/folders.php
@@ -106,7 +106,7 @@ index f882a82..8e39b8a 100644
       <option value="expunge_folder"><gettext>Purge</gettext></option>
  </if:notrash>
 -- 
-tg: (0b58a1d..) t/dimp/H/GW/FoldersView (depends on: t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView)
+tg: (3678979..) t/dimp/H/GW/FoldersView (depends on: t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView)
 -- 
 TOPGIT patch commit log
 =======================

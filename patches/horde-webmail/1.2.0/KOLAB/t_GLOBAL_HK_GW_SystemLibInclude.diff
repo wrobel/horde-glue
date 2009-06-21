@@ -26,7 +26,7 @@ index 656dae3..e85aa42 100644
  ini_set('display_errors', '0');
  ini_set('error_log', dirname(__FILE__) . '/../log/php-errors.log');
 -- 
-tg: (1714037..) t/GLOBAL/HK/GW/SystemLibInclude (depends on: t/GLOBAL/HK/GW/ConfigTemplateSupport)
+tg: (035fe55..) t/GLOBAL/HK/GW/SystemLibInclude (depends on: t/GLOBAL/HK/GW/ConfigTemplateSupport)
 -- 
 TOPGIT patch commit log
 =======================

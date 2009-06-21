@@ -33,7 +33,9 @@ KOLAB_META_END
 Signed-off-by: Gunnar Wrobel <p@rdus.de>
 
 ---
+ horde-webmail/config/conf.php               |    2 +-
  horde-webmail/config/hooks.php              |    4 ++++
+ horde-webmail/config/kolab.php              |    2 +-
  horde-webmail/config/mime_drivers.php       |    4 ++++
  horde-webmail/config/motd.php               |    7 +++++++
  horde-webmail/config/nls.php                |    4 ++++
@@ -59,7 +61,9 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  horde-webmail/ingo/config/fields.php        |    4 ++++
  horde-webmail/ingo/config/hooks.php         |    4 ++++
  horde-webmail/ingo/config/prefs.php         |    4 ++++
+ horde-webmail/kronolith/config/conf.php     |    2 +-
  horde-webmail/kronolith/config/keywords.php |    4 ++++
+ horde-webmail/kronolith/config/kolab.php    |    2 +-
  horde-webmail/kronolith/config/menu.php     |    4 ++++
  horde-webmail/kronolith/config/prefs.php    |    4 ++++
  horde-webmail/mimp/config/conf.php          |    4 ++++
@@ -78,10 +82,21 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  horde-webmail/turba/config/mime_drivers.php |    4 ++++
  horde-webmail/turba/config/prefs.php        |    4 ++++
  horde-webmail/turba/config/sources.php      |    4 ++++
- 45 files changed, 183 insertions(+), 0 deletions(-)
+ 49 files changed, 187 insertions(+), 4 deletions(-)
 
+diff --git a/horde-webmail/config/conf.php b/horde-webmail/config/conf.php
+index ae2acef..b3b8467 100644
+--- a/horde-webmail/config/conf.php
++++ b/horde-webmail/config/conf.php
+@@ -113,5 +113,5 @@ $conf['kolab']['enabled'] = true;
+ $conf['memcache']['enabled'] = false;
+ /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
+ if (file_exists(dirname(__FILE__) . '/kolab.php')) {
+-  require_once(dirname(__FILE__) . '/kolab.php');
++  require(dirname(__FILE__) . '/kolab.php');
+ }
 diff --git a/horde-webmail/config/hooks.php b/horde-webmail/config/hooks.php
-index 1fb2f6e..c7e41a2 100644
+index 1fb2f6e..c3ed33a 100644
 --- a/horde-webmail/config/hooks.php
 +++ b/horde-webmail/config/hooks.php
 @@ -691,3 +691,7 @@ if (!function_exists('_prefs_hook_fullname')) {
@@ -89,11 +104,22 @@ index 1fb2f6e..c7e41a2 100644
      }
  }*/
 +if (file_exists(dirname(__FILE__) . '/hooks.local.php')) {
-+  require_once(dirname(__FILE__) . '/hooks.local.php');
++  require(dirname(__FILE__) . '/hooks.local.php');
 +}
 +
+diff --git a/horde-webmail/config/kolab.php b/horde-webmail/config/kolab.php
+index 57a5a43..ed41da4 100644
+--- a/horde-webmail/config/kolab.php
++++ b/horde-webmail/config/kolab.php
+@@ -36,5 +36,5 @@ $conf['kolab']['imap']['server'] = 'localhost';
+ $conf['kolab']['imap']['maildomain'] = 'example.com';
+ 
+ if (file_exists(dirname(__FILE__) . '/kolab.local.php')) {
+-  require_once(dirname(__FILE__) . '/kolab.local.php');
++  require(dirname(__FILE__) . '/kolab.local.php');
+ }
 diff --git a/horde-webmail/config/mime_drivers.php b/horde-webmail/config/mime_drivers.php
-index e963402..da0e14a 100644
+index e963402..d314839 100644
 --- a/horde-webmail/config/mime_drivers.php
 +++ b/horde-webmail/config/mime_drivers.php
 @@ -638,3 +638,7 @@ $mime_drivers['horde']['wordperfect'] = array(
@@ -101,11 +127,11 @@ index e963402..da0e14a 100644
      )
  );
 +if (file_exists(dirname(__FILE__) . '/mime_drivers.local.php')) {
-+  require_once(dirname(__FILE__) . '/mime_drivers.local.php');
++  require(dirname(__FILE__) . '/mime_drivers.local.php');
 +}
 +
 diff --git a/horde-webmail/config/motd.php b/horde-webmail/config/motd.php
-index 9f0b57b..bca4c41 100644
+index 9f0b57b..14f0a62 100644
 --- a/horde-webmail/config/motd.php
 +++ b/horde-webmail/config/motd.php
 @@ -1,6 +1,13 @@
@@ -114,7 +140,7 @@ index 9f0b57b..bca4c41 100644
  
 +<?php
 +if (file_exists(dirname(__FILE__) . '/motd.local.php')) {
-+  require_once(dirname(__FILE__) . '/motd.local.php');
++  require(dirname(__FILE__) . '/motd.local.php');
 +}
 +?>
 +
@@ -123,7 +149,7 @@ index 9f0b57b..bca4c41 100644
  
 +
 diff --git a/horde-webmail/config/nls.php b/horde-webmail/config/nls.php
-index 21a3d19..8720096 100644
+index 21a3d19..18a3e62 100644
 --- a/horde-webmail/config/nls.php
 +++ b/horde-webmail/config/nls.php
 @@ -646,3 +646,7 @@ $tz['Pacific/Wallis'] = 'Pacific/Wallis';
@@ -131,11 +157,11 @@ index 21a3d19..8720096 100644
  
  $GLOBALS['tz'] = &$tz;
 +if (file_exists(dirname(__FILE__) . '/nls.local.php')) {
-+  require_once(dirname(__FILE__) . '/nls.local.php');
++  require(dirname(__FILE__) . '/nls.local.php');
 +}
 +
 diff --git a/horde-webmail/config/prefs.php b/horde-webmail/config/prefs.php
-index 52c7730..d3632dc 100644
+index 52c7730..c9e5d80 100644
 --- a/horde-webmail/config/prefs.php
 +++ b/horde-webmail/config/prefs.php
 @@ -574,3 +574,7 @@ $_prefs['editor_plugins'] = array(
@@ -143,11 +169,11 @@ index 52c7730..d3632dc 100644
  );
  // End Rich Text Editor preferences.
 +if (file_exists(dirname(__FILE__) . '/prefs.local.php')) {
-+  require_once(dirname(__FILE__) . '/prefs.local.php');
++  require(dirname(__FILE__) . '/prefs.local.php');
 +}
 +
 diff --git a/horde-webmail/config/registry.php b/horde-webmail/config/registry.php
-index cbd6221..6268106 100644
+index cbd6221..0c1c400 100644
 --- a/horde-webmail/config/registry.php
 +++ b/horde-webmail/config/registry.php
 @@ -525,3 +525,7 @@ function _detect_webroot()
@@ -155,11 +181,11 @@ index cbd6221..6268106 100644
      return $webroot;
  }
 +if (file_exists(dirname(__FILE__) . '/registry.local.php')) {
-+  require_once(dirname(__FILE__) . '/registry.local.php');
++  require(dirname(__FILE__) . '/registry.local.php');
 +}
 +
 diff --git a/horde-webmail/dimp/config/conf.php b/horde-webmail/dimp/config/conf.php
-index de4e32c..83a50d4 100644
+index de4e32c..0ae4bf3 100644
 --- a/horde-webmail/dimp/config/conf.php
 +++ b/horde-webmail/dimp/config/conf.php
 @@ -15,3 +15,7 @@ $conf['viewport']['background_inbox'] = true;
@@ -167,11 +193,11 @@ index de4e32c..83a50d4 100644
  $conf['menu']['apps'] = array('turba', 'ingo', 'kronolith', 'nag', 'mnemo');
  /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 +if (file_exists(dirname(__FILE__) . '/conf.local.php')) {
-+  require_once(dirname(__FILE__) . '/conf.local.php');
++  require(dirname(__FILE__) . '/conf.local.php');
 +}
 +
 diff --git a/horde-webmail/dimp/config/hooks.php b/horde-webmail/dimp/config/hooks.php
-index f315631..02a6dc7 100644
+index f315631..92de08e 100644
 --- a/horde-webmail/dimp/config/hooks.php
 +++ b/horde-webmail/dimp/config/hooks.php
 @@ -123,3 +123,7 @@
@@ -179,11 +205,11 @@ index f315631..02a6dc7 100644
  //     }
  // }
 +if (file_exists(dirname(__FILE__) . '/hooks.local.php')) {
-+  require_once(dirname(__FILE__) . '/hooks.local.php');
++  require(dirname(__FILE__) . '/hooks.local.php');
 +}
 +
 diff --git a/horde-webmail/dimp/config/menu.php b/horde-webmail/dimp/config/menu.php
-index 5dcf354..842c4c5 100644
+index 5dcf354..0c6ebe9 100644
 --- a/horde-webmail/dimp/config/menu.php
 +++ b/horde-webmail/dimp/config/menu.php
 @@ -28,3 +28,7 @@
@@ -191,11 +217,11 @@ index 5dcf354..842c4c5 100644
  //         'icon' => $GLOBALS['registry']->getImageDir('horde') . '/horde.png'),
  // );
 +if (file_exists(dirname(__FILE__) . '/menu.local.php')) {
-+  require_once(dirname(__FILE__) . '/menu.local.php');
++  require(dirname(__FILE__) . '/menu.local.php');
 +}
 +
 diff --git a/horde-webmail/dimp/config/portal.php b/horde-webmail/dimp/config/portal.php
-index 7720eb3..3ccf2ae 100644
+index 7720eb3..89d32cf 100644
 --- a/horde-webmail/dimp/config/portal.php
 +++ b/horde-webmail/dimp/config/portal.php
 @@ -47,3 +47,7 @@ $dimp_block_list[$collection->getName('turba', 'minisearch')] = array(
@@ -203,11 +229,11 @@ index 7720eb3..3ccf2ae 100644
      'ob' => $collection->getBlock('kronolith', 'summary', array())
  );
 +if (file_exists(dirname(__FILE__) . '/portal.local.php')) {
-+  require_once(dirname(__FILE__) . '/portal.local.php');
++  require(dirname(__FILE__) . '/portal.local.php');
 +}
 +
 diff --git a/horde-webmail/dimp/config/prefs.php b/horde-webmail/dimp/config/prefs.php
-index a55ecc2..09a0041 100644
+index a55ecc2..a72bc5e 100644
 --- a/horde-webmail/dimp/config/prefs.php
 +++ b/horde-webmail/dimp/config/prefs.php
 @@ -30,3 +30,7 @@ $_prefs['show_preview'] = array(
@@ -215,11 +241,11 @@ index a55ecc2..09a0041 100644
      'type' => 'implicit',
  );
 +if (file_exists(dirname(__FILE__) . '/prefs.local.php')) {
-+  require_once(dirname(__FILE__) . '/prefs.local.php');
++  require(dirname(__FILE__) . '/prefs.local.php');
 +}
 +
 diff --git a/horde-webmail/dimp/config/servers.php b/horde-webmail/dimp/config/servers.php
-index 30962f3..b0c5de9 100644
+index 30962f3..d84eacb 100644
 --- a/horde-webmail/dimp/config/servers.php
 +++ b/horde-webmail/dimp/config/servers.php
 @@ -253,3 +253,7 @@ if ($GLOBALS['conf']['kolab']['enabled']) {
@@ -227,11 +253,11 @@ index 30962f3..b0c5de9 100644
      );
  }
 +if (file_exists(dirname(__FILE__) . '/servers.local.php')) {
-+  require_once(dirname(__FILE__) . '/servers.local.php');
++  require(dirname(__FILE__) . '/servers.local.php');
 +}
 +
 diff --git a/horde-webmail/imp/config/conf.php b/horde-webmail/imp/config/conf.php
-index 3a0f1d6..011472d 100644
+index 3a0f1d6..63eebb4 100644
 --- a/horde-webmail/imp/config/conf.php
 +++ b/horde-webmail/imp/config/conf.php
 @@ -63,3 +63,7 @@ $conf['sentmail']['driver'] = 'none';
@@ -239,11 +265,11 @@ index 3a0f1d6..011472d 100644
  $conf['notepad']['use_notepad'] = true;
  /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 +if (file_exists(dirname(__FILE__) . '/conf.local.php')) {
-+  require_once(dirname(__FILE__) . '/conf.local.php');
++  require(dirname(__FILE__) . '/conf.local.php');
 +}
 +
 diff --git a/horde-webmail/imp/config/header.php b/horde-webmail/imp/config/header.php
-index a442e09..7cc941e 100644
+index a442e09..e923ef7 100644
 --- a/horde-webmail/imp/config/header.php
 +++ b/horde-webmail/imp/config/header.php
 @@ -20,3 +20,7 @@
@@ -251,11 +277,11 @@ index a442e09..7cc941e 100644
  
  /* Add your custom entries below this line. */
 +if (file_exists(dirname(__FILE__) . '/header.local.php')) {
-+  require_once(dirname(__FILE__) . '/header.local.php');
++  require(dirname(__FILE__) . '/header.local.php');
 +}
 +
 diff --git a/horde-webmail/imp/config/hooks.php b/horde-webmail/imp/config/hooks.php
-index 3bab14e..3c39f20 100644
+index 3bab14e..d47a957 100644
 --- a/horde-webmail/imp/config/hooks.php
 +++ b/horde-webmail/imp/config/hooks.php
 @@ -535,3 +535,7 @@ if (!function_exists('_imp_hook_quota')) {
@@ -263,11 +289,11 @@ index 3bab14e..3c39f20 100644
      }
  }
 +if (file_exists(dirname(__FILE__) . '/hooks.local.php')) {
-+  require_once(dirname(__FILE__) . '/hooks.local.php');
++  require(dirname(__FILE__) . '/hooks.local.php');
 +}
 +
 diff --git a/horde-webmail/imp/config/menu.php b/horde-webmail/imp/config/menu.php
-index 1ea56c7..0d2925c 100644
+index 1ea56c7..40d72ac 100644
 --- a/horde-webmail/imp/config/menu.php
 +++ b/horde-webmail/imp/config/menu.php
 @@ -39,3 +39,7 @@
@@ -275,11 +301,11 @@ index 1ea56c7..0d2925c 100644
  
  /* Add your custom entries below this line. */
 +if (file_exists(dirname(__FILE__) . '/menu.local.php')) {
-+  require_once(dirname(__FILE__) . '/menu.local.php');
++  require(dirname(__FILE__) . '/menu.local.php');
 +}
 +
 diff --git a/horde-webmail/imp/config/mime_drivers.php b/horde-webmail/imp/config/mime_drivers.php
-index 1019aaf..786934b 100644
+index 1019aaf..33bbd19 100644
 --- a/horde-webmail/imp/config/mime_drivers.php
 +++ b/horde-webmail/imp/config/mime_drivers.php
 @@ -301,3 +301,7 @@ $mime_drivers['imp']['tnef'] = array(
@@ -287,11 +313,11 @@ index 1019aaf..786934b 100644
      )
  );
 +if (file_exists(dirname(__FILE__) . '/mime_drivers.local.php')) {
-+  require_once(dirname(__FILE__) . '/mime_drivers.local.php');
++  require(dirname(__FILE__) . '/mime_drivers.local.php');
 +}
 +
 diff --git a/horde-webmail/imp/config/motd.php b/horde-webmail/imp/config/motd.php
-index 70803c9..60a33f5 100644
+index 70803c9..1b677df 100644
 --- a/horde-webmail/imp/config/motd.php
 +++ b/horde-webmail/imp/config/motd.php
 @@ -36,6 +36,10 @@
@@ -299,14 +325,14 @@ index 70803c9..60a33f5 100644
  // echo '<a class="small" href="' . $SERVER_HTTP_URL . '" target="_parent">' . _("Click here for Standard HTTP") . '</a> - <a class="small" href="' . $SERVER_SSL_URL . '" target="_parent">' . _("Click here for Secure HTTPS") . '</a></div>';
  
 +if (file_exists(dirname(__FILE__) . '/motd.local.php')) {
-+  require_once(dirname(__FILE__) . '/motd.local.php');
++  require(dirname(__FILE__) . '/motd.local.php');
 +}
  ?>
  <br />
  <table width="100%"><tr><td align="center"><?php echo Horde::img('horde-power1.png', _("Powered by Horde"), '', $registry->getImageDir('horde')) ?></td></tr></table>
 +
 diff --git a/horde-webmail/imp/config/prefs.php b/horde-webmail/imp/config/prefs.php
-index e1f6426..02a28ab 100644
+index e1f6426..e5fde65 100644
 --- a/horde-webmail/imp/config/prefs.php
 +++ b/horde-webmail/imp/config/prefs.php
 @@ -1506,3 +1506,7 @@ $_prefs['vinbox_id'] = array(
@@ -314,11 +340,11 @@ index e1f6426..02a28ab 100644
      'shared' => false,
      'type' => 'implicit');
 +if (file_exists(dirname(__FILE__) . '/prefs.local.php')) {
-+  require_once(dirname(__FILE__) . '/prefs.local.php');
++  require(dirname(__FILE__) . '/prefs.local.php');
 +}
 +
 diff --git a/horde-webmail/imp/config/servers.php b/horde-webmail/imp/config/servers.php
-index 1c6e537..5fd0cf7 100644
+index 1c6e537..c63908e 100644
 --- a/horde-webmail/imp/config/servers.php
 +++ b/horde-webmail/imp/config/servers.php
 @@ -286,3 +286,7 @@ if ($GLOBALS['conf']['kolab']['enabled']) {
@@ -326,11 +352,11 @@ index 1c6e537..5fd0cf7 100644
      );
  }
 +if (file_exists(dirname(__FILE__) . '/servers.local.php')) {
-+  require_once(dirname(__FILE__) . '/servers.local.php');
++  require(dirname(__FILE__) . '/servers.local.php');
 +}
 +
 diff --git a/horde-webmail/imp/config/spelling.php b/horde-webmail/imp/config/spelling.php
-index e9b78bd..7bbe2c2 100644
+index e9b78bd..743e944 100644
 --- a/horde-webmail/imp/config/spelling.php
 +++ b/horde-webmail/imp/config/spelling.php
 @@ -11,3 +11,7 @@ $ignore_list = array(
@@ -338,11 +364,11 @@ index e9b78bd..7bbe2c2 100644
      'nov', 'dec', 'fwd', 'http', 'https', 'html', 'email', 'bcc', 'jpg', 'gif'
  );
 +if (file_exists(dirname(__FILE__) . '/spelling.local.php')) {
-+  require_once(dirname(__FILE__) . '/spelling.local.php');
++  require(dirname(__FILE__) . '/spelling.local.php');
 +}
 +
 diff --git a/horde-webmail/ingo/config/backends.php b/horde-webmail/ingo/config/backends.php
-index d5e26c1..feeabb6 100644
+index d5e26c1..a8bfe8e 100644
 --- a/horde-webmail/ingo/config/backends.php
 +++ b/horde-webmail/ingo/config/backends.php
 @@ -327,3 +327,7 @@ if ($GLOBALS['conf']['kolab']['enabled']) {
@@ -350,11 +376,11 @@ index d5e26c1..feeabb6 100644
      );
  }
 +if (file_exists(dirname(__FILE__) . '/backends.local.php')) {
-+  require_once(dirname(__FILE__) . '/backends.local.php');
++  require(dirname(__FILE__) . '/backends.local.php');
 +}
 +
 diff --git a/horde-webmail/ingo/config/conf.php b/horde-webmail/ingo/config/conf.php
-index ffc834a..8a35d6f 100644
+index ffc834a..d134396 100644
 --- a/horde-webmail/ingo/config/conf.php
 +++ b/horde-webmail/ingo/config/conf.php
 @@ -13,3 +13,7 @@ $conf['spam']['compare'] = 'string';
@@ -362,11 +388,11 @@ index ffc834a..8a35d6f 100644
  $conf['hooks']['vacation_only'] = true;
  /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 +if (file_exists(dirname(__FILE__) . '/conf.local.php')) {
-+  require_once(dirname(__FILE__) . '/conf.local.php');
++  require(dirname(__FILE__) . '/conf.local.php');
 +}
 +
 diff --git a/horde-webmail/ingo/config/fields.php b/horde-webmail/ingo/config/fields.php
-index 045ff52..82fc932 100644
+index 045ff52..590a143 100644
 --- a/horde-webmail/ingo/config/fields.php
 +++ b/horde-webmail/ingo/config/fields.php
 @@ -104,3 +104,7 @@ $ingo_fields = array(
@@ -374,11 +400,11 @@ index 045ff52..82fc932 100644
    )
  );
 +if (file_exists(dirname(__FILE__) . '/fields.local.php')) {
-+  require_once(dirname(__FILE__) . '/fields.local.php');
++  require(dirname(__FILE__) . '/fields.local.php');
 +}
 +
 diff --git a/horde-webmail/ingo/config/hooks.php b/horde-webmail/ingo/config/hooks.php
-index 9e52c95..9e9685c 100644
+index 9e52c95..212ac1c 100644
 --- a/horde-webmail/ingo/config/hooks.php
 +++ b/horde-webmail/ingo/config/hooks.php
 @@ -22,3 +22,7 @@
@@ -386,11 +412,11 @@ index 9e52c95..9e9685c 100644
  //     }
  // }
 +if (file_exists(dirname(__FILE__) . '/hooks.local.php')) {
-+  require_once(dirname(__FILE__) . '/hooks.local.php');
++  require(dirname(__FILE__) . '/hooks.local.php');
 +}
 +
 diff --git a/horde-webmail/ingo/config/prefs.php b/horde-webmail/ingo/config/prefs.php
-index fe645fb..0f7641e 100644
+index fe645fb..0015f92 100644
 --- a/horde-webmail/ingo/config/prefs.php
 +++ b/horde-webmail/ingo/config/prefs.php
 @@ -112,3 +112,7 @@ $_prefs['spam'] = array(
@@ -398,11 +424,22 @@ index fe645fb..0f7641e 100644
      'type' => 'implicit'
  );
 +if (file_exists(dirname(__FILE__) . '/prefs.local.php')) {
-+  require_once(dirname(__FILE__) . '/prefs.local.php');
++  require(dirname(__FILE__) . '/prefs.local.php');
 +}
 +
+diff --git a/horde-webmail/kronolith/config/conf.php b/horde-webmail/kronolith/config/conf.php
+index 97453ac..bdc479f 100644
+--- a/horde-webmail/kronolith/config/conf.php
++++ b/horde-webmail/kronolith/config/conf.php
+@@ -15,5 +15,5 @@ $conf['menu']['apps'] = array();
+ $conf['authenticated_freebusy'] = true;
+ /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
+ if (file_exists(dirname(__FILE__) . '/kolab.php')) {
+-  require_once(dirname(__FILE__) . '/kolab.php');
++  require(dirname(__FILE__) . '/kolab.php');
+ }
 diff --git a/horde-webmail/kronolith/config/keywords.php b/horde-webmail/kronolith/config/keywords.php
-index 6ed32d5..f227f74 100644
+index 6ed32d5..ab9bcaa 100644
 --- a/horde-webmail/kronolith/config/keywords.php
 +++ b/horde-webmail/kronolith/config/keywords.php
 @@ -15,3 +15,7 @@
@@ -410,11 +447,22 @@ index 6ed32d5..f227f74 100644
  
  $keywords[_("Type")] = array(_("Birthday"), _("Meeting"), _("Game"));
 +if (file_exists(dirname(__FILE__) . '/keywords.local.php')) {
-+  require_once(dirname(__FILE__) . '/keywords.local.php');
++  require(dirname(__FILE__) . '/keywords.local.php');
 +}
 +
+diff --git a/horde-webmail/kronolith/config/kolab.php b/horde-webmail/kronolith/config/kolab.php
+index f6b6d2a..117c02b 100644
+--- a/horde-webmail/kronolith/config/kolab.php
++++ b/horde-webmail/kronolith/config/kolab.php
+@@ -9,5 +9,5 @@ $conf['reminder']['server_name'] = 'localhost';
+ $conf['reminder']['from_addr'] = 'hostmaster@example.com';
+ 
+ if (file_exists(dirname(__FILE__) . '/kolab.local.php')) {
+-  require_once(dirname(__FILE__) . '/kolab.local.php');
++  require(dirname(__FILE__) . '/kolab.local.php');
+ }
 diff --git a/horde-webmail/kronolith/config/menu.php b/horde-webmail/kronolith/config/menu.php
-index 282ac8a..f097cb6 100644
+index 282ac8a..714f1a9 100644
 --- a/horde-webmail/kronolith/config/menu.php
 +++ b/horde-webmail/kronolith/config/menu.php
 @@ -39,3 +39,7 @@
@@ -422,11 +470,11 @@ index 282ac8a..f097cb6 100644
  
  /* Add your custom entries below this line. */
 +if (file_exists(dirname(__FILE__) . '/menu.local.php')) {
-+  require_once(dirname(__FILE__) . '/menu.local.php');
++  require(dirname(__FILE__) . '/menu.local.php');
 +}
 +
 diff --git a/horde-webmail/kronolith/config/prefs.php b/horde-webmail/kronolith/config/prefs.php
-index 22c08c3..099c385 100644
+index 22c08c3..0985453 100644
 --- a/horde-webmail/kronolith/config/prefs.php
 +++ b/horde-webmail/kronolith/config/prefs.php
 @@ -497,3 +497,7 @@ $_prefs['last_kronolith_maintenance'] = array(
@@ -434,11 +482,11 @@ index 22c08c3..099c385 100644
      'type' => 'implicit'
  );
 +if (file_exists(dirname(__FILE__) . '/prefs.local.php')) {
-+  require_once(dirname(__FILE__) . '/prefs.local.php');
++  require(dirname(__FILE__) . '/prefs.local.php');
 +}
 +
 diff --git a/horde-webmail/mimp/config/conf.php b/horde-webmail/mimp/config/conf.php
-index 29762a5..dcd6165 100644
+index 29762a5..6c8b3fb 100644
 --- a/horde-webmail/mimp/config/conf.php
 +++ b/horde-webmail/mimp/config/conf.php
 @@ -4,3 +4,7 @@
@@ -446,11 +494,11 @@ index 29762a5..dcd6165 100644
  $conf['mailbox']['max_subj_chars'] = 20;
  /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 +if (file_exists(dirname(__FILE__) . '/conf.local.php')) {
-+  require_once(dirname(__FILE__) . '/conf.local.php');
++  require(dirname(__FILE__) . '/conf.local.php');
 +}
 +
 diff --git a/horde-webmail/mimp/config/menu.php b/horde-webmail/mimp/config/menu.php
-index 2f0a5c7..46bbf9e 100644
+index 2f0a5c7..af1c378 100644
 --- a/horde-webmail/mimp/config/menu.php
 +++ b/horde-webmail/mimp/config/menu.php
 @@ -27,3 +27,7 @@
@@ -458,11 +506,11 @@ index 2f0a5c7..46bbf9e 100644
  
  /* Add your custom entries below this line. */
 +if (file_exists(dirname(__FILE__) . '/menu.local.php')) {
-+  require_once(dirname(__FILE__) . '/menu.local.php');
++  require(dirname(__FILE__) . '/menu.local.php');
 +}
 +
 diff --git a/horde-webmail/mimp/config/mime_drivers.php b/horde-webmail/mimp/config/mime_drivers.php
-index 1666a86..6c0843c 100644
+index 1666a86..15a30e0 100644
 --- a/horde-webmail/mimp/config/mime_drivers.php
 +++ b/horde-webmail/mimp/config/mime_drivers.php
 @@ -100,3 +100,7 @@ $mime_drivers['mimp']['multipart'] = array(
@@ -470,11 +518,11 @@ index 1666a86..6c0843c 100644
      )
  );
 +if (file_exists(dirname(__FILE__) . '/mime_drivers.local.php')) {
-+  require_once(dirname(__FILE__) . '/mime_drivers.local.php');
++  require(dirname(__FILE__) . '/mime_drivers.local.php');
 +}
 +
 diff --git a/horde-webmail/mimp/config/prefs.php b/horde-webmail/mimp/config/prefs.php
-index 52bbb95..1d3ddf6 100644
+index 52bbb95..f992945 100644
 --- a/horde-webmail/mimp/config/prefs.php
 +++ b/horde-webmail/mimp/config/prefs.php
 @@ -23,3 +23,7 @@ $_prefs['preview_msg'] = array(
@@ -482,11 +530,11 @@ index 52bbb95..1d3ddf6 100644
  
  // End Message Viewing preferences
 +if (file_exists(dirname(__FILE__) . '/prefs.local.php')) {
-+  require_once(dirname(__FILE__) . '/prefs.local.php');
++  require(dirname(__FILE__) . '/prefs.local.php');
 +}
 +
 diff --git a/horde-webmail/mnemo/config/conf.php b/horde-webmail/mnemo/config/conf.php
-index a4e9764..864f011 100644
+index a4e9764..2cfda07 100644
 --- a/horde-webmail/mnemo/config/conf.php
 +++ b/horde-webmail/mnemo/config/conf.php
 @@ -7,3 +7,7 @@ $conf['menu']['print'] = true;
@@ -494,11 +542,11 @@ index a4e9764..864f011 100644
  $conf['menu']['apps'] = array();
  /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 +if (file_exists(dirname(__FILE__) . '/conf.local.php')) {
-+  require_once(dirname(__FILE__) . '/conf.local.php');
++  require(dirname(__FILE__) . '/conf.local.php');
 +}
 +
 diff --git a/horde-webmail/mnemo/config/prefs.php b/horde-webmail/mnemo/config/prefs.php
-index b83d5a4..09133c7 100644
+index b83d5a4..fcbd434 100644
 --- a/horde-webmail/mnemo/config/prefs.php
 +++ b/horde-webmail/mnemo/config/prefs.php
 @@ -116,3 +116,7 @@ $_prefs['delete_opt'] = array(
@@ -506,11 +554,11 @@ index b83d5a4..09133c7 100644
      'desc' => _("Do you want to confirm deleting entries?")
  );
 +if (file_exists(dirname(__FILE__) . '/prefs.local.php')) {
-+  require_once(dirname(__FILE__) . '/prefs.local.php');
++  require(dirname(__FILE__) . '/prefs.local.php');
 +}
 +
 diff --git a/horde-webmail/nag/config/conf.php b/horde-webmail/nag/config/conf.php
-index 7809067..a0396f7 100644
+index 7809067..7756f05 100644
 --- a/horde-webmail/nag/config/conf.php
 +++ b/horde-webmail/nag/config/conf.php
 @@ -6,3 +6,7 @@ $conf['menu']['print'] = true;
@@ -518,11 +566,11 @@ index 7809067..a0396f7 100644
  $conf['menu']['apps'] = array();
  /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 +if (file_exists(dirname(__FILE__) . '/conf.local.php')) {
-+  require_once(dirname(__FILE__) . '/conf.local.php');
++  require(dirname(__FILE__) . '/conf.local.php');
 +}
 +
 diff --git a/horde-webmail/nag/config/menu.php b/horde-webmail/nag/config/menu.php
-index 162c88c..457a10d 100644
+index 162c88c..433f36e 100644
 --- a/horde-webmail/nag/config/menu.php
 +++ b/horde-webmail/nag/config/menu.php
 @@ -39,3 +39,7 @@
@@ -530,11 +578,11 @@ index 162c88c..457a10d 100644
  
  /* Add your custom entries below this line. */
 +if (file_exists(dirname(__FILE__) . '/menu.local.php')) {
-+  require_once(dirname(__FILE__) . '/menu.local.php');
++  require(dirname(__FILE__) . '/menu.local.php');
 +}
 +
 diff --git a/horde-webmail/nag/config/prefs.php b/horde-webmail/nag/config/prefs.php
-index e14bd8a..bf2d841 100644
+index e14bd8a..c067123 100644
 --- a/horde-webmail/nag/config/prefs.php
 +++ b/horde-webmail/nag/config/prefs.php
 @@ -238,3 +238,7 @@ $_prefs['display_tasklists'] = array(
@@ -542,11 +590,11 @@ index e14bd8a..bf2d841 100644
      'type' => 'implicit',
  );
 +if (file_exists(dirname(__FILE__) . '/prefs.local.php')) {
-+  require_once(dirname(__FILE__) . '/prefs.local.php');
++  require(dirname(__FILE__) . '/prefs.local.php');
 +}
 +
 diff --git a/horde-webmail/turba/config/attributes.php b/horde-webmail/turba/config/attributes.php
-index ce124f0..adec673 100644
+index ce124f0..495f1d9 100644
 --- a/horde-webmail/turba/config/attributes.php
 +++ b/horde-webmail/turba/config/attributes.php
 @@ -558,3 +558,7 @@ $attributes['homeLongitude'] = array(
@@ -554,11 +602,11 @@ index ce124f0..adec673 100644
      'required' => false,
  );
 +if (file_exists(dirname(__FILE__) . '/attributes.local.php')) {
-+  require_once(dirname(__FILE__) . '/attributes.local.php');
++  require(dirname(__FILE__) . '/attributes.local.php');
 +}
 +
 diff --git a/horde-webmail/turba/config/conf.php b/horde-webmail/turba/config/conf.php
-index b83f681..8f00f61 100644
+index b83f681..93f9e16 100644
 --- a/horde-webmail/turba/config/conf.php
 +++ b/horde-webmail/turba/config/conf.php
 @@ -8,3 +8,7 @@ $conf['shares']['source'] = 'kolab';
@@ -566,11 +614,11 @@ index b83f681..8f00f61 100644
  $conf['documents']['type'] = 'horde';
  /* CONFIG END. DO NOT CHANGE ANYTHING IN OR BEFORE THIS LINE. */
 +if (file_exists(dirname(__FILE__) . '/conf.local.php')) {
-+  require_once(dirname(__FILE__) . '/conf.local.php');
++  require(dirname(__FILE__) . '/conf.local.php');
 +}
 +
 diff --git a/horde-webmail/turba/config/hooks.php b/horde-webmail/turba/config/hooks.php
-index b7d0d40..d423897 100644
+index b7d0d40..02f297c 100644
 --- a/horde-webmail/turba/config/hooks.php
 +++ b/horde-webmail/turba/config/hooks.php
 @@ -38,3 +38,7 @@
@@ -578,11 +626,11 @@ index b7d0d40..d423897 100644
  //     }
  // }
 +if (file_exists(dirname(__FILE__) . '/hooks.local.php')) {
-+  require_once(dirname(__FILE__) . '/hooks.local.php');
++  require(dirname(__FILE__) . '/hooks.local.php');
 +}
 +
 diff --git a/horde-webmail/turba/config/menu.php b/horde-webmail/turba/config/menu.php
-index 418a4b3..49022bf 100644
+index 418a4b3..98d9bb1 100644
 --- a/horde-webmail/turba/config/menu.php
 +++ b/horde-webmail/turba/config/menu.php
 @@ -39,3 +39,7 @@
@@ -590,11 +638,11 @@ index 418a4b3..49022bf 100644
  
  /* Add your custom entries below this line. */
 +if (file_exists(dirname(__FILE__) . '/menu.local.php')) {
-+  require_once(dirname(__FILE__) . '/menu.local.php');
++  require(dirname(__FILE__) . '/menu.local.php');
 +}
 +
 diff --git a/horde-webmail/turba/config/mime_drivers.php b/horde-webmail/turba/config/mime_drivers.php
-index 729ca75..7395c13 100644
+index 729ca75..631981e 100644
 --- a/horde-webmail/turba/config/mime_drivers.php
 +++ b/horde-webmail/turba/config/mime_drivers.php
 @@ -19,3 +19,7 @@ $mime_drivers_map['turba']['overrides'] = array();
@@ -602,11 +650,11 @@ index 729ca75..7395c13 100644
   * the format.
   */
 +if (file_exists(dirname(__FILE__) . '/mime_drivers.local.php')) {
-+  require_once(dirname(__FILE__) . '/mime_drivers.local.php');
++  require(dirname(__FILE__) . '/mime_drivers.local.php');
 +}
 +
 diff --git a/horde-webmail/turba/config/prefs.php b/horde-webmail/turba/config/prefs.php
-index 2f7c7c3..c2d74f5 100644
+index 2f7c7c3..00fccd9 100644
 --- a/horde-webmail/turba/config/prefs.php
 +++ b/horde-webmail/turba/config/prefs.php
 @@ -162,3 +162,7 @@ $_prefs['own_contact'] = array(
@@ -614,11 +662,11 @@ index 2f7c7c3..c2d74f5 100644
      'type' => 'implicit'
  );
 +if (file_exists(dirname(__FILE__) . '/prefs.local.php')) {
-+  require_once(dirname(__FILE__) . '/prefs.local.php');
++  require(dirname(__FILE__) . '/prefs.local.php');
 +}
 +
 diff --git a/horde-webmail/turba/config/sources.php b/horde-webmail/turba/config/sources.php
-index 083defe..d6acb36 100644
+index 083defe..6eb2adc 100644
 --- a/horde-webmail/turba/config/sources.php
 +++ b/horde-webmail/turba/config/sources.php
 @@ -547,3 +547,7 @@ $cfgSources['favourites'] = array(
@@ -626,7 +674,7 @@ index 083defe..d6acb36 100644
      'browse' => true,
  );
 +if (file_exists(dirname(__FILE__) . '/sources.local.php')) {
-+  require_once(dirname(__FILE__) . '/sources.local.php');
++  require(dirname(__FILE__) . '/sources.local.php');
 +}
 +
 -- 
@@ -634,6 +682,12 @@ tg: (b375ec9..) t/GLOBAL/HK/GW/ConfigTemplateSupport (depends on: t/GLOBAL/HK/GW
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 035fe552971c927ea019675db85d81061c6a0f8e
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Wed May 13 12:05:31 2009 +0200
+
+    require_once -> require.
 
 commit 1714037ef074301c0fd987b217fee5a0a1cac71b
 Author: Gunnar Wrobel <p@rdus.de>

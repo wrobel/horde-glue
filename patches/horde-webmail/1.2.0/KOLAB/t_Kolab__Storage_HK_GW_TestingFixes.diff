@@ -58,7 +58,7 @@ index 583f41f..a9bff36 100644
          }
  
 -- 
-tg: (05b2002..) t/Kolab_Storage/HK/GW/TestingFixes (depends on: t/Kolab_Server/HK/GW/MappableAttributes_)
+tg: (d9f3227..) t/Kolab_Storage/HK/GW/TestingFixes (depends on: t/Kolab_Server/HK/GW/MappableAttributes_)
 -- 
 TOPGIT patch commit log
 =======================

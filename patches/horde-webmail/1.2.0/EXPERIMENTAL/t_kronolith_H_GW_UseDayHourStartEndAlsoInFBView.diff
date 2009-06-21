@@ -18,7 +18,7 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  3 files changed, 29 insertions(+), 3 deletions(-)
 
 diff --git a/horde-webmail/kronolith/config/prefs.php b/horde-webmail/kronolith/config/prefs.php
-index 099c385..6ae1dd5 100644
+index 0985453..661f517 100644
 --- a/horde-webmail/kronolith/config/prefs.php
 +++ b/horde-webmail/kronolith/config/prefs.php
 @@ -11,7 +11,7 @@ $prefGroups['view'] = array(
@@ -90,7 +90,7 @@ index 9bac73e..310311f 100644
   * Do anything that we need to do as a result of certain preferences
   * changing.
 -- 
-tg: (a91192c..) t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView (depends on: t/KOLAB)
+tg: (46b4b1b..) t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView (depends on: t/KOLAB)
 -- 
 TOPGIT patch commit log
 =======================

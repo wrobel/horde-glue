@@ -1,0 +1,164 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/kronolith/HK/GW/AnonymousiCalDownload
+
+This patch allows anonymous access via kronolith/ics_kolab.php by
+using a proxy user that needs to be given access to user calendars
+that should be exported anonymously.
+
+STATUS: HACK
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/config/kolab.php        |    4 +
+ horde-webmail/kronolith/ics_kolab.php |  110 +++++++++++++++++++++++++++++++++
+ 2 files changed, 114 insertions(+), 0 deletions(-)
+
+diff --git a/horde-webmail/config/kolab.php b/horde-webmail/config/kolab.php
+index ed41da4..118788a 100644
+--- a/horde-webmail/config/kolab.php
++++ b/horde-webmail/config/kolab.php
+@@ -35,6 +35,10 @@ $conf['kolab']['imap']['server'] = 'localhost';
+ /* Primary mail domain of your Kolab server */
+ $conf['kolab']['imap']['maildomain'] = 'example.com';
+ 
++/* Credentials for a proxy user to allow quasi anonymous ICS access via kronolith/ics_kolab.php */
++//$conf['ics']['default_user'] = '';
++//$conf['ics']['default_pass'] = '';
++
+ if (file_exists(dirname(__FILE__) . '/kolab.local.php')) {
+   require(dirname(__FILE__) . '/kolab.local.php');
+ }
+diff --git a/horde-webmail/kronolith/ics_kolab.php b/horde-webmail/kronolith/ics_kolab.php
+new file mode 100644
+index 0000000..2b81832
+--- /dev/null
++++ b/horde-webmail/kronolith/ics_kolab.php
+@@ -0,0 +1,110 @@
++<?php
++/**
++ * $Horde: kronolith/ics.php,v 1.5.2.10 2008/01/10 16:16:49 jan Exp $
++ *
++ * Copyright 1999-2008 The Horde Project (http://www.horde.org/)
++ *
++ * See the enclosed file COPYING for license information (GPL). If you
++ * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
++ *
++ * @author Chuck Hagenbuch <chuck@horde.org>
++ */
++
++function logout() 
++{
++    Auth::clearAuth();
++    @session_destroy();
++}
++
++@define('AUTH_HANDLER', true);
++@define('HORDE_BASE', dirname(__FILE__) . '/..');
++require_once HORDE_BASE . '/lib/base.php';
++
++// We want to always generate UTF-8 iCalendar data.
++NLS::setCharset('UTF-8');
++
++// Determine which calendar to export.
++$calendar = Util::getFormData('c');
++if (empty($calendar) && !empty($_SERVER['PATH_INFO'])) {
++    $calendar = basename($_SERVER['PATH_INFO']);
++}
++
++// Authenticate.
++$auth = &Auth::singleton($conf['auth']['driver']);
++if (!isset($_SERVER['PHP_AUTH_USER'])) {
++    if (isset($conf['ics']['default_user'])
++        && isset($conf['ics']['default_pass'])) {
++        $user = $conf['ics']['default_user'];
++        $pass = $conf['ics']['default_pass'];
++        $proxied = true;
++    }   
++} else {
++    $user = $_SERVER['PHP_AUTH_USER'];
++    $pass = isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : null;
++}
++
++if (!isset($user) || !$auth->authenticate($user, array('password' => $pass))) {
++    header('WWW-Authenticate: Basic realm="Kronolith iCalendar Interface"');
++    header('HTTP/1.0 401 Unauthorized');
++    echo '401 Unauthorized';
++    exit;
++}
++
++@define('KRONOLITH_BASE', dirname(__FILE__));
++require_once KRONOLITH_BASE . '/lib/base.php';
++require_once 'Horde/Cache.php';
++require_once 'Horde/iCalendar.php';
++
++$share = $kronolith_shares->getShare($calendar);
++if (is_a($share, 'PEAR_Error')) {
++    header('HTTP/1.0 400 Bad Request');
++    echo '400 Bad Request';
++    if ($proxied) {
++        logout();
++    }
++    exit;
++}
++
++if (!$share->hasPermission(Auth::getAuth(), PERMS_READ)) {
++    header('WWW-Authenticate: Basic realm="Kronolith iCalendar Interface"');
++    header('HTTP/1.0 401 Unauthorized');
++    echo '401 Unauthorized';
++    exit;
++}
++
++$cache = &Horde_Cache::singleton($conf['cache']['driver'], Horde::getDriverConfig('cache', $conf['cache']['driver']));
++$key = 'kronolith.ics.' . $calendar;
++
++$ics = $cache->get($key, 360);
++if (!$ics) {
++    $kronolith_driver->open(urlencode($calendar));
++    $events = $kronolith_driver->listEvents();
++
++    $iCal = new Horde_iCalendar();
++    $iCal->setAttribute('X-WR-CALNAME', String::convertCharset($share->get('name'), NLS::getCharset(), 'utf-8'));
++
++    foreach ($events as $id) {
++        $event = &$kronolith_driver->getEvent($id);
++        if (is_a($event, 'PEAR_Error')) {
++            continue;
++        }
++        $iCalEvent = $event->toiCalendar($iCal);
++        if (!empty($conf['ics']['hide_organizer'])) {
++            $iCalEvent->removeAttribute('ORGANIZER');
++        }
++        $iCal->addComponent($iCalEvent);
++    }
++
++    $ics = $iCal->exportvCalendar();
++    $cache->set($key, $ics);
++}
++
++$browser->downloadHeaders($calendar . '.ics',
++                          'text/calendar; charset=' . NLS::getCharset(),
++                          true,
++                          strlen($ics));
++echo $ics;
++
++if ($proxied) {
++    logout();
++}
+-- 
+tg: (b5749f0..) t/kronolith/HK/GW/AnonymousiCalDownload (depends on: t/dimp/H/GW/AclView)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 4ac58a4d646865d74ac26c0439f29ceacfdfea82
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Thu Jun 4 09:40:25 2009 +0200
+
+    Allow to hide the organizer.
+
+commit 0df1aefd621efbe8a2d7e306fbc79dace5760280
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Thu May 28 12:42:44 2009 +0200
+
+    First version of the anonymous ics download patch.
