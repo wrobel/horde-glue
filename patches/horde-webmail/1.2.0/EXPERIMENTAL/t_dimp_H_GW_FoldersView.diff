@@ -39,7 +39,7 @@ index 0c6ebe9..b5e0a5c 100644
  }
 -
 diff --git a/horde-webmail/dimp/po/de_DE.po b/horde-webmail/dimp/po/de_DE.po
-index 65e8824..c1a6f52 100644
+index 65e8824..a536db6 100644
 --- a/horde-webmail/dimp/po/de_DE.po
 +++ b/horde-webmail/dimp/po/de_DE.po
 @@ -16,6 +16,9 @@ msgstr ""
@@ -47,7 +47,7 @@ index 65e8824..c1a6f52 100644
  "Plural-Forms: nplurals=2; plural=(n != 1);\n"
  
 +msgid "Folder Subscription"
-+mststr "Ordner verwalten"
++msgstr "Ordner verwalten"
 +
  #: lib/Views/ShowMessage.php:295
  #, php-format
@@ -125,6 +125,12 @@ tg: (3678979..) t/dimp/H/GW/FoldersView (depends on: t/kronolith/H/GW/UseDayHour
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 93403a869ff14d7868d4cc9c4687ea1270e3c225
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Jun 22 08:39:51 2009 +0200
+
+    Typo
 
 commit ad147a4b42d61800400a2a779e884ee050358811
 Author: Gunnar Wrobel <p@rdus.de>

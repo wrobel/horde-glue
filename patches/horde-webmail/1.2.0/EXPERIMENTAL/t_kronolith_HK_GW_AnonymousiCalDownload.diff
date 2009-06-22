@@ -146,7 +146,7 @@ index 0000000..2b81832
 +    logout();
 +}
 -- 
-tg: (10f34e0..) t/kronolith/HK/GW/AnonymousiCalDownload (depends on: t/dimp/H/GW/AclView)
+tg: (4df9aa5..) t/kronolith/HK/GW/AnonymousiCalDownload (depends on: t/dimp/H/GW/AclView)
 -- 
 TOPGIT patch commit log
 =======================
