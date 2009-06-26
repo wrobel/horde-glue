@@ -91,7 +91,7 @@ index 223ee21..a442b54 100644
 -<td><div class="busy" style="left:<tag:left />;width:<tag:width />;">&nbsp;</div></td>
 +<td><div class="busy" onclick="<tag:evclick />" style="cursor:pointer;left:<tag:left />;width:<tag:width />;" title="<tag:label />">&nbsp;</div></td>
 -- 
-tg: (cd7f4fe..) t/kronolith/HK/SB/ExtraParameters (depends on: t/kronolith/HK/SB/SaveEventAttendees)
+tg: (ced8db7..) t/kronolith/HK/SB/ExtraParameters (depends on: t/kronolith/HK/SB/SaveEventAttendees)
 -- 
 TOPGIT patch commit log
 =======================

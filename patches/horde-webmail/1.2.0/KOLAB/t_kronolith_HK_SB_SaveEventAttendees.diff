@@ -10,11 +10,12 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
 ---
  horde-webmail/kronolith/attendees.php              |   18 +++++
  horde-webmail/kronolith/config/prefs.php.dist      |    8 ++
+ horde-webmail/kronolith/po/de_DE.po                |    6 ++
  horde-webmail/kronolith/savedattlist.php           |   77 ++++++++++++++++++++
  .../kronolith/templates/attendees/attendees.inc    |    2 +
  .../templates/javascript/open_savedattlist_win.js  |   36 +++++++++
  .../templates/savedattlist/savedattlist.inc        |   68 +++++++++++++++++
- 6 files changed, 209 insertions(+), 0 deletions(-)
+ 7 files changed, 215 insertions(+), 0 deletions(-)
 
 diff --git a/horde-webmail/kronolith/attendees.php b/horde-webmail/kronolith/attendees.php
 index a2d8b3e..e1b15c0 100644
@@ -68,6 +69,20 @@ index 22c08c3..b1c49d8 100644
 +    'type' => 'implicit',
 +    'desc' => _("A saved list of attendees")
 +);
+diff --git a/horde-webmail/kronolith/po/de_DE.po b/horde-webmail/kronolith/po/de_DE.po
+index 2b555a2..8cd3fe0 100644
+--- a/horde-webmail/kronolith/po/de_DE.po
++++ b/horde-webmail/kronolith/po/de_DE.po
+@@ -2674,3 +2674,9 @@ msgstr "Jahr(e) am gleichen Jahrestag"
+ #: templates/view/view.inc:116 templates/edit/edit.inc:271
+ msgid "year(s) on the same weekday and month of the year"
+ msgstr "Jahr(e) am gleichen Wochentag und Monat des Jahres"
++
++msgid "Save Attendee List"
++msgstr "Teilnehmerliste speichern"
++
++msgid "Clear all attendees"
++msgstr "Alle Teilnehmer löschen"
 diff --git a/horde-webmail/kronolith/savedattlist.php b/horde-webmail/kronolith/savedattlist.php
 new file mode 100644
 index 0000000..631b994
@@ -285,6 +300,12 @@ tg: (6938161..) t/kronolith/HK/SB/SaveEventAttendees (depends on: master)
 -- 
 TOPGIT patch commit log
 =======================
+
+commit ced8db79fc783d16931dfcecea9bc823c2f5737f
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jun 26 11:15:43 2009 +0200
+
+    German translations.
 
 commit cd7f4fe16072b7b40a1a75bd5c9a296e23bca779
 Author: Gunnar Wrobel <p@rdus.de>

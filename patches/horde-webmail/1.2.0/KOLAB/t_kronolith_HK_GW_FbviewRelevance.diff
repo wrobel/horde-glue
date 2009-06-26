@@ -71,7 +71,7 @@ index 0a76c57..e0b4659 100644
          if ($original_name != $this->_vars->get('name')) {
              $result = $GLOBALS['kronolith_driver']->rename($original_name, $this->_vars->get('name'));
 -- 
-tg: (2b89751..) t/kronolith/HK/GW/FbviewRelevance (depends on: t/kronolith/HK/SB/ExtraParameters)
+tg: (22ebf94..) t/kronolith/HK/GW/FbviewRelevance (depends on: t/kronolith/HK/SB/ExtraParameters)
 -- 
 TOPGIT patch commit log
 =======================

@@ -121,7 +121,7 @@ index f882a82..8e39b8a 100644
       <option value="expunge_folder"><gettext>Purge</gettext></option>
  </if:notrash>
 -- 
-tg: (3678979..) t/dimp/H/GW/FoldersView (depends on: t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView)
+tg: (26f9326..) t/dimp/H/GW/FoldersView (depends on: t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView)
 -- 
 TOPGIT patch commit log
 =======================

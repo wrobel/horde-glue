@@ -931,7 +931,7 @@ index 47f985a..fc19c80 100644
          foreach ($data as $key => $val) {
              if (!is_array($val)) {
 -- 
-tg: (b8b6e1d..) t/Kolab_Server/HK/GW/MappableAttributes_ (depends on: t/Prefs/HK/GW/FixLDAPAuthForIngo t/Text/Filter/SC/CH/Xss t/framework/HK/GW/Kolab_Format/ImprovedPreferencesHandling t/framework/HK/GW/Prefs_KolabImapApplicationTag t/framework/HK/GW/horde/conf_xmlUpdates t/kronolith/HK/GW/AuthenticatedFreeBusy t/nag/H/MR/Bug_7400 t/GLOBAL/HK/GW/SystemLibInclude t/kronolith/HK/GW/SyncMLrefresh t/turba/HK/GW/FixAddressbookDeletion t/turba/HK/GW/SyncMLrefresh t/imp/HideGroupwareFolders t/imp/SC/CH/SecIssues20090128 t/horde/SC/CH/SecIssues20090128 t/dimp/H/MS/FixBrokenFolderImages t/dimp/HK/GW/ItipHandling t/pear/HK/GW/AddNetIMAP t/pear/HK/GW/AddNetLDAP2_)
+tg: (a0be2fe..) t/Kolab_Server/HK/GW/MappableAttributes_ (depends on: t/Prefs/HK/GW/FixLDAPAuthForIngo t/Text/Filter/SC/CH/Xss t/framework/HK/GW/Kolab_Format/ImprovedPreferencesHandling t/framework/HK/GW/Prefs_KolabImapApplicationTag t/framework/HK/GW/horde/conf_xmlUpdates t/kronolith/HK/GW/AuthenticatedFreeBusy t/nag/H/MR/Bug_7400 t/GLOBAL/HK/GW/SystemLibInclude t/kronolith/HK/GW/SyncMLrefresh t/turba/HK/GW/FixAddressbookDeletion t/turba/HK/GW/SyncMLrefresh t/imp/HideGroupwareFolders t/imp/SC/CH/SecIssues20090128 t/horde/SC/CH/SecIssues20090128 t/dimp/H/MS/FixBrokenFolderImages t/dimp/HK/GW/ItipHandling t/pear/HK/GW/AddNetIMAP t/pear/HK/GW/AddNetLDAP2_)
 -- 
 TOPGIT patch commit log
 =======================

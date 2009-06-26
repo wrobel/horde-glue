@@ -90,7 +90,7 @@ index 9bac73e..310311f 100644
   * Do anything that we need to do as a result of certain preferences
   * changing.
 -- 
-tg: (46b4b1b..) t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView (depends on: t/KOLAB)
+tg: (bfd6feb..) t/kronolith/H/GW/UseDayHourStartEndAlsoInFBView (depends on: t/KOLAB)
 -- 
 TOPGIT patch commit log
 =======================
