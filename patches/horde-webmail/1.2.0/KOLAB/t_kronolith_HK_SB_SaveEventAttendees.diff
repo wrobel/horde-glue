@@ -70,7 +70,7 @@ index 22c08c3..b1c49d8 100644
 +    'desc' => _("A saved list of attendees")
 +);
 diff --git a/horde-webmail/kronolith/po/de_DE.po b/horde-webmail/kronolith/po/de_DE.po
-index 2b555a2..8cd3fe0 100644
+index 2b555a2..68ed35c 100644
 --- a/horde-webmail/kronolith/po/de_DE.po
 +++ b/horde-webmail/kronolith/po/de_DE.po
 @@ -2674,3 +2674,9 @@ msgstr "Jahr(e) am gleichen Jahrestag"
@@ -78,11 +78,11 @@ index 2b555a2..8cd3fe0 100644
  msgid "year(s) on the same weekday and month of the year"
  msgstr "Jahr(e) am gleichen Wochentag und Monat des Jahres"
 +
++msgid "Load Attendee List"
++msgstr "Teilnehmerliste laden"
++
 +msgid "Save Attendee List"
 +msgstr "Teilnehmerliste speichern"
-+
-+msgid "Clear all attendees"
-+msgstr "Alle Teilnehmer löschen"
 diff --git a/horde-webmail/kronolith/savedattlist.php b/horde-webmail/kronolith/savedattlist.php
 new file mode 100644
 index 0000000..631b994
@@ -300,6 +300,12 @@ tg: (6938161..) t/kronolith/HK/SB/SaveEventAttendees (depends on: master)
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 3715013c5b1c184a72130bab132e3157d7e4b0ca
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Jun 26 12:06:46 2009 +0200
+
+    Fixed translations.
 
 commit ced8db79fc783d16931dfcecea9bc823c2f5737f
 Author: Gunnar Wrobel <p@rdus.de>

@@ -64,7 +64,7 @@ index d3d7def..3ed41b9 100644
          }
  
 -- 
-tg: (93c56a0..) t/Kolab_Format/HK/GW/HandleEmptyXmlParserReturn (depends on: t/kronolith/HK/GW/XfbAccess)
+tg: (756aa44..) t/Kolab_Format/HK/GW/HandleEmptyXmlParserReturn (depends on: t/kronolith/HK/GW/XfbAccess)
 -- 
 TOPGIT patch commit log
 =======================
