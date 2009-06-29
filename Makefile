@@ -1,7 +1,7 @@
 SYMLINK = horde-cvs/framework/devtools/horde-fw-symlinks.php
 
-TEST_HEAD_PKGS = Kolab_Server
-TEST_CVS_PKGS = Auth Kolab_Format Kolab_Storage Kolab_FreeBusy Kolab_Filter Date Share iCalendar VFS
+TEST_HEAD_PKGS = Kolab_Server Kolab_Format Date
+TEST_CVS_PKGS = Auth Kolab_Storage Kolab_FreeBusy Kolab_Filter Share iCalendar VFS
 TEST_CVS_APPS = turba kronolith
 
 REVCMP = Kolab_Format Kolab_Server Kolab_Storage Kolab_Filter Kolab_FreeBusy
