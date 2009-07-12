@@ -83,3 +83,4 @@ t_pear_HK_GW_AddNetLDAP2__.diff -p1
 t_Kolab__Server_HK_GW_MappableAttributes__.diff -p1
 t_Kolab__Storage_HK_GW_TestingFixes.diff -p1
 t_turba_HK_GW_AllowAttributeDefaults.diff -p1
+t_kronolith_H_JS_FixHolidayDriver.diff -p1
