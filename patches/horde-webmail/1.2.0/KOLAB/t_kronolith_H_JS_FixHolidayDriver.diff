@@ -1,0 +1,176 @@
+From: Gunnar Wrobel <p@rdus.de>
+Subject: [PATCH] t/kronolith/H/JS/FixHolidayDriver
+
+An upstream fix for the newer PEAR-Date_Holidays library.
+
+STATUS: MERGED
+
+http://cvs.horde.org/diff.php/kronolith/lib/Driver/holidays.php?sa=1&r1=1.6.2.6&r2=1.6.2.7
+http://cvs.horde.org/diff.php/kronolith/lib/Driver/holidays.php?sa=1&r1=1.6.2.7&r2=1.6.2.8
+
+Signed-off-by: Gunnar Wrobel <p@rdus.de>
+
+---
+ horde-webmail/kronolith/lib/Driver/holidays.php |   88 ++++++++++++-----------
+ 1 files changed, 47 insertions(+), 41 deletions(-)
+
+diff --git a/horde-webmail/kronolith/lib/Driver/holidays.php b/horde-webmail/kronolith/lib/Driver/holidays.php
+index 0afc975..8b24531 100644
+--- a/horde-webmail/kronolith/lib/Driver/holidays.php
++++ b/horde-webmail/kronolith/lib/Driver/holidays.php
+@@ -32,14 +32,9 @@ class Kronolith_Driver_holidays extends Kronolith_Driver {
+      */
+     function listEvents($startDate = null, $endDate = null, $hasAlarm = false)
+     {
+-        $events = array();
++        global $language;
+ 
+-        $composite = Date_Holidays::factory('Composite');
+-        if (Date_Holidays::isError($composite)) {
+-            Horde::logMessage('Failed to create composite driver for Date_Holidays',
+-                              __FILE__, __LINE__, PEAR_LOG_ERR);
+-            return $events;
+-        }
++        $events = array();
+ 
+         if (is_null($startDate)) {
+             $startDate = new Horde_Date($_SERVER['REQUEST_TIME']);
+@@ -49,49 +44,45 @@ class Kronolith_Driver_holidays extends Kronolith_Driver {
+             $endDate = new Horde_Date($_SERVER['REQUEST_TIME']);
+         }
+ 
++        Date_Holidays::staticSetProperty('DIE_ON_MISSING_LOCALE', false);
+         foreach (unserialize($GLOBALS['prefs']->getValue('holiday_drivers')) as $driver) {
+             for ($year = $startDate->year; $year <= $endDate->year; $year++) {
+-                $dh = Date_Holidays::factory($driver, $year, $GLOBALS['language']);
+-                if (!Date_Holidays::isError($dh)) {
+-                    if (file_exists($this->_getTranslationFileLocation($driver))) {
+-                        $dh->addCompiledTranslationFile($this->_getTranslationFileLocation($driver), $GLOBALS['language']);
+-                        $events = array_merge($events, $this->_getEvents($dh, $startDate, $endDate, 'UTF-8'));
+-                    } elseif (file_exists($this->_getTranslationFileLocation($driver, false))) {
+-                        $dh->addTranslationFile($this->_getTranslationFileLocation($driver, false), $GLOBALS['language']);
+-                        $events = array_merge($events, $this->_getEvents($dh, $startDate, $endDate, 'ISO-8859-1'));
+-                    } else {
+-                        Horde::logMessage(sprintf('Failed to load translation file for driver %s with locale %s', $driver, $GLOBALS['language']), __FILE__, __LINE__, PEAR_LOG_DEBUG);
+-                        $events = array_merge($events, $this->_getEvents($dh, $startDate, $endDate, 'ISO-8859-1'));
+-                    }
+-
+-                } else {
++                $dh = Date_Holidays::factory($driver, $year, $language);
++                if (Date_Holidays::isError($dh)) {
+                     Horde::logMessage(sprintf('Factory was unable to produce driver object for driver %s in year %s with locale %s',
+-                                              $driver, $year, $GLOBALS['language']), __FILE__, __LINE__, PEAR_LOG_ERR);
++                                              $driver, $year, $language),
++                                      __FILE__, __LINE__, PEAR_LOG_ERR);
++                    continue;
+                 }
++                $dh->addTranslation($language);
++                $events = array_merge($events, $this->_getEvents($dh, $startDate, $endDate));
+             }
+         }
+ 
+         return $events;
+     }
+ 
+-    function _getEvents($dh, $startDate, $endDate, $charset)
++    function _getEvents($dh, $startDate, $endDate)
+     {
+         $events = array();
+         for ($date = new Horde_Date($startDate);
+              $date->compareDate($endDate) <= 0;
+              $date->mday++, $date->correct()) {
+-            $holidays = $dh->getHolidayForDate($date->timestamp(), $GLOBALS['language'], true);
+-            if (!Date_Holidays::isError($holidays)) {
+-                if (!is_null($holidays)) {
+-                    foreach($holidays as $holiday) {
+-                        $event = &new Kronolith_Event_holidays($this);
+-                        $event->fromDriver($holiday, $charset);
+-                        $events[] = $event;
+-                    }
+-                }
+-            } else {
++            $holidays = $dh->getHolidayForDate((int)$date->timestamp(), null, true);
++            if (Date_Holidays::isError($holidays)) {
+                 Horde::logMessage(sprintf('Unable to retrieve list of holidays from %s to %s',
+                                           $startDate->cTime(), $endDate->cTime()), __FILE__, __LINE__);
++                continue;
++            }
++
++            if (is_null($holidays)) {
++                continue;
++            }
++
++            foreach ($holidays as $holiday) {
++                $event = &new Kronolith_Event_holidays($this);
++                $event->fromDriver($holiday);
++                $events[] = $event;
+             }
+         }
+         return $events;
+@@ -162,14 +153,29 @@ class Kronolith_Driver_holidays extends Kronolith_Driver {
+         return PEAR::raiseError('Not supported');
+     }
+ 
+-    function _getTranslationFileLocation($driver, $compiled = true)
++    function _getTranslationFile($driver)
+     {
+-        $location = PEAR_INSTALL_DIR . '/data/Date_Holidays/lang/' . $driver . '/' . $GLOBALS['language'];
+-        if ($compiled) {
+-            return $location . '.ser';
+-        } else {
+-            return $location . '.xml';
++        static $data_dir;
++        if (!isset($data_dir)) {
++            include_once 'PEAR/Config.php';
++            $pear_config = new PEAR_Config();
++            $data_dir = $pear_config->get('data_dir');
++        }
++        if (empty($data_dir)) {
++            return;
+         }
++
++        foreach (array('', '_' . $driver) as $pkg_ext) {
++            foreach (array('ser', 'xml') as $format) {
++                $location = $data_dir . '/Date_Holidays' . $pkg_ext . '/lang/'
++                    . $driver . '/' . $GLOBALS['language'] . '.' . $format;
++                if (file_exists($location)) {
++                    return array($format, $location);
++                }
++            }
++        }
++
++        return array(null, null);
+     }
+ 
+ }
+@@ -189,11 +195,11 @@ class Kronolith_Event_holidays extends Kronolith_Event {
+      * @param Date_Holidays_Holiday $dhEvent  A holiday returned
+      *                                        from the driver
+      */
+-    function fromDriver($dhEvent, $charset)
++    function fromDriver($dhEvent)
+     {
+         $this->stored = true;
+         $this->initialized = true;
+-        $this->setTitle(String::convertCharset($dhEvent->getTitle(), $charset));
++        $this->setTitle(String::convertCharset($dhEvent->getTitle(), 'UTF-8'));
+         $this->setId($dhEvent->getInternalName());
+ 
+         $this->start = new Horde_Date($dhEvent->_date->getTime());
+-- 
+tg: (2fba6de..) t/kronolith/H/JS/FixHolidayDriver (depends on: t/turba/HK/GW/AllowAttributeDefaults)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit a668753cb406dce2d8a47a65dcf1ce592401c6db
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Jul 11 16:30:30 2009 +0200
+
+    Merge holidays fix from upstream.
+
+commit 4f2f3d7263d35055981e6ec6d1fb3cc76ee5fe52
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Sat Jul 11 16:30:00 2009 +0200
+
+    Patch description

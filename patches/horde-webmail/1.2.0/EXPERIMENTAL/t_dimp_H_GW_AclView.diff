@@ -18,8 +18,8 @@ Signed-off-by: Gunnar Wrobel <p@rdus.de>
  horde-webmail/dimp/po/de_DE.po                     |    3 +++
  horde-webmail/dimp/templates/index/index.inc       |    1 +
  horde-webmail/imp/acl.php                          |   12 ++++++++++--
- horde-webmail/imp/templates/acl/acl.html           |    6 ++++++
- 7 files changed, 22 insertions(+), 2 deletions(-)
+ horde-webmail/imp/templates/acl/acl.html           |   13 +++++++++++++
+ 7 files changed, 29 insertions(+), 2 deletions(-)
 
 diff --git a/horde-webmail/dimp/js/DimpBase.js b/horde-webmail/dimp/js/DimpBase.js
 index 39a728b..c4eb9f4 100644
@@ -49,7 +49,7 @@ diff --git a/horde-webmail/dimp/locale/de_DE/LC_MESSAGES/dimp.mo b/horde-webmail
 index 2f1c11c..973776f 100644
 Binary files a/horde-webmail/dimp/locale/de_DE/LC_MESSAGES/dimp.mo and b/horde-webmail/dimp/locale/de_DE/LC_MESSAGES/dimp.mo differ
 diff --git a/horde-webmail/dimp/po/de_DE.po b/horde-webmail/dimp/po/de_DE.po
-index a536db6..90c8d0c 100644
+index a536db6..0486297 100644
 --- a/horde-webmail/dimp/po/de_DE.po
 +++ b/horde-webmail/dimp/po/de_DE.po
 @@ -791,3 +791,6 @@ msgstr "entfernen"
@@ -58,7 +58,7 @@ index a536db6..90c8d0c 100644
  msgstr "Ergebnisse gefunden"
 +
 +msgid "Share Folder"
-+msgstr "Gemeinsame Ordner"
++msgstr "Berechtigungen"
 diff --git a/horde-webmail/dimp/templates/index/index.inc b/horde-webmail/dimp/templates/index/index.inc
 index 21939e0..7c02fe7 100644
 --- a/horde-webmail/dimp/templates/index/index.inc
@@ -101,26 +101,38 @@ index cfa285f..851d8de 100644
  $t->set('sharedimg', Horde::img('shared.png', _("Change Folder")));
  $t->set('options', IMP::flistSelect('', true, array(), $folder));
 diff --git a/horde-webmail/imp/templates/acl/acl.html b/horde-webmail/imp/templates/acl/acl.html
-index 79580aa..72cf1c5 100644
+index 79580aa..ae85ff4 100644
 --- a/horde-webmail/imp/templates/acl/acl.html
 +++ b/horde-webmail/imp/templates/acl/acl.html
-@@ -7,6 +7,7 @@
+@@ -2,11 +2,14 @@
+ <input type="hidden" name="actionID" value="" />
+ <tag:forminput />
+ 
++<if:imp_view>
+ <div class="header">
+  <tag:aclnavcell />
   <gettext>Share mail folders</gettext>
  </div>
++</if:imp_view>
  
 +<if:imp_view>
  <div class="header">
   <ul>
    <li>
-@@ -17,6 +18,7 @@
+@@ -17,6 +20,12 @@
   <span class="smallheader"><tag:current /></span>
  </div>
  </form>
++<else:imp_view>
++<div class="header">
++ <span class="smallheader"><tag:current /></span>
++</div>
++</else:imp_view>
 +</if:imp_view>
  
  <form method="post" name="acl" id="acl" action="<tag:aclurl />">
  <input type="hidden" name="actionID" value="imp_acl_set" />
-@@ -76,9 +78,13 @@
+@@ -76,9 +85,13 @@
  </tr>
  <tr>
   <td colspan = "<tag:maxrule />" class="header" valign="middle">
@@ -139,6 +151,12 @@ tg: (f251c16..) t/dimp/H/GW/AclView (depends on: t/dimp/H/GW/FoldersView)
 -- 
 TOPGIT patch commit log
 =======================
+
+commit e9630629c7479c73d3eb156f00544c34e95f0597
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Jul 20 09:36:01 2009 +0200
+
+    Fix translation and improve header.
 
 commit 57041c04c322dd7dc57da5b171923b7ab000ec0a
 Author: Gunnar Wrobel <p@rdus.de>
