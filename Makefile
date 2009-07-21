@@ -165,3 +165,15 @@ pear-config:
 .PHONY: www-koward
 www-koward:
 	rsync -avz horde-hatchery/koward/www/ www/  --delete-after --exclude=".htaccess" --exclude="config/*.php" --exclude="log" --exclude="tmp" --exclude="storage"
+
+.PHONY: spec-fw3
+spec-fw3:
+	rm -rf spec-fw3
+	mkdir spec-fw3
+	for xml in horde-fw3/framework/*/package.xml; \
+	  do \
+	  fl=$${xml/horde-fw3\/framework\/}; \
+	  dir=$${fl/\/package.xml}; \
+	  mkdir spec-fw3/Horde_$$dir; \
+	  php -c php.ini tospec.php $$xml; \
+	done
