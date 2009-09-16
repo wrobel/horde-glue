@@ -10,6 +10,7 @@ REVBIN = ./horde-rev-cmp.sh
 .PHONY:lib
 lib:
 	@php -c php.ini -q $(SYMLINK) --src horde-cvs/framework --dest lib > /dev/null
+	@php -c php.ini -q $(SYMLINK) --src horde-hatchery/framework --dest lib > /dev/null
 	@php -c php.ini -q $(SYMLINK) --src horde/framework --dest lib > /dev/null
 	@php -c php.ini -q $(SYMLINK) --src horde-hatchery --dest lib --pkg horde-hatchery/koward > /dev/null
 	@echo "Successfully updated the libraries!"
@@ -172,8 +173,5 @@ spec-fw3:
 	mkdir spec-fw3
 	for xml in horde-fw3/framework/*/package.xml; \
 	  do \
-	  fl=$${xml/horde-fw3\/framework\/}; \
-	  dir=$${fl/\/package.xml}; \
-	  mkdir spec-fw3/Horde_$$dir; \
 	  php -c php.ini tospec.php $$xml; \
 	done
