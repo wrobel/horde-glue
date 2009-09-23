@@ -52,14 +52,17 @@ if (isset($deps['required']['package'])) {
         if (isset($dep['channel'])) {
             if ($dep['channel'] == 'pear.horde.org') {
                 $pname = 'Horde_' . preg_replace('/Horde_/', '', $pkg);
+            } else if ($dep['channel'] == 'pear.php.net') {
+                $pname = 'PEAR-' . $pkg;
             } else {
+                print sprintf('Unkown channel %s!', $dep['channel']);
                 exit(1);
             }
         } else {
             $pname = 'PEAR-' . $pkg;
         }
         if (isset($dep['min'])) {
-            $line = 'PreReq:       ' . $pname . '>=' . $dep['min'] . ' \\';
+            $line = 'PreReq:       ' . $pname . ' >= ' . $dep['min'];
         } else {
             $line = 'PreReq:       ' . $pname;
         }
@@ -73,7 +76,7 @@ if (isset($deps['required']['package'])) {
 switch ($path_elements[0]) {
 case 'horde-fw3':
     $info = <<<EOI
-# The name of Horde source package
+# The name of the source package
 pear_package='$pear_package'
 
 # The name of the RPM package
@@ -84,13 +87,15 @@ package_url='http://pear.horde.org/index.php?package='
 
 # How should the source be retrieved?
 #
-# WGET: Download via wget
+# WGET:   Download via wget
+# VC-CVS: Checkout from the Horde CVS repository
+# VC-GIT: Checkout from the Horde git repository
 package_origin='VC-CVS'
 
 # The name of the package in the source repository
 pear_pkgdir='$pear_pkgdir'
 
-# Commit tag or date to user
+# Commit tag or date to use
 repo_commit='HORDE_3_3_4'
 
 # What release number should the source snapshot get (usually a date)?
@@ -103,7 +108,7 @@ version='${version}dev20090501'
 release='20090713'
 
 # Source URL to download from
-sourceurl='http://files.pardus.de/kolab-sources/'
+sourceurl='http://files.kolab.org/incoming/wrobel/'
 
 # In which PHP library location should the library get installed
 php_lib_loc='php'
@@ -115,7 +120,7 @@ BuildPreReq:  php, php::with_pear = yes    \
 BuildPreReq:  PEAR-Horde-Channel           \
 '
 
-# Installatin prerequisites
+# Installation prerequisites
 prereq='                                   \
 PreReq:       OpenPKG, openpkg >= 20070603 \
 PreReq:       php, php::with_pear = yes    \
@@ -143,3 +148,46 @@ if (!file_exists($dir)) {
     mkdir($dir);
 }
 file_put_contents($dir . '/package.info', $info);
+
+$cvsignore = <<<EOI
+*.src.rpm
+*.tgz
+*.spec
+package.patch
+tmp
+
+EOI;
+
+file_put_contents($dir . '/.cvsignore', $cvsignore);
+
+$makefile = <<<EOI
+include ../Pear.mk
+
+EOI;
+
+file_put_contents($dir . '/Makefile', $makefile);
+
+if (file_exists($dir . '/ChangeLog')) {
+    $changes = file_get_contents($dir . '/ChangeLog');
+    if (!strpos($changes, 'HORDE_3_3_4')
+        && !strpos($changes, 'snapshot')
+        && !strpos($changes, 'package.info')) {
+        $entry = <<<EOI
+2009-07-21  Gunnar Wrobel  <p@rdus.de>
+
+	* package.info: Converted to new packaging style. Updated to tag
+	                HORDE_3_3_4.
+
+
+EOI;
+        $changes = $entry . $changes ;
+        file_put_contents($dir . '/ChangeLog', $changes);
+    }
+} else {
+    $changes = <<<EOI
+2009-07-21  Gunnar Wrobel  <p@rdus.de>
+
+	* package.info: Added package to Kolab CVS.
+EOI;
+    file_put_contents($dir . '/ChangeLog', $changes);
+}
