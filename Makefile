@@ -180,10 +180,11 @@ spec-fw3:
 
 .PHONY: status
 status:
-	for module in $(MODULES); \
+	@for module in $(MODULES); \
 	  do \
 	    cd $$module; \
 	    echo $$module; \
 	    git status; \
 	    cd ..; \
+	    echo; \
 	  done
