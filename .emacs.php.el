@@ -14,13 +14,28 @@
 		      current-dir
 		      "log/php-errors.log\" "))
 
+(setq phpcs_command (concat "php -d include_path=\"" liblocs "\" " current-dir "/pear/phpcs"))
+(setq phpcs_options (concat " --standard=PEAR --report=emacs"))
+
+(setq pcp_command (concat "php -d include_path=\"" liblocs "\" " current-dir "/pear/phpcpd"))
+(setq pcp_options (concat " --min-lines=5 --min-tokens=40"))
+
+(setq plc_command (concat "php -d include_path=\"" liblocs "\" " current-dir "/pear/phploc"))
+(setq plc_options (concat ""))
+
+(setq pmd_pre "echo")
+(setq pmd_command (concat "php -d include_path=\"" liblocs "\" " current-dir "/pear/phpmd.php"))
+(setq pmd_format "emacs")
+(setq pmd_codestyle (concat current-dir "/pear/dev/trunk/rulesets/codesize_horde.xml"))
+(setq pmd_options "")
+
 (setq phpunit_pre "export XDEBUG_CONFIG=\"idekey=php_unit_run\"")
 (setq phpunit_options "--verbose")
 (setq phpunit_command "phpunit")
-(setq phpunit_phpoptions "-d log_errors=1 -d error_log=\"php-errors.log\" -d error_reporting=\"E_ALL\"")
+(setq phpunit_phpoptions "")
 (setq phpunit_includes liblocs)
 
-;;(setq phpunit_options (concat "--verbose --coverage-html=" current-dir "coverage")
+;(setq phpunit_options (concat "--verbose --coverage-html=" current-dir "coverage"))
 
 (setq phpoptions (concat liblocs
 			 logopts
