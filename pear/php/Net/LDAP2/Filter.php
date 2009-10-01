@@ -203,7 +203,7 @@ class Net_LDAP2_Filter extends PEAR
     */
     public static function &combine($log_op, $filters)
     {
-        if (PEAR::isError($filters)) {
+        if ($filters instanceOf PEAR_Error) {
             return $filters;
         }
 
@@ -244,12 +244,12 @@ class Net_LDAP2_Filter extends PEAR
 
         $combined_filter = new Net_LDAP2_Filter();
         foreach ($filters as $key => $testfilter) {     // check for errors
-            if (PEAR::isError($testfilter)) {
+            if ($testfilter instanceOf PEAR_Error) {
                 return $testfilter;
             } elseif (is_string($testfilter)) {
                 // string found, try to parse into an filter object
                 $filter_o = self::parse($testfilter);
-                if (PEAR::isError($filter_o)) {
+                if ($filter_o instanceOf PEAR_Error) {
                     return $filter_o;
                 } else {
                     $filters[$key] = $filter_o;
