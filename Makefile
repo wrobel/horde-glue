@@ -7,6 +7,8 @@ TEST_CVS_APPS = turba kronolith
 REVCMP = Kolab_Format Kolab_Server Kolab_Storage Kolab_Filter Kolab_FreeBusy
 REVBIN = ./horde-rev-cmp.sh
 
+MODULES = horde horde-hatchery horde-cvs horde-fw3 kolab-cvs topgit
+
 .PHONY:lib
 lib:
 	@php -c php.ini -q $(SYMLINK) --src horde-cvs/framework --dest lib > /dev/null
@@ -175,3 +177,13 @@ spec-fw3:
 	  do \
 	  php -c php.ini tospec.php $$xml; \
 	done
+
+.PHONY: status
+status:
+	for module in $(MODULES); \
+	  do \
+	    cd $$module; \
+	    echo $$module; \
+	    git status; \
+	    cd ..; \
+	  done
