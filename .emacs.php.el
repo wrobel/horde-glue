@@ -14,7 +14,7 @@
 
 (setq package_dir "framework")
 
-(setq phplint_cmd (concat "php -d include_path=\".:" liblocs "\" " current-dir "/tools/test_lint --verbose"))
+(setq phplint_command (concat "php -d include_path=\".:" liblocs "\" " current-dir "/tools/test_lint --verbose"))
 
 (setq phpcs_command (concat "php -d include_path=\".:" liblocs "\" " current-dir "/pear/phpcs"))
 (setq phpcs_options (concat " --standard=PEAR --report=emacs"))
@@ -36,6 +36,10 @@
 (setq phpunit_command (concat "php -d include_path=\".:" liblocs "\" " current-dir "/pear/phpunit"))
 (setq phpunit_phpoptions "")
 (setq phpunit_includes liblocs)
+
+(setq phprun_pre "export XDEBUG_CONFIG=\"idekey=php_run\"")
+(setq phprun_command (concat "php -d include_path=\".:" liblocs "\" -f"))
+(setq phprun_phpoptions "")
 
 ;(setq phpunit_options (concat "--verbose --coverage-html=" current-dir "coverage"))
 
