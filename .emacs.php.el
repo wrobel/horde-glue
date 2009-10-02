@@ -28,7 +28,7 @@
 (setq pmd_pre "echo")
 (setq pmd_command (concat "php -d include_path=\".:" liblocs "\" " current-dir "/pear/phpmd.php"))
 (setq pmd_format "emacs")
-(setq pmd_codestyle (concat current-dir "/pear/dev/trunk/rulesets/codesize_horde.xml"))
+(setq pmd_codestyle (concat current-dir "/pear/dev/PMD/rulesets/codesize_horde.xml"))
 (setq pmd_options "")
 
 (setq phpunit_pre "export XDEBUG_CONFIG=\"idekey=php_unit_run\"")
