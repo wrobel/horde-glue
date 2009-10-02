@@ -1,7 +1,7 @@
 SYMLINK = horde-cvs/framework/devtools/horde-fw-symlinks.php
 
-TEST_HEAD_PKGS = Kolab_Server Kolab_Format Date
-TEST_CVS_PKGS = Auth Kolab_Storage Kolab_FreeBusy Kolab_Filter Share iCalendar VFS
+TEST_HEAD_PKGS = Auth History Kolab_Storage Kolab_FreeBusy Kolab_Server Kolab_Format Date
+TEST_CVS_PKGS = Kolab_Filter Share iCalendar VFS
 TEST_CVS_APPS = turba kronolith
 
 REVCMP = Kolab_Format Kolab_Server Kolab_Storage Kolab_Filter Kolab_FreeBusy
@@ -27,26 +27,12 @@ clean-test:
 
 .PHONY: $(TEST_HEAD_PKGS:%=test-HEAD-%)
 $(TEST_HEAD_PKGS:%=test-HEAD-%): lib
-	@PHP_FILES=`find horde/framework/$(@:test-HEAD-%=%)/ -name '*.php'`; \
-	if [ -n "$$PHP_FILES" ]; then \
-	  rm -f log/$@-HEAD-syntax.log; \
-	  for TEST in $$PHP_FILES; do \
-	    php -l -f $$TEST | tee -a log/$@-HEAD-syntax.log | grep "^No syntax errors detected in" > /dev/null || SYNTAX="$$SYNTAX $$TEST"; \
-	  done; \
-	  if [ -n "$$SYNTAX" ]; then \
-	    echo; \
-	    echo "FAIL (framework/$(@:test-CVS-%=%)): Syntax errors in files: $$SYNTAX"; \
-	  else \
-	    echo -n "."; \
-	  fi; \
-	fi
-	@SIMPLE_TESTS=`find horde/framework/$(@:test-HEAD-%=%)/ -name '*.phpt' | xargs -L 1 -r dirname | sort | uniq`; \
-	if [ -n "$$SIMPLE_TESTS" ]; then \
-	  rm -f log/$@-HEAD-simple.log; \
-	  for TEST in $$SIMPLE_TESTS; do \
-	    pear -c .pearrc run-tests $$TEST/*.phpt | tee -a log/$@-HEAD-simple.log | grep "^FAIL " | sed -e 's/FAIL.*\(\[.*\]\)/FAIL: \1/'; \
-	  done; \
-	fi
+	@php -c php.ini tools/test_lint horde/framework/$(@:test-HEAD-%=%) log/$@-HEAD-syntax.log
+	@php -c php.ini pear/phpcpd --min-lines 5 --min-tokens 40 horde/framework/$(@:test-HEAD-%=%) | tee -a log/$@-HEAD-cpd.log | grep "^0.00%" > /dev/null || echo "Copy/Paste detected!"
+	@php -c php.ini pear/phpmd.php horde/framework/$(@:test-HEAD-%=%) emacs pear/dev/trunk/rulesets/codesize_horde.xml | tee -a log/$@-HEAD-pmd.log | grep "Error" > /dev/null && echo "Mess detected!"
+	@php -c php.ini pear/phpcs --standard=PEAR --report=emacs horde/framework/$(@:test-HEAD-%=%) | tee -a log/$@-HEAD-cs.log | grep "error" > /dev/null && echo "Style violations detected!"
+
+$(TEST_HEAD_PKGS:%=test2-HEAD-%): lib
 	@ALL_TESTS=`find horde/framework/$(@:test-HEAD-%=%)/ -name AllTests.php | xargs -L 1 -r dirname | sort | uniq`; \
 	if [ -n "$$ALL_TESTS" ]; then \
 	  CWD=`pwd`; \

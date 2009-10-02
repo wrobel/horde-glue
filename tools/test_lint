@@ -1,0 +1,97 @@
+#!/usr/bin/php
+<?php
+/**
+ * A tool for syntax checking PHP files.
+ *
+ * PHP version 5
+ *
+ * @category  Tools
+ * @package   Test
+ * @author    Gunnar Wrobel <wrobel@pardus.de>
+ * @copyright 2009 Gunnar Wrobel <wrobel@pardus.de>
+ * @license   http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @link      http://pear.horde.org/index.php?package=Kolab_Server
+ */
+
+require_once 'Horde/Autoloader.php';
+
+$options = array(
+    new Horde_Argv_Option(
+        '-v',
+        '--verbose',
+        array(
+            'action' => 'store_true',
+            'dest'   => 'verbose',
+            'help'   => 'produce the full output instead of a summary',
+        )
+    )
+);
+$parser = new Horde_Argv_Parser(
+    array(
+        'optionList' => $options,
+        'usage'      => '%prog [options] FILE/DIR [LOG]',
+    )
+);
+list($opts, $args) = $parser->parseArgs();
+
+/**
+ * A tool for syntax checking PHP files.
+ *
+ * @param string      $file    The file to lint.
+ * @param stream|null $stream  Log file stream
+ * @param boolean     $verbose Should the full output be printed?
+ *
+ * @return NULL
+ */
+function lint($file, $stream = null, $verbose = false)
+{
+    $command = 'php -l ' . escapeshellarg($file);
+
+    if (DIRECTORY_SEPARATOR == '\\') {
+        $command = '"' . $command . '"';
+    }
+
+    $output = shell_exec($command);
+
+    if ($verbose) {
+        fwrite(STDOUT, $output);
+    } else {
+        if (strpos($output, 'Errors parsing') !== false) {
+            fwrite(STDOUT, "\n" . $file . ": Syntax errors\n");
+        } else {
+            fwrite(STDOUT, '.');
+        }
+    }
+    if (!empty($stream)) {
+        fwrite($stream, $output);
+    }
+}
+
+if ($args[1]) {
+    $stream = fopen($args[1], 'wb');
+} else {
+    $stream = null;
+}
+
+$location = realpath($args[0]);
+
+$output = '';
+
+if (is_file($location)) {
+    lint($location, $stream, $opts['verbose']);
+} else if (is_dir($location)) {
+    $recursion = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($location)
+    );
+    foreach ($recursion as $file) {
+        if ($file->isFile() && preg_match('/.php$/', $file->getFilename())) {
+            lint($file->getPathname(), $stream, $opts['verbose']);
+        }
+    }
+} else {
+    print "\nNo such file or directory!\n\n";
+    $parser->printHelp();
+    exit(1);
+}
+
+print "\n";
