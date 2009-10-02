@@ -34,7 +34,7 @@
 (setq phpunit_pre "export XDEBUG_CONFIG=\"idekey=php_unit_run\"")
 (setq phpunit_options "--verbose")
 (setq phpunit_command (concat "php -d include_path=\".:" liblocs "\" " current-dir "/pear/phpunit"))
-(setq phpunit_phpoptions "")
+(setq phpunit_phpoptions "-d safe-mode=0 -d date.timezone=Europe/Berlin")
 (setq phpunit_includes liblocs)
 
 (setq phprun_pre "export XDEBUG_CONFIG=\"idekey=php_run\"")
