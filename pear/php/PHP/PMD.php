@@ -1,1 +1,1 @@
-../../dev/trunk/PHP/PMD.php
+../../dev/PMD/PHP/PMD.php

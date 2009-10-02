@@ -1,1 +1,1 @@
-dev/trunk/phpmd.php
+dev/PMD/phpmd.php
