@@ -5,7 +5,7 @@ TEST_CVS_PKGS = Kolab_Filter Share iCalendar VFS
 TEST_CVS_APPS = turba kronolith
 
 REVCMP = Kolab_Format Kolab_Server Kolab_Storage Kolab_Filter Kolab_FreeBusy
-REVBIN = ./horde-rev-cmp.sh
+REVBIN = ./tools/horde-rev-cmp.sh
 
 MODULES = horde horde-hatchery horde-cvs horde-fw3 kolab-cvs topgit
 
