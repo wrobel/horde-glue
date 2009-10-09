@@ -8,18 +8,18 @@ STATUS: OPEN
 Signed-off-by: Gunnar Wrobel <p@rdus.de>
 
 ---
- horde-webmail/kronolith/imple_kolab.php         |  102 ++++++++++
+ horde-webmail/kronolith/imple_kolab.php         |   96 +++++++++
  horde-webmail/kronolith/lib/Block/eventlist.php |  243 +++++++++++++++++++++++
  horde-webmail/kronolith/themes/embed.css        |   51 +++++-
  horde-webmail/lib/Horde/Kolab/Storage/List.php  |    2 +-
- 4 files changed, 396 insertions(+), 2 deletions(-)
+ 4 files changed, 390 insertions(+), 2 deletions(-)
 
 diff --git a/horde-webmail/kronolith/imple_kolab.php b/horde-webmail/kronolith/imple_kolab.php
 new file mode 100644
-index 0000000..6e0becb
+index 0000000..65db938
 --- /dev/null
 +++ b/horde-webmail/kronolith/imple_kolab.php
-@@ -0,0 +1,102 @@
+@@ -0,0 +1,96 @@
 +<?php
 +/**
 + * $Horde: kronolith/imple.php,v 1.1.2.3 2008/04/25 03:50:58 chuck Exp $
@@ -32,7 +32,7 @@ index 0000000..6e0becb
 + * @author Michael Slusarz <slusarz@horde.org>
 + */
 +
-+function logout() 
++function impleLogout() 
 +{
 +    Auth::clearAuth();
 +    @session_destroy();
@@ -47,8 +47,6 @@ index 0000000..6e0becb
 +
 +$auth = &Auth::singleton('kolab');
 +
-+$proxied = false;
-+
 +if (isset($conf['ics']['default_user'])
 +    && isset($conf['ics']['default_pass'])) {
 +    $user = $conf['ics']['default_user'];
@@ -57,7 +55,7 @@ index 0000000..6e0becb
 +    $auth->authenticate($user,
 +                        array('password' =>
 +                              $pass));
-+    $proxied = true;
++    register_shutdown_function('impleLogout');
 +}   
 +
 +@define('KRONOLITH_BASE', dirname(__FILE__));
@@ -118,10 +116,7 @@ index 0000000..6e0becb
 +default:
 +    echo $result;
 +}
-+
-+if ($proxied) {
-+    logout();
-+}
+\ No newline at end of file
 diff --git a/horde-webmail/kronolith/lib/Block/eventlist.php b/horde-webmail/kronolith/lib/Block/eventlist.php
 new file mode 100644
 index 0000000..420a984
@@ -449,6 +444,12 @@ tg: (2f74c4c..) t/kronolith/HK/GW/ExportEventList (depends on: t/dimp/H/BL/Close
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 8d3a749ccd7f8512708a16f196220e46d7a5cb16
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Oct 9 09:18:48 2009 +0200
+
+    Clean logout.
 
 commit c471608f1adfa116123b913959498d5b7f8defc6
 Author: Gunnar Wrobel <p@rdus.de>
