@@ -8,18 +8,18 @@ STATUS: OPEN
 Signed-off-by: Gunnar Wrobel <p@rdus.de>
 
 ---
- horde-webmail/kronolith/imple_kolab.php         |   92 +++++++++
+ horde-webmail/kronolith/imple_kolab.php         |  102 ++++++++++
  horde-webmail/kronolith/lib/Block/eventlist.php |  243 +++++++++++++++++++++++
  horde-webmail/kronolith/themes/embed.css        |   51 +++++-
  horde-webmail/lib/Horde/Kolab/Storage/List.php  |    2 +-
- 4 files changed, 386 insertions(+), 2 deletions(-)
+ 4 files changed, 396 insertions(+), 2 deletions(-)
 
 diff --git a/horde-webmail/kronolith/imple_kolab.php b/horde-webmail/kronolith/imple_kolab.php
 new file mode 100644
-index 0000000..f18d2ad
+index 0000000..6e0becb
 --- /dev/null
 +++ b/horde-webmail/kronolith/imple_kolab.php
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,102 @@
 +<?php
 +/**
 + * $Horde: kronolith/imple.php,v 1.1.2.3 2008/04/25 03:50:58 chuck Exp $
@@ -31,27 +31,33 @@ index 0000000..f18d2ad
 + *
 + * @author Michael Slusarz <slusarz@horde.org>
 + */
-+if (!defined('HORDE_BASE')) {
-+    define('HORDE_BASE', dirname(__FILE__) . '/..');
++
++function logout() 
++{
++    Auth::clearAuth();
++    @session_destroy();
 +}
 +
-+/* Load the Horde Framework core, and set up inclusion paths. */
-+require_once HORDE_BASE . '/lib/core.php';
-+
 +@define('AUTH_HANDLER', true);
-+/* Registry. */
-+$session_control = 'none';
-+$registry = &Registry::singleton(HORDE_SESSION_NONE);
++@define('HORDE_BASE', dirname(__FILE__) . '/..');
++require_once HORDE_BASE . '/lib/base.php';
 +
-+$auth = &Auth::singleton($conf['auth']['driver']);
++// We want to always generate UTF-8 iCalendar data.
++NLS::setCharset('UTF-8');
++
++$auth = &Auth::singleton('kolab');
++
++$proxied = false;
 +
 +if (isset($conf['ics']['default_user'])
 +    && isset($conf['ics']['default_pass'])) {
 +    $user = $conf['ics']['default_user'];
 +    $pass = $conf['ics']['default_pass'];
++    $_SESSION = array();
 +    $auth->authenticate($user,
 +                        array('password' =>
 +                              $pass));
++    $proxied = true;
 +}   
 +
 +@define('KRONOLITH_BASE', dirname(__FILE__));
@@ -111,6 +117,10 @@ index 0000000..f18d2ad
 +
 +default:
 +    echo $result;
++}
++
++if ($proxied) {
++    logout();
 +}
 diff --git a/horde-webmail/kronolith/lib/Block/eventlist.php b/horde-webmail/kronolith/lib/Block/eventlist.php
 new file mode 100644
@@ -439,6 +449,12 @@ tg: (2f74c4c..) t/kronolith/HK/GW/ExportEventList (depends on: t/dimp/H/BL/Close
 -- 
 TOPGIT patch commit log
 =======================
+
+commit c471608f1adfa116123b913959498d5b7f8defc6
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Fri Oct 9 08:45:58 2009 +0200
+
+    Cleaner session handling.
 
 commit 992834cabdcc4a7aabbf566c7a5a27df639bef98
 Author: Gunnar Wrobel <p@rdus.de>
