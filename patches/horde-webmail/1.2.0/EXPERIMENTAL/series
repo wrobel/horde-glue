@@ -3,3 +3,4 @@ t_dimp_H_GW_FoldersView.diff -p1
 t_dimp_H_GW_AclView.diff -p1
 t_kronolith_HK_GW_AnonymousiCalDownload.diff -p1
 t_dimp_H_BL_CloseContextMenu.diff -p1
+t_kronolith_HK_GW_ExportEventList.diff -p1
