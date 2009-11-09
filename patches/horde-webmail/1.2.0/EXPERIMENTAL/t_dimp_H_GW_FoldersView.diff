@@ -102,21 +102,21 @@ index a0425aa..c46b0e5 100644
  
      $dir2 = _image($val, null, 'folder');
 diff --git a/horde-webmail/imp/templates/folders/actions.html b/horde-webmail/imp/templates/folders/actions.html
-index f882a82..8e39b8a 100644
+index f882a82..619e4de 100644
 --- a/horde-webmail/imp/templates/folders/actions.html
 +++ b/horde-webmail/imp/templates/folders/actions.html
 @@ -12,12 +12,14 @@
      <select id="action_choose<tag:id />">
       <option selected="selected"><gettext>Choose Action</gettext></option>
       <option value="">--------------------</option>
-+<if:view_imp>
++<if:imp_view>
  <if:create_folder>
       <option value="create_folder"><gettext>Create</gettext></option>
  </if:create_folder>
       <option value="rename_folder"><gettext>Rename</gettext></option>
       <option value="delete_folder_confirm"><gettext>Delete</gettext></option>
       <option value="folders_empty_mailbox_confirm"><gettext>Empty</gettext></option>
-+</if:view_imp>
++</if:imp_view>
  <if:notrash>
       <option value="expunge_folder"><gettext>Purge</gettext></option>
  </if:notrash>
@@ -125,6 +125,12 @@ tg: (a6f8c8b..) t/dimp/H/GW/FoldersView (depends on: t/kronolith/H/GW/UseDayHour
 -- 
 TOPGIT patch commit log
 =======================
+
+commit c16643e792c3b185bc74bef7a600c06857b19406
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Mon Nov 9 23:16:11 2009 +0100
+
+    Fix tag name from view_imp to imp_view.
 
 commit 93403a869ff14d7868d4cc9c4687ea1270e3c225
 Author: Gunnar Wrobel <p@rdus.de>

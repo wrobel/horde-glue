@@ -5,13 +5,17 @@ Currently in kronolith the order of date input fields is hardcoded to
 year-month-day. Some parts of the world usually use a different order.
 The attached patch adds a user preference to specify input field order.
 
+To get this upstream it should be checked whether the date input field
+order can be derived from date_format. In general it should be checked
+if the date input form element could not be more user friendly in horde.
+
 REFERENCE_KOLAB: https://issues.kolab.org/issue3844
 REFERENCE_HORDE:
 
 STATUS_KOLAB_2.2:             UNTESTED
 STATUS_KOLAB_2.3:             NONE
-STATUS_HORDE_KRONOLITH_2.3.3: SUBMIT
-STATUS_HORDE_KRONOLITH_3.0:   SUBMIT
+STATUS_HORDE_KRONOLITH_2.3.3: REJECTED
+STATUS_HORDE_KRONOLITH_3.0:   REJECTED
 
 Signed-off-by: Gunnar Wrobel <p@rdus.de>
 
@@ -140,10 +144,16 @@ index 9926617..05f5042 100644
    <span id="end_wday"></span>
    <script type="text/javascript">
 -- 
-tg: (8d3a749..) t/kronolith/HK/UV/dateInputFieldOrder (depends on: t/kronolith/HK/GW/ExportEventList)
+tg: (17339eb..) t/kronolith/HK/UV/dateInputFieldOrder (depends on: t/kronolith/HK/GW/ExportEventList)
 -- 
 TOPGIT patch commit log
 =======================
+
+commit db8b92fc778ce6d5aaa424b5df5dd9f8115909ee
+Author: Gunnar Wrobel <p@rdus.de>
+Date:   Thu Nov 5 12:18:12 2009 +0100
+
+    Update status
 
 commit 09e3d2df656b820ae7fbaacce1060958e4b889b9
 Author: Gunnar Wrobel <p@rdus.de>
