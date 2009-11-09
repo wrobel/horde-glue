@@ -174,3 +174,25 @@ status:
 	    cd ..; \
 	    echo; \
 	  done
+
+.PHONY: branches
+branches:
+	@for module in $(MODULES); \
+	  do \
+	    cd $$module; \
+	    echo $$module; \
+	    git branch -a; \
+	    cd ..; \
+	    echo; \
+	  done
+
+.PHONY: stashes
+stashes:
+	@for module in $(MODULES); \
+	  do \
+	    cd $$module; \
+	    echo $$module; \
+	    git stash list; \
+	    cd ..; \
+	    echo; \
+	  done
