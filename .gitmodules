@@ -19,3 +19,6 @@
 [submodule "topgit"]
 	path = topgit
 	url = git@github.com:wrobel/topgit.git
+[submodule "horde-support"]
+	path = horde-support
+	url = git@github.com:wrobel/horde-support.git
