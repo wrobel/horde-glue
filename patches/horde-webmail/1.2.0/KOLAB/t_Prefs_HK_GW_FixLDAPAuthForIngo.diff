@@ -35,7 +35,7 @@ index 55075db..0ebd4fd 100644
  
  }
 -- 
-tg: (ba51448..) t/Prefs/HK/GW/FixLDAPAuthForIngo (depends on: t/SyncML/HK/GW/CombinedFixes)
+tg: (88d1593..) t/Prefs/HK/GW/FixLDAPAuthForIngo (depends on: t/SyncML/HK/GW/CombinedFixes)
 -- 
 TOPGIT patch commit log
 =======================

@@ -93,14 +93,14 @@ index b445b3a..a13174a 100644
       *
       * For some types of authentications (notably auth:basic) the username
 diff --git a/horde-webmail/lib/SyncML/Backend/Horde.php b/horde-webmail/lib/SyncML/Backend/Horde.php
-index a9be55d..a71b5f8 100644
+index a9be55d..ed07580 100644
 --- a/horde-webmail/lib/SyncML/Backend/Horde.php
 +++ b/horde-webmail/lib/SyncML/Backend/Horde.php
 @@ -204,6 +204,11 @@ class SyncML_Backend_Horde extends SyncML_Backend {
                                    __FILE__, __LINE__, PEAR_LOG_DEBUG);
                  continue;
              }
-+            if ($suid_ts > $to_ts) {
++            if ($add_ts[$suid] > $to_ts) {
 +                // Add delayed to the next sync operation
 +                $this->logMessage("Add ignored, lies in sync future: $suid", __FILE__, __LINE__, PEAR_LOG_DEBUG);
 +                continue;
@@ -112,7 +112,7 @@ index a9be55d..a71b5f8 100644
                                        __FILE__, __LINE__, PEAR_LOG_DEBUG);
                      continue;
                  }
-+                if ($suid_ts > $to_ts) {
++                if ($mod_ts[$suid] > $to_ts) {
 +                    // Change delayed to the next sync operation
 +                    $this->logMessage("Change ignored, lies in sync future: $suid", __FILE__, __LINE__, PEAR_LOG_DEBUG);
 +                    continue;
@@ -369,6 +369,12 @@ tg: (6938161..) t/SyncML/HK/GW/CombinedFixes (depends on: master)
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 88d1593c0f1491f19478863ffeb348c87cb2c3b8
+Author: root <Gunnar Wrobel wrobel@pardus.de>
+Date:   Tue Nov 24 08:16:48 2009 +0100
+
+    Fix patch according to  kolab/issue3891 (Undefined variable: suid_ts , Kolab SyncML patch update needed)
 
 commit 3c12e523cdbac5e2d0c1add78fcb25f500af2877
 Author: Gunnar Wrobel <p@rdus.de>

@@ -158,7 +158,7 @@ index 0afc975..8b24531 100644
  
          $this->start = new Horde_Date($dhEvent->_date->getTime());
 -- 
-tg: (2fba6de..) t/kronolith/H/JS/FixHolidayDriver (depends on: t/turba/HK/GW/AllowAttributeDefaults)
+tg: (706722d..) t/kronolith/H/JS/FixHolidayDriver (depends on: t/turba/HK/GW/AllowAttributeDefaults)
 -- 
 TOPGIT patch commit log
 =======================

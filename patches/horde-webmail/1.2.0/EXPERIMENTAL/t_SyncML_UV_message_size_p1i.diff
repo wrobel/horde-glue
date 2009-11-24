@@ -1,0 +1,39 @@
+From: root <Gunnar Wrobel wrobel@pardus.de>
+Subject: [PATCH] t/SyncML/UV/message/size/p1i
+
+The attached patch was necessary to make the SE P1i mobile phone work with SyncML.
+
+REF: https://issues.kolab.org/issue3892
+
+Signed-off-by: root <Gunnar Wrobel wrobel@pardus.de>
+
+---
+ horde-webmail/lib/SyncML/Sync.php |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+diff --git a/horde-webmail/lib/SyncML/Sync.php b/horde-webmail/lib/SyncML/Sync.php
+index 57e233b..66113a6 100644
+--- a/horde-webmail/lib/SyncML/Sync.php
++++ b/horde-webmail/lib/SyncML/Sync.php
+@@ -217,7 +217,9 @@ class SyncML_Sync {
+                  * sends an item with length n and size tag=n+1 and expects us
+                  * the accept it. Happens in test 1301.  So ignore this to be
+                  * conformant (and wrong). */
+-                strlen($item->content) + 1 != $item->size) {
++				/* The Sony Ericsson P1i sends a message with 'n+2':
++				   http://thread.gmane.org/gmane.comp.horde.sync/1842 */
++                strlen($item->content) + 1 != $item->size && strlen($item->content) + 2 != $item->size) {
+                 $item->responseCode = RESPONSE_SIZE_MISMATCH;
+                 $backend->logMessage(
+                     'Item size mismatch. Size reported as ' . $item->size
+-- 
+tg: (50acb8e..) t/SyncML/UV/message/size/p1i (depends on: t/SyncML/HK/GW/DoubleSyncFix)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 9c4774daeda478381852c36f7d53c8f3b2d68756
+Author: root <Gunnar Wrobel wrobel@pardus.de>
+Date:   Tue Nov 24 09:51:20 2009 +0100
+
+     kolab/issue3892 (Patch enabling SyncML support for the SE P1i mobile phone)

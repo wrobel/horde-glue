@@ -167,7 +167,7 @@ index 9dbf057..e21193f 100644
              if (!$this->hasRecurEnd() ||
                  $next->compareDateTime($this->recurEnd) <= 0) {
 -- 
-tg: (01f4e60..) t/kronolith/HK/GW/FixWeeklyRecurringEvents (depends on: t/kronolith/HK/UV/dateInputFieldOrder)
+tg: (1f477b1..) t/kronolith/HK/GW/FixWeeklyRecurringEvents (depends on: t/kronolith/HK/UV/dateInputFieldOrder)
 -- 
 TOPGIT patch commit log
 =======================

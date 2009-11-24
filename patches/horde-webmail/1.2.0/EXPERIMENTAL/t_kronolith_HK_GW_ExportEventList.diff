@@ -440,7 +440,7 @@ index a9bff36..a31ef82 100644
              $imap = &$session->getImap();
              if (is_a($imap, 'PEAR_Error')) {
 -- 
-tg: (b417456..) t/kronolith/HK/GW/ExportEventList (depends on: t/dimp/H/BL/CloseContextMenu)
+tg: (0702222..) t/kronolith/HK/GW/ExportEventList (depends on: t/dimp/H/BL/CloseContextMenu)
 -- 
 TOPGIT patch commit log
 =======================

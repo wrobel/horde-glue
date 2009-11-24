@@ -7,3 +7,7 @@ t_kronolith_HK_GW_ExportEventList.diff -p1
 t_kronolith_HK_UV_dateInputFieldOrder.diff -p1
 t_kronolith_HK_GW_FixWeeklyRecurringEvents.diff -p1
 t_framework_H_JS_Form_FixFormSecurityForImageUploads.diff -p1
+t_kronolith_HK_GW_HandleEmptyDates.diff -p1
+t_SyncML_HK_GW_DoubleSyncFix.diff -p1
+t_SyncML_UV_message_size_p1i.diff -p1
+t_SyncML_UV_RecurringEventsWeekCount.diff -p1

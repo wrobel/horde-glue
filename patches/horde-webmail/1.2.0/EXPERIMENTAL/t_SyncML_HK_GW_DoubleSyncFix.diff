@@ -1,0 +1,1019 @@
+From: root <Gunnar Wrobel wrobel@pardus.de>
+Subject: [PATCH] t/SyncML/HK/GW/DoubleSyncFix
+
+When the uid validity of an IMAP folder changes this confuses the Kolab storage
+driver and leads to double entries. The attached patch has been proposed by
+Univention and should be applied after some cleanup.
+
+REF: https://issues.kolab.org/issue3238
+
+Horde is currently agnostic of external clients to the storage backend used by
+Horde/Kolab. For SyncML any storage changes need to get logged in order to be
+exchanged with the mobile clients.
+
+Currently the Kolab drivers within Horde will create the necessary changelog.
+But this currently only happens after Synchronization started. Which means that
+you need to sync twice in order to get changes from an external client if you
+did not log in via Horde after changing something with an external client.
+
+The attached patch has been provided by Univention but needs some cleanup to go
+in upstream. We mainly need a clean library call in the Horde application
+libraries that will be called for synchronization.
+
+REF: https://issues.kolab.org/issue3237
+
+Combined two patches here which was kind of a mistake but it does not
+matter right now. Will be pulled apart once we move away from
+horde-webmail-1.2.0.
+
+Signed-off-by: root <Gunnar Wrobel wrobel@pardus.de>
+
+---
+ horde-webmail/kronolith/lib/api.php             |   37 ++
+ horde-webmail/lib/Horde/Kolab/Storage/Data.php  |    8 +
+ horde-webmail/lib/Horde/Kolab/Storage/Data.php~ |  656 +++++++++++++++++++++++
+ horde-webmail/lib/SyncML/Backend/Horde.php      |    9 +-
+ horde-webmail/lib/SyncML/Command/Alert.php      |   11 +
+ horde-webmail/mnemo/lib/api.php                 |   37 ++
+ horde-webmail/nag/lib/api.php                   |   34 ++
+ horde-webmail/turba/lib/api.php                 |   51 ++
+ 8 files changed, 841 insertions(+), 2 deletions(-)
+
+diff --git a/horde-webmail/kronolith/lib/api.php b/horde-webmail/kronolith/lib/api.php
+index 202b85e..1450bb1 100644
+--- a/horde-webmail/kronolith/lib/api.php
++++ b/horde-webmail/kronolith/lib/api.php
+@@ -126,6 +126,11 @@ $_services['unsubscribe'] = array(
+     'type' => 'boolean',
+ );
+ 
++$_services['synchronize'] = array(
++    'args' => array(),
++    'type' => 'boolean'
++);
++
+ /**
+  * Returns a list of available permissions.
+  *
+@@ -1422,3 +1427,35 @@ function _kronolith_unsubscribe($calendar)
+         return PEAR::raiseError('Unknown calendar specification');
+     }
+ }
++
++/**
++ * Synchronizes kronolith with the IMAP backend
++ *
++ * @return boolean  False if something went wrong
++ */
++function _kronolith_synchronize()
++{
++    require_once dirname(__FILE__) . '/base.php';
++    global $kronolith_driver;
++
++    $calendar = Kronolith::getDefaultCalendar();
++
++    if (!array_key_exists($calendar,
++                          Kronolith::listCalendars(false, PERMS_READ))) {
++        return False;
++    }
++
++    $kronolith_driver->open($calendar);
++
++    if (get_class ($kronolith_driver) == 'Kronolith_Driver_kolab' &&
++        get_class ($kronolith_driver->_wrapper) == 'Kronolith_Driver_kolab_wrapper_new') {
++
++        $kronolith_driver->_wrapper->synchronize (true);
++
++        if (get_class ($kronolith_driver->_wrapper->_store) == 'Kolab_IMAP') {
++            $kronolith_driver->_wrapper->_store->_synchronize ();
++        }
++    }
++
++    return True;
++}
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Data.php b/horde-webmail/lib/Horde/Kolab/Storage/Data.php
+index 213d1f2..6d047eb 100644
+--- a/horde-webmail/lib/Horde/Kolab/Storage/Data.php
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Data.php
+@@ -457,6 +457,14 @@ class Kolab_Data {
+         $history = &Horde_History::singleton();
+ 
+         $history_id = $app . ':' . $this->_folder->getShareId() . ':' . $object_uid;
++
++        // entries that should be added to the history MUST not
++        // have an existing entry in the history!! otherwise
++        // they are just marked as "modified"
++        if ($action == 'add' && $history->getActionTimestamp($history_id, 'add') == 0) {
++            $action = 'modify';
++        }
++
+         $history->log($history_id, array('action' => $action, 'ts' => $mod_ts), true);
+     }
+ 
+diff --git a/horde-webmail/lib/Horde/Kolab/Storage/Data.php~ b/horde-webmail/lib/Horde/Kolab/Storage/Data.php~
+new file mode 100644
+index 0000000..0923b72
+--- /dev/null
++++ b/horde-webmail/lib/Horde/Kolab/Storage/Data.php~
+@@ -0,0 +1,656 @@
++<?php
++/**
++ * @package Kolab_Storage
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Data.php,v 1.5.2.1 2008/08/18 13:48:57 wrobel Exp $
++ */
++
++/** Data caching for Kolab **/
++require_once 'Horde/Kolab/Storage/Cache.php';
++
++/**
++ * The Kolab_Data class represents a data type in an IMAP folder on the Kolab
++ * server.
++ *
++ * $Horde: framework/Kolab_Storage/lib/Horde/Kolab/Storage/Data.php,v 1.5.2.4 2009/01/06 15:23:18 jan Exp $
++ *
++ * Copyright 2004-2009 The Horde Project (http://www.horde.org/)
++ *
++ * See the enclosed file COPYING for license information (LGPL). If you
++ * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
++ *
++ * @author  Stuart Binge <omicron@mighty.co.za>
++ * @author  Gunnar Wrobel <wrobel@pardus.de>
++ * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
++ * @package Kolab_Storage
++ */
++class Kolab_Data {
++
++    /**
++     * The link to the folder object.
++     *
++     * @var Kolab_Folder
++     */
++    var $_folder;
++
++    /**
++     * The folder type.
++     *
++     * @var string
++     */
++    var $_type;
++
++    /**
++     * The object type of the data.
++     *
++     * @var string
++     */
++    var $_object_type;
++
++    /**
++     * The version of the data.
++     *
++     * @var int
++     */
++    var $_data_version;
++
++    /**
++     * The data cache.
++     *
++     * @var Kolab_Cache
++     */
++    var $_cache;
++
++    /**
++     * The Id of this data object in the cache.
++     *
++     * @var string
++     */
++    var $_cache_key;
++
++    /**
++     * An addition to the cache key in case we are operating on
++     * something other than the default type.
++     *
++     * @var string
++     */
++    var $_type_key;
++
++    /**
++     * Do we optimize for cyrus IMAPD?
++     *
++     * @var boolean
++     */
++    var $_cache_cyrus_optimize = true;
++
++    /**
++     * Creates a Kolab Folder Data representation.
++     *
++     * @param string  $type         Type of the folder.
++     * @param string  $object_type  Type of the objects we want to read.
++     * @param int     $data_version Format version of the object data.
++     */
++    function Kolab_Data($type, $object_type = null, $data_version = 1)
++    {
++        $this->_type = $type;
++        if (!empty($object_type)) {
++            $this->_object_type  = $object_type;
++        } else {
++            $this->_object_type  = $type;
++        }
++        $this->_data_version = $data_version;
++
++        if ($this->_object_type != $this->_type) {
++            $this->_type_key = '@' . $this->_object_type;
++        } else {
++            $this->_type_key = '';
++        }
++        $this->__wakeup();
++    }
++
++    /**
++     * Initializes the object.
++     */
++    function __wakeup()
++    {
++        $this->_cache = &Kolab_Cache::singleton();
++    }
++
++    /**
++     * Returns the properties that need to be serialized.
++     *
++     * @return array  List of serializable properties.
++     */
++    function __sleep()
++    {
++        $properties = get_object_vars($this);
++        unset($properties['_cache'], $properties['_folder']);
++        $properties = array_keys($properties);
++        return $properties;
++    }
++
++    /**
++     * Set the folder handler.
++     *
++     * @param Kolab_Folder $folder  The handler for the folder of folders.
++     */
++    function setFolder(&$folder)
++    {
++        $this->_folder = &$folder;
++        $this->_cache_key = $this->_getCacheKey();
++    }
++
++    /**
++     * Return a unique key for the current folder.
++     *
++     * @return string A key that represents the current folder.
++     */
++    function _getCacheKey()
++    {
++        if ($this->_cache_cyrus_optimize) {
++            $search_prefix = 'INBOX/';
++
++            $pos = strpos($this->_folder->name, $search_prefix);
++            if ($pos !== false && $pos == 0) {
++                $key = 'user/' . Auth::getBareAuth() . '/'
++                           . substr($this->_folder->name,
++                                    strlen($search_prefix))
++                           . $this->_type_key;
++            } else {
++                $key = $this->_folder->name;
++            }
++        } else {
++            $key = $this->_folder->getOwner() . '/' . $this->_folder->name;
++        }
++        return $key;
++    }
++
++    /**
++     * Delete the specified message from this folder.
++     *
++     * @param  string $object_uid Id of the message to be deleted.
++     *
++     * @return boolean|PEAR_Error True is successful, false if the
++     *                            message does not exist.
++     */
++    function delete($object_uid)
++    {
++        if (!$this->objectUidExists($object_uid)) {
++            return false;
++        }
++
++        // Find the storage ID
++        $id = $this->_getStorageId($object_uid);
++        if ($id === false) {
++            return false;
++        }
++
++        $result = $this->_folder->deleteMessage($id);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        unset($this->_cache->objects[$object_uid]);
++        unset($this->_cache->uids[$id]);
++        $this->_cache->save();
++        return true;
++    }
++
++    /**
++     * Delete all messages from the current folder.
++     *
++     * @return boolean|PEAR_Error True if successful.
++     */
++    function deleteAll()
++    {
++        if (empty($this->_cache->uids)) {
++            return true;
++        }
++        foreach ($this->_cache->uids as $id => $object_uid) {
++            $result = $this->_folder->deleteMessage($id, false);
++            if (is_a($result, 'PEAR_Error')) {
++                return $result;
++            }
++
++            $this->_cache->load($this->_cache_key, $this->_data_version);
++
++            unset($this->_cache->objects[$object_uid]);
++            unset($this->_cache->uids[$id]);
++        }
++        $this->_cache->save();
++
++        $result = $this->_folder->trigger();
++        if (is_a($result, 'PEAR_Error')) {
++            Horde::logMessage(sprintf('Failed triggering folder %s!',
++                                      $this->_folder->name),
++                              __FILE__, __LINE__, PEAR_LOG_ERR);
++        }
++
++        return true;
++    }
++
++    /**
++     * Move the specified message from the current folder into a new
++     * folder.
++     *
++     * @param  string $object_uid  ID of the message to be deleted.
++     * @param  string $new_share   ID of the target share.
++     *
++     * @return boolean|PEAR_Error True is successful, false if the
++     *                            object does not exist.
++     */
++    function move($object_uid, $new_share)
++    {
++        if (!$this->objectUidExists($object_uid)) {
++            return false;
++        }
++
++        // Find the storage ID
++        $id = $this->_getStorageId($object_uid);
++        if ($id === false) {
++            return false;
++        }
++
++        $result = $this->_folder->moveMessageToShare($id, $new_share);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        unset($this->_cache->objects[$object_uid]);
++        unset($this->_cache->uids[$id]);
++        $this->_cache->save();
++        return true;
++    }
++
++    /**
++     * Save an object.
++     *
++     * @param array  $object         The array that holds the data object.
++     * @param string $old_object_id  The id of the object if it existed before.
++     *
++     * @return boolean|PEAR_Error    True on success.
++     */
++    function save($object, $old_object_id = null)
++    {
++        // update existing kolab object
++        if ($old_object_id != null) {
++            // check if object really exists
++            if (!$this->objectUidExists($old_object_id)) {
++                return PEAR::raiseError(sprintf(_("Old object %s does not exist."),
++                                                $old_object_id));
++            }
++
++            // get the storage ID
++            $id = $this->_getStorageId($old_object_id);
++            if ($id === false) {
++                return PEAR::raiseError(sprintf(_("Old object %s does not map to a uid."),
++                                                $old_object_id));
++            }
++
++            $old_object = $this->getObject($old_object_id);
++        } else {
++            $id = null;
++            $old_object = null;
++        }
++
++        $result = $this->_folder->saveObject($object, $this->_data_version,
++                                             $this->_object_type, $id, $old_object);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++
++        $result = $this->synchronize($old_object_id);
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++        return true;
++    }
++
++    /**
++     * Synchronize the data cache for the current folder.
++     *
++     * @param string $history_ignore Object uid that should not be
++     *                               updated in the History
++     */
++    function synchronize($history_ignore = null)
++    {
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        $result = $this->_folder->getStatus();
++        if (is_a($result, 'PEAR_Error')) {
++            return $result;
++        }
++
++        list($validity, $nextid, $ids) = $result;
++
++        $changes = $this->_folderChanged($validity, $nextid, array_keys($this->_cache->uids), $ids);
++        if ($changes) {
++            $modified = array();
++
++            $recent_uids = array_diff($ids, array_keys($this->_cache->uids));
++
++            $formats = $this->_folder->getFormats();
++
++            $handler = Horde_Kolab_Format::factory('XML', $this->_object_type, $this->_data_version);
++            if (is_a($handler, 'PEAR_Error')) {
++                return $handler;
++            }
++
++            $count = 0;
++            foreach ($recent_uids as $id) {
++
++                if ($this->_type == 'annotation' && $id != 1) {
++                    continue;
++                }
++
++                $mime = $this->_folder->parseMessage($id, $handler->getMimeType(), false);
++                if (is_a($mime, 'PEAR_Error')) {
++                    Horde::logMessage($text, __FILE__, __LINE__, PEAR_LOG_WARNING);
++                    $text = false;
++                } else {
++                    $text = $mime[0];
++                }
++
++                if ($text) {
++                    $object = $handler->load($text);
++                    if (is_a($object, 'PEAR_Error')) {
++                        $this->_cache->ignore($id);
++                        $object->addUserInfo('STORAGE ID: ' . $id);
++                        Horde::logMessage($object, __FILE__, __LINE__, PEAR_LOG_WARNING);
++                        continue;
++                    }
++                } else {
++                    $object = false;
++                }
++
++                if ($object !== false) {
++                    $message = &$mime[2];
++                    $handler_type = $handler->getMimeType();
++                    foreach ($message->getParts() as $part) {
++                        $name = $part->getName();
++                        $type = $part->getType();
++                        $dp   = $part->getDispositionParameter('x-kolab-type');
++                        if (!empty($name) && $type != $handler_type
++                            || (!empty($dp) && in_array($dp, $formats))) {
++                            $object['_attachments'][$name]['type'] = $type;
++                            $object['_attachments'][$name]['key'] = $this->_cache_key . '/' . $object['uid'] . ':' . $name;
++                            $part->transferDecodeContents();
++                            $result = $this->_cache->storeAttachment($object['_attachments'][$name]['key'],
++                                                                     $part->getContents());
++                            if (is_a($result, 'PEAR_Error')) {
++                                Horde::logMessage(sprintf('Failed storing attachment of object %s: %s',
++                                                          $id, $result->getMessage()),
++                                                  __FILE__, __LINE__, PEAR_LOG_ERR);
++                                $object = false;
++                                break;
++                            }
++                        }
++                    }
++                }
++
++                if ($object !== false) {
++                    $this->_cache->store($id, $object['uid'], $object);
++                    $mod_ts = time();
++                    if (is_array($changes) && in_array($object['uid'], $changes)
++                        && $object['uid'] != $history_ignore) {
++                        $this->_updateHistory($object['uid'], $mod_ts, 'modify');
++                        $modified[] = $object['uid'];
++                    } else {
++                        // entries that should be added to the history MUST not
++                        // have an existing entry in the history!! otherwise
++                        // they are just marked as "modified"
++                        $history = &Horde_History::singleton();
++                        $history_id = $this->_app_consts['application'] . ':'
++                            . $this->_share_uid . ':' . $object_uid;
++                        if ($history->getActionTimestamp ($history_id, 'add') != 0) {
++                            $this->updateHistory($object['uid'], $mod_ts, 'add');
++                        } else {
++                            $this->updateHistory($object['uid'], $mod_ts, 'modify');
++                        }
++                    }
++                } else {
++                    $this->_cache->ignore($id);
++                }
++
++                // write out cache once in a while so if the browser times out
++                // we don't have to start from the beginning.
++                if ($count > 500) {
++                    $count = 0;
++                    $this->_cache->save();
++                }
++                $count++;
++            }
++
++            $this->_cache->save();
++
++            if (is_array($changes)) {
++                $deleted = array_diff($changes, $modified);
++                foreach ($deleted as $deleted_oid) {
++                    if ($deleted_oid != $history_ignore) {
++                        $this->_updateHistory($deleted_oid, time(), 'delete');
++                    }
++                }
++            }
++        }
++    }
++
++    /**
++     * Update the Horde history in case an element was modified
++     * outside of Horde.
++     *
++     * @param string $object_uid Object uid that should be updated.
++     * @param int    $mod_ts     Timestamp of the modification.
++     * @param string $action     The action that was performed.
++     */
++    function _updateHistory($object_uid, $mod_ts, $action)
++    {
++        global $registry;
++
++        if (!isset($registry)) {
++            return;
++        }
++
++        $app = $registry->getApp();
++        if (empty($app) || is_a($app, 'PEAR_Error')) {
++            /**
++             * Ignore the history if we are not in application
++             * context.
++             */
++            return $app;
++        }
++
++        /* Log the action on this item in the history log. */
++        $history = &Horde_History::singleton();
++
++        $history_id = $app . ':' . $this->_folder->getShareId() . ':' . $object_uid;
++        $history->log($history_id, array('action' => $action, 'ts' => $mod_ts), true);
++    }
++
++
++    /**
++     * Check if the folder has changed and the cache needs to be updated.
++     *
++     * @param string $validity    ID validity of the folder.
++     * @param string $nextid      next ID for the folder.
++     * @param array  $old_ids     Old list of IDs in the folder.
++     * @param array  $new_ids     New list of IDs in the folder.
++     *
++     * @return mixed True or an array of deleted IDs if the
++     *               folder changed and false otherwise.
++     */
++    function _folderChanged($validity, $nextid, &$old_ids, &$new_ids)
++    {
++        $changed = false;
++        $reset_done = false;
++
++        // uidvalidity changed?
++        if ($validity != $this->_cache->validity) {
++            $this->_cache->reset();
++            $reset_done = true;
++        }
++
++        // nextid changed?
++        if ($nextid != $this->_cache->nextid) {
++            $changed = true;
++        }
++
++        $this->_cache->validity = $validity;
++        $this->_cache->nextid = $nextid;
++
++        if ($reset_done) {
++            return true;
++        }
++
++        // Speed optimization: if nextid and validity didn't change
++        // and count(old_ids) == count(new_ids), the folder didn't change.
++        if ($changed || count($old_ids) != count ($new_ids)) {
++            // remove deleted messages from cache
++            $delete_ids = array_diff($old_ids, $new_ids);
++            $deleted_oids = array();
++            foreach ($delete_ids as $delete_id) {
++                $object_id = $this->_cache->uids[$delete_id];
++                if ($object_id !== false) {
++                    unset($this->_cache->objects[$object_id]);
++                    $deleted_oids[] = $object_id;
++                }
++                unset($this->_cache->uids[$delete_id]);
++            }
++            if (!empty($deleted_oids)) {
++                $changed = $deleted_oids;
++            } else {
++                $changed = true;
++            }
++        }
++        return $changed;
++    }
++
++    /**
++     * Return the IMAP ID for the given object ID.
++     *
++     * @param string   $object_id      The object ID.
++     *
++     * @return int  The IMAP ID.
++     */
++    function _getStorageId($object_uid)
++    {
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        $id = array_search($object_uid, $this->_cache->uids);
++        if ($id === false) {
++            return false;
++        }
++
++        return $id;
++    }
++
++    /**
++     * Test if the storage ID exists.
++     *
++     * @param int   $uid      The storage ID.
++     *
++     * @return boolean  True if the ID exists.
++     */
++    function _storageIdExists($uid)
++    {
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        return array_key_exists($uid, $this->_cache->uids);
++    }
++
++    /**
++     * Generate a unique object id.
++     *
++     * @return string  The unique id.
++     */
++    function generateUID()
++    {
++        do {
++            $key = md5(uniqid(mt_rand(), true));
++        } while($this->objectUidExists($key));
++
++        return $key;
++    }
++
++    /**
++     * Check if the given id exists.
++     *
++     * @param string $uid  The object id.
++     *
++     * @return boolean  True if the id was found, false otherwise.
++     */
++    function objectUidExists($uid)
++    {
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        return array_key_exists($uid, $this->_cache->objects);
++    }
++
++    /**
++     * Return the specified object.
++     *
++     * @param string     $object_id       The object id.
++     *
++     * @return array|PEAR_Error  The object data as an array.
++     */
++    function getObject($object_id)
++    {
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        if (!$this->objectUidExists($object_id)) {
++            return PEAR::raiseError(sprintf(_("Kolab cache: Object uid %s does not exist in the cache!"), $object_id));
++        }
++        return $this->_cache->objects[$object_id];
++    }
++
++    /**
++     * Return the specified attachment.
++     *
++     * @param string     $attachment_id       The attachment id.
++     *
++     * @return string|PEAR_Error  The attachment data as a string.
++     */
++    function getAttachment($attachment_id)
++    {
++        return $this->_cache->loadAttachment($attachment_id);
++    }
++
++    /**
++     * Retrieve all object ids in the current folder.
++     *
++     * @return array  The object ids.
++     */
++    function getObjectIds()
++    {
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        return array_keys($this->_cache->objects);
++    }
++
++    /**
++     * Retrieve all objects in the current folder.
++     *
++     * @return array  All object data arrays.
++     */
++    function getObjects()
++    {
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        return array_values($this->_cache->objects);
++    }
++
++    /**
++     * Retrieve all objects in the current folder as an array.
++     *
++     * @return array  The object data array.
++     */
++    function getObjectArray()
++    {
++        $this->_cache->load($this->_cache_key, $this->_data_version);
++
++        return $this->_cache->objects;
++    }
++}
+diff --git a/horde-webmail/lib/SyncML/Backend/Horde.php b/horde-webmail/lib/SyncML/Backend/Horde.php
+index ed07580..0f35941 100644
+--- a/horde-webmail/lib/SyncML/Backend/Horde.php
++++ b/horde-webmail/lib/SyncML/Backend/Horde.php
+@@ -183,7 +183,12 @@ class SyncML_Backend_Horde extends SyncML_Backend {
+                 continue;
+             }
+ 
+-            if ($slowsync) {
++            // Add should only be done once on an existing entry -
++            // if it's performed a second time it's very likely that
++            // there is something wrong. Therefore all adds are
++            // filtered that already have a corresponding mapping in
++            // the database
++            //if ($slowsync) {
+                 // SlowSync: Ignore all entries where there already in a
+                 // map entry.
+                 $cuid = $this->_getCuid($database, $suid);
+@@ -193,7 +198,7 @@ class SyncML_Backend_Horde extends SyncML_Backend {
+                         __FILE__, __LINE__, PEAR_LOG_DEBUG);
+                     continue;
+                 }
+-            }
++            //}
+             $add_ts[$suid] = $registry->call($database . '/getActionTimestamp',
+                                              array($suid, 'add', SyncML_Backend::getParameter($databaseURI, 'source')));
+             $sync_ts = $this->_getChangeTS($database, $suid);
+diff --git a/horde-webmail/lib/SyncML/Command/Alert.php b/horde-webmail/lib/SyncML/Command/Alert.php
+index 0b004f6..6f4aa5b 100644
+--- a/horde-webmail/lib/SyncML/Command/Alert.php
++++ b/horde-webmail/lib/SyncML/Command/Alert.php
+@@ -287,6 +287,17 @@ class SyncML_Command_Alert extends SyncML_Command {
+                 'Creating SyncML_Sync object for database '
+                 . $this->_targetLocURI .  '; sync type ' . $synctype,
+                 __FILE__, __LINE__, PEAR_LOG_DEBUG);
++            /* Synchronize databases with the IMAP backend */
++            $databases = array ('kronolith', 'turba', 'nag', 'mnemo');
++            foreach($databases as $app) {
++                $GLOBALS['registry']->callByPackage($app, 'synchronize');
++            }
++            if ($serverAnchorNext == time ()) {
++                // make sure that the timestamps of the synchronized items in
++                // the database are different from serverAnchorNext
++                sleep (1);
++            }
++            $serverAnchorNext = $GLOBALS['backend']->getCurrentTimeStamp();
+             $sync = new SyncML_Sync($synctype,
+                                     $this->_targetLocURI,
+                                     $this->_sourceLocURI,
+diff --git a/horde-webmail/mnemo/lib/api.php b/horde-webmail/mnemo/lib/api.php
+index 05c28c6..c8bc4ed 100644
+--- a/horde-webmail/mnemo/lib/api.php
++++ b/horde-webmail/mnemo/lib/api.php
+@@ -70,6 +70,11 @@ $_services['replace'] = array(
+     'type' => 'boolean'
+ );
+ 
++$_services['synchronize'] = array(
++    'args' => array(),
++    'type' => 'boolean'
++);
++
+ /**
+  * Returns a list of available permissions.
+  *
+@@ -526,3 +531,35 @@ function _mnemo_replace($uid, $content, $contentType)
+         return PEAR::raiseError(sprintf(_("Unsupported Content-Type: %s"),$contentType));
+     }
+ }
++
++/**
++ * Synchronizes mnemo with the IMAP backend
++ *
++ * @return boolean  False if something went wrong
++ */
++function _mnemo_synchronize()
++{
++    require_once dirname(__FILE__) . '/base.php';
++
++    /* Make sure we have a valid notepad. */
++    if (empty($notepad)) {
++        $notepad = Mnemo::getDefaultNotepad();
++    }
++
++    if (!array_key_exists($notepad,
++                          Mnemo::listNotepads(false, PERMS_READ))) {
++        return False;
++    }
++
++    $storage = &Mnemo_Driver::singleton($notepad);
++    if (get_class ($storage) == 'Mnemo_Driver_kolab' &&
++        get_class ($storage->_wrapper) == 'Mnemo_Driver_kolab_wrapper_new') {
++
++        $storage->_wrapper->connect ();
++        if (get_class ($storage->_wrapper->_store) == 'Kolab_IMAP') {
++            $storage->_wrapper->_store->_synchronize ();
++        }
++    }
++
++    return True;
++}
+diff --git a/horde-webmail/nag/lib/api.php b/horde-webmail/nag/lib/api.php
+index db77df3..f67d3b4 100644
+--- a/horde-webmail/nag/lib/api.php
++++ b/horde-webmail/nag/lib/api.php
+@@ -113,6 +113,11 @@ $_services['listTimeObjects'] = array(
+     'type' => '{urn:horde}hashHash'
+ );
+ 
++$_services['synchronize'] = array(
++    'args' => array(),
++    'type' => 'boolean'
++);
++
+ /**
+  * Returns a list of available permissions.
+  *
+@@ -1386,3 +1391,32 @@ function _nag_listAlarms($time, $user = null)
+ 
+     return $alarm_list;
+ }
++
++/**
++ * Synchronizes nag with the IMAP backend
++ *
++ * @return boolean  False if something went wrong
++ */
++function _nag_synchronize()
++{
++    require_once dirname(__FILE__) . '/base.php';
++
++    $tasklist = Nag::getDefaultTasklist(PERMS_READ);
++
++    if (!array_key_exists($tasklist,
++                          Nag::listTasklists(false, PERMS_READ))) {
++        return False;
++    }
++
++    $storage = &Nag_Driver::singleton($tasklist);
++    if (get_class ($storage) == 'Nag_Driver_kolab' &&
++        get_class ($storage->_wrapper) == 'Nag_Driver_kolab_wrapper_new') {
++
++        $storage->_wrapper->connect ();
++        if (get_class ($storage->_wrapper->_store) == 'Kolab_IMAP') {
++            $storage->_wrapper->_store->_synchronize ();
++        }
++    }
++
++    return True;
++}
+diff --git a/horde-webmail/turba/lib/api.php b/horde-webmail/turba/lib/api.php
+index b4d18d1..c636653 100644
+--- a/horde-webmail/turba/lib/api.php
++++ b/horde-webmail/turba/lib/api.php
+@@ -188,6 +188,11 @@ $_services['hasComments'] = array(
+     'type' => 'boolean'
+ );
+ 
++$_services['synchronize'] = array(
++    'args' => array(),
++    'type' => 'boolean'
++);
++
+ /**
+  * Removes user data.
+  *
+@@ -1967,3 +1972,49 @@ function _turba_deleteField($address = '', $field = '', $sources = array())
+ 
+     return;
+ }
++
++/**
++ * Synchronizes turba with the IMAP backend
++ *
++ * @return boolean  False if something went wrong
++ */
++function _turba_synchronize()
++{
++    global $prefs, $cfgSources;
++    require_once dirname(__FILE__) . '/base.php';
++
++    /* Get default address book from user preferences. */
++    if (empty($sources)) {
++        $sources = @unserialize($prefs->getValue('sync_books'));
++    } elseif (!is_array($sources)) {
++        $sources = array($sources);
++    }
++    if (empty($sources)) {
++        $sources = array(Turba::getDefaultAddressbook());
++    }
++    if (empty($sources)) {
++        return False;
++    }
++
++    foreach ($sources as $source) {
++        if (empty($source) || !isset($cfgSources[$source])) {
++            continue;
++        }
++
++        $driver = &Turba_Driver::singleton($source);
++        if (is_a($driver, 'PEAR_Error')) {
++            continue;
++        }
++        if (get_class ($driver) == 'Turba_Driver_share' &&
++            get_class ($driver->_driver) == 'Turba_Driver_kolab' &&
++            get_class ($driver->_driver->_wrapper) == 'Turba_Driver_kolab_wrapper_new') {
++
++            $driver->_driver->_wrapper->connect ();
++            if (get_class ($driver->_driver->_wrapper->_store) == 'Kolab_IMAP') {
++                $driver->_driver->_wrapper->_store->_synchronize ();
++            }
++        }
++    }
++
++    return True;
++}
+-- 
+tg: (70b7642..) t/SyncML/HK/GW/DoubleSyncFix (depends on: t/kronolith/HK/GW/HandleEmptyDates)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 50acb8e9fc046da7aebbedf53ef155f03427c41b
+Author: root <Gunnar Wrobel wrobel@pardus.de>
+Date:   Tue Nov 24 10:25:51 2009 +0100
+
+    Fix patch for newer Kolab_Storage library.
+
+commit 3ea975a913f3db5ee5ee511cf4280eb811f23c91
+Author: root <Gunnar Wrobel wrobel@pardus.de>
+Date:   Tue Nov 24 09:48:03 2009 +0100
+
+    Remove stray file.
+
+commit 308c073c0765af8979d1c511201f99f8d1b88046
+Author: root <Gunnar Wrobel wrobel@pardus.de>
+Date:   Tue Nov 24 09:47:17 2009 +0100
+
+     kolab/issue3237 (Double Sync with SyncML when using external client)
+
+commit a24c1cd0702833a1fa658b58bddb67971250f86d
+Author: root <Gunnar Wrobel wrobel@pardus.de>
+Date:   Tue Nov 24 09:41:07 2009 +0100
+
+     kolab/issue3237 (Double Sync with SyncML when using external client)
