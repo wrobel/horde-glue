@@ -12,15 +12,15 @@ and Outlook. Without this patch horde displays 6 incidents over 3 weeks.
 Signed-off-by: Gunnar Wrobel <p@rdus.de>
 
 ---
- horde-webmail/kronolith/lib/Recurrence.php  |   57 ++++++++++++++++++++++++--
- horde-webmail/lib/Horde/Date/Recurrence.php |   57 ++++++++++++++++++++++++--
- 2 files changed, 104 insertions(+), 10 deletions(-)
+ horde-webmail/kronolith/lib/Recurrence.php  |   58 ++++++++++++++++++++++++--
+ horde-webmail/lib/Horde/Date/Recurrence.php |   58 ++++++++++++++++++++++++--
+ 2 files changed, 106 insertions(+), 10 deletions(-)
 
 diff --git a/horde-webmail/kronolith/lib/Recurrence.php b/horde-webmail/kronolith/lib/Recurrence.php
-index f22351d..5aa5960 100644
+index f22351d..409063f 100644
 --- a/horde-webmail/kronolith/lib/Recurrence.php
 +++ b/horde-webmail/kronolith/lib/Recurrence.php
-@@ -374,18 +374,65 @@ class Horde_Date_Recurrence {
+@@ -374,18 +374,66 @@ class Horde_Date_Recurrence {
  
              $diff = Date_Calc::dateDiff($start_week->mday, $start_week->month, $start_week->year,
                                          $after_week->mday, $after_week->month, $after_week->year);
@@ -42,7 +42,7 @@ index f22351d..5aa5960 100644
 +                 * first week.
 +                 */
 +                $recur = $interval * ($repeats + 1);
-             }
++            }
 +
 +            if ($this->hasRecurCount()) {
 +                $recurrences = 0;
@@ -57,6 +57,7 @@ index f22351d..5aa5960 100644
 +                        $recurrences--;
 +                    }
 +                    ++$next->mday;
++                    $next->correct();
 +                }
 +                if ($repeats > 0) {
 +                    $weekdays = $this->recurData;
@@ -69,7 +70,7 @@ index f22351d..5aa5960 100644
 +                    }
 +                    $recurrences += $total_recurrences_per_week * $repeats;
 +                }
-+            }
+             }
 +
              $next = $start_week;
 -            list($next->mday, $next->month, $next->year) = explode('/', Date_Calc::daysToDate(Date_Calc::dateToDays($next->mday, $next->month, $next->year) + $recur, '%e/%m/%Y'));
@@ -92,10 +93,10 @@ index f22351d..5aa5960 100644
              if (!$this->hasRecurEnd() ||
                  $next->compareDateTime($this->recurEnd) <= 0) {
 diff --git a/horde-webmail/lib/Horde/Date/Recurrence.php b/horde-webmail/lib/Horde/Date/Recurrence.php
-index 9dbf057..e21193f 100644
+index 9dbf057..c11624b 100644
 --- a/horde-webmail/lib/Horde/Date/Recurrence.php
 +++ b/horde-webmail/lib/Horde/Date/Recurrence.php
-@@ -374,18 +374,65 @@ class Horde_Date_Recurrence {
+@@ -374,18 +374,66 @@ class Horde_Date_Recurrence {
  
              $diff = Date_Calc::dateDiff($start_week->mday, $start_week->month, $start_week->year,
                                          $after_week->mday, $after_week->month, $after_week->year);
@@ -117,7 +118,7 @@ index 9dbf057..e21193f 100644
 +                 * first week.
 +                 */
 +                $recur = $interval * ($repeats + 1);
-             }
++            }
 +
 +            if ($this->hasRecurCount()) {
 +                $recurrences = 0;
@@ -132,6 +133,7 @@ index 9dbf057..e21193f 100644
 +                        $recurrences--;
 +                    }
 +                    ++$next->mday;
++                    $next->correct();
 +                }
 +                if ($repeats > 0) {
 +                    $weekdays = $this->recurData;
@@ -144,7 +146,7 @@ index 9dbf057..e21193f 100644
 +                    }
 +                    $recurrences += $total_recurrences_per_week * $repeats;
 +                }
-+            }
+             }
 +
              $next = $start_week;
 -            list($next->mday, $next->month, $next->year) = explode('/', Date_Calc::daysToDate(Date_Calc::dateToDays($next->mday, $next->month, $next->year) + $recur, '%e/%m/%Y'));
@@ -171,6 +173,13 @@ tg: (1f477b1..) t/kronolith/HK/GW/FixWeeklyRecurringEvents (depends on: t/kronol
 -- 
 TOPGIT patch commit log
 =======================
+
+commit 2b3d01e220c0a2f5a80f68e5ac7eb759d6090fe3
+Author: root <Gunnar Wrobel wrobel@pardus.de>
+Date:   Fri Nov 27 19:28:59 2009 +0100
+
+    In FW3 dates need to be corrected after modifying them. Missed one
+    such call. Bug #8702: Infinite loop because of a recurring event.
 
 commit ecde0d9b33f53d7ed3a3d5bdd358118213d4abe1
 Author: Gunnar Wrobel <p@rdus.de>
