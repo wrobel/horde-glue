@@ -9,6 +9,13 @@ REVBIN = ./tools/horde-rev-cmp.sh
 
 MODULES = horde horde-hatchery horde-cvs horde-fw3 kolab-cvs topgit
 
+SUBMODULES=horde-fw3      \
+           horde-cvs      \
+           horde-support  \
+           horde-release  \
+           horde-hatchery \
+           horde
+
 .PHONY:lib
 lib:
 	@php -c php.ini -q $(SYMLINK) --src horde-cvs/framework --dest lib > /dev/null
@@ -196,3 +203,15 @@ stashes:
 	    cd ..; \
 	    echo; \
 	  done
+
+.PHONY:setup
+setup:
+	for MODULE in $(SUBMODULES);     \
+	do                               \
+	  git submodule init $$MODULE;   \
+	  git submodule update $$MODULE; \
+	done
+	cd horde; git remote add horde git://dev.horde.org/horde/git/horde || echo "Remote exists"
+	cd horde-hatchery; git remote add horde git://dev.horde.org/horde/git/horde-hatchery || echo "Remote exists"
+	cd horde-support; git remote add horde git://dev.horde.org/horde/git/horde-support || echo "Remote exists"
+	cd horde-release; tg remote --populate origin; git checkout t/EXPERIMENTAL;tg update
