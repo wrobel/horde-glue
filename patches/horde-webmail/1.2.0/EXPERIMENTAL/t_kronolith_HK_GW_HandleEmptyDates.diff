@@ -38,7 +38,7 @@ index de49c81..e915475 100644
          $ids = array();
  
 -- 
-tg: (e8744bb..) t/kronolith/HK/GW/HandleEmptyDates (depends on: t/framework/H/JS/Form/FixFormSecurityForImageUploads)
+tg: (45f49d5..) t/kronolith/HK/GW/HandleEmptyDates (depends on: t/framework/H/JS/Form/FixFormSecurityForImageUploads)
 -- 
 TOPGIT patch commit log
 =======================

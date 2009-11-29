@@ -989,7 +989,7 @@ index b4d18d1..c636653 100644
 +    return True;
 +}
 -- 
-tg: (70b7642..) t/SyncML/HK/GW/DoubleSyncFix (depends on: t/kronolith/HK/GW/HandleEmptyDates)
+tg: (b59780e..) t/SyncML/HK/GW/DoubleSyncFix (depends on: t/kronolith/HK/GW/HandleEmptyDates)
 -- 
 TOPGIT patch commit log
 =======================

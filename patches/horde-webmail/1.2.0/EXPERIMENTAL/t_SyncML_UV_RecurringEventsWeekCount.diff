@@ -17,10 +17,10 @@ Signed-off-by: root <Gunnar Wrobel wrobel@pardus.de>
  1 files changed, 14 insertions(+), 3 deletions(-)
 
 diff --git a/horde-webmail/kronolith/lib/Recurrence.php b/horde-webmail/kronolith/lib/Recurrence.php
-index 5aa5960..acbbee7 100644
+index 409063f..3f48ec9 100644
 --- a/horde-webmail/kronolith/lib/Recurrence.php
 +++ b/horde-webmail/kronolith/lib/Recurrence.php
-@@ -944,6 +944,7 @@ class Horde_Date_Recurrence {
+@@ -945,6 +945,7 @@ class Horde_Date_Recurrence {
       */
      function toRRule10($calendar)
      {
@@ -28,7 +28,7 @@ index 5aa5960..acbbee7 100644
          switch ($this->recurType) {
          case HORDE_DATE_RECUR_NONE:
              return '';
-@@ -959,6 +960,7 @@ class Horde_Date_Recurrence {
+@@ -960,6 +961,7 @@ class Horde_Date_Recurrence {
              for ($i = 0; $i <= 7 ; ++$i) {
                  if ($this->recurOnDay(pow(2, $i))) {
                      $rrule .= ' ' . $vcaldays[$i];
@@ -36,7 +36,7 @@ index 5aa5960..acbbee7 100644
                  }
              }
              break;
-@@ -997,9 +999,18 @@ class Horde_Date_Recurrence {
+@@ -998,9 +1000,18 @@ class Horde_Date_Recurrence {
              return '';
          }
  
@@ -59,7 +59,7 @@ index 5aa5960..acbbee7 100644
  
      /**
 -- 
-tg: (29677b1..) t/SyncML/UV/RecurringEventsWeekCount (depends on: t/SyncML/UV/message/size/p1i)
+tg: (a10b418..) t/SyncML/UV/RecurringEventsWeekCount (depends on: t/SyncML/UV/message/size/p1i)
 -- 
 TOPGIT patch commit log
 =======================

@@ -27,7 +27,7 @@ index 57e233b..66113a6 100644
                  $backend->logMessage(
                      'Item size mismatch. Size reported as ' . $item->size
 -- 
-tg: (50acb8e..) t/SyncML/UV/message/size/p1i (depends on: t/SyncML/HK/GW/DoubleSyncFix)
+tg: (c96d74f..) t/SyncML/UV/message/size/p1i (depends on: t/SyncML/HK/GW/DoubleSyncFix)
 -- 
 TOPGIT patch commit log
 =======================

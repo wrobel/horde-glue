@@ -1,0 +1,44 @@
+From: root <Gunnar Wrobel wrobel@pardus.de>
+Subject: [PATCH] t/Prefs/HK/GW/MigratePrefs
+
+A script to migrate Horde prefs from one driver to another.
+
+REF: https://issues.kolab.org/issue3567
+
+Signed-off-by: root <Gunnar Wrobel wrobel@pardus.de>
+
+---
+ .../scripts/kolab_prefs_from_2_2_0_to_2_2_1.php    |   13 +++++++++++++
+ 1 files changed, 13 insertions(+), 0 deletions(-)
+
+diff --git a/horde-webmail/scripts/kolab_prefs_from_2_2_0_to_2_2_1.php b/horde-webmail/scripts/kolab_prefs_from_2_2_0_to_2_2_1.php
+new file mode 100644
+index 0000000..d3e0105
+--- /dev/null
++++ b/horde-webmail/scripts/kolab_prefs_from_2_2_0_to_2_2_1.php
+@@ -0,0 +1,13 @@
++<?php
++
++require_once 'Horde/Prefs.php';
++
++//load the Kolab server configuration first
++
++//list all users
++
++//instantiate prefs driver for each user
++
++//pull down prefs
++
++//write them again with a second driver
+\ No newline at end of file
+-- 
+tg: (5ee60fd..) t/Prefs/HK/GW/MigratePrefs (depends on: t/SyncML/UV/RecurringEventsWeekCount)
+-- 
+TOPGIT patch commit log
+=======================
+
+commit 949e7e201bd9d65913bd64027805252d0c1634f4
+Author: root <Gunnar Wrobel wrobel@pardus.de>
+Date:   Tue Nov 24 20:48:00 2009 +0100
+
+    Started thinking about the script.
