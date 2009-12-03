@@ -17,7 +17,7 @@ Signed-off-by: root <Gunnar Wrobel wrobel@pardus.de>
  1 files changed, 14 insertions(+), 3 deletions(-)
 
 diff --git a/horde-webmail/kronolith/lib/Recurrence.php b/horde-webmail/kronolith/lib/Recurrence.php
-index 409063f..3f48ec9 100644
+index 63dcb34..182b025 100644
 --- a/horde-webmail/kronolith/lib/Recurrence.php
 +++ b/horde-webmail/kronolith/lib/Recurrence.php
 @@ -945,6 +945,7 @@ class Horde_Date_Recurrence {
@@ -59,7 +59,7 @@ index 409063f..3f48ec9 100644
  
      /**
 -- 
-tg: (a10b418..) t/SyncML/UV/RecurringEventsWeekCount (depends on: t/SyncML/UV/message/size/p1i)
+tg: (6f836b9..) t/SyncML/UV/RecurringEventsWeekCount (depends on: t/SyncML/UV/message/size/p1i)
 -- 
 TOPGIT patch commit log
 =======================

@@ -32,7 +32,7 @@ index 0000000..d3e0105
 +//write them again with a second driver
 \ No newline at end of file
 -- 
-tg: (5ee60fd..) t/Prefs/HK/GW/MigratePrefs (depends on: t/SyncML/UV/RecurringEventsWeekCount)
+tg: (73a90ac..) t/Prefs/HK/GW/MigratePrefs (depends on: t/SyncML/UV/RecurringEventsWeekCount)
 -- 
 TOPGIT patch commit log
 =======================
