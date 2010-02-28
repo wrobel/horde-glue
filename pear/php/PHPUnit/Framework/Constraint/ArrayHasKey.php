@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,9 @@
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: ArrayHasKey.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
@@ -54,25 +52,30 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
 /**
  * Constraint that asserts that the array it is evaluated for has a given key.
  *
- * Uses array_key_exists() to check if the key is found in the input array, if not
- * found the evaluaton fails.
+ * Uses array_key_exists() to check if the key is found in the input array, if
+ * not found the evaluaton fails.
  *
  * The array key is passed in the constructor.
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.0.0
  */
 class PHPUnit_Framework_Constraint_ArrayHasKey extends PHPUnit_Framework_Constraint
 {
+    /**
+     * @var integer|string
+     */
     protected $key;
 
+    /**
+     * @param integer|string $key
+     */
     public function __construct($key)
     {
         $this->key = $key;
@@ -100,6 +103,11 @@ class PHPUnit_Framework_Constraint_ArrayHasKey extends PHPUnit_Framework_Constra
         return 'has the key ' . PHPUnit_Util_Type::toString($this->key);
     }
 
+    /**
+     * @param mixed   $other
+     * @param string  $description
+     * @param boolean $not
+     */
     protected function customFailureDescription($other, $description, $not)
     {
         return sprintf(

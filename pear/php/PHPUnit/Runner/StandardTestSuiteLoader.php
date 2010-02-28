@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: StandardTestSuiteLoader.php 4790 2009-04-10 10:17:59Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 2.0.0
  */
@@ -48,6 +47,7 @@ require_once 'PHPUnit/Util/Filter.php';
 require_once 'PHPUnit/Runner/TestSuiteLoader.php';
 require_once 'PHPUnit/Util/Class.php';
 require_once 'PHPUnit/Util/Fileloader.php';
+require_once 'PHPUnit/Util/Filesystem.php';
 
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
 
@@ -57,9 +57,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 2.0.0
  */
@@ -72,12 +72,14 @@ class PHPUnit_Runner_StandardTestSuiteLoader implements PHPUnit_Runner_TestSuite
      * @return ReflectionClass
      * @throws RuntimeException
      */
-    public function load($suiteClassName, $suiteClassFile = '', $syntaxCheck = TRUE)
+    public function load($suiteClassName, $suiteClassFile = '', $syntaxCheck = FALSE)
     {
         $suiteClassName = str_replace('.php', '', $suiteClassName);
 
         if (empty($suiteClassFile)) {
-            $suiteClassFile = str_replace(array('_', '\\'), DIRECTORY_SEPARATOR, $suiteClassName) . '.php';
+            $suiteClassFile = PHPUnit_Util_Filesystem::classNameToFilename(
+              $suiteClassName
+            );
         }
 
         if (!class_exists($suiteClassName, FALSE)) {
@@ -85,7 +87,8 @@ class PHPUnit_Runner_StandardTestSuiteLoader implements PHPUnit_Runner_TestSuite
                 $includePaths = explode(PATH_SEPARATOR, get_include_path());
 
                 foreach ($includePaths as $includePath) {
-                    $file = $includePath . DIRECTORY_SEPARATOR . $suiteClassFile;
+                    $file = $includePath . DIRECTORY_SEPARATOR .
+                            $suiteClassFile;
 
                     if (file_exists($file)) {
                         $suiteClassFile = $file;
@@ -114,13 +117,15 @@ class PHPUnit_Runner_StandardTestSuiteLoader implements PHPUnit_Runner_TestSuite
             $testCaseClass = 'PHPUnit_Framework_TestCase';
 
             foreach ($loadedClasses as $loadedClass) {
-                $class = new ReflectionClass($loadedClass);
+                $class     = new ReflectionClass($loadedClass);
+                $classFile = $class->getFileName();
 
-                if ($class->isSubclassOf($testCaseClass)) {
+                if ($class->isSubclassOf($testCaseClass) &&
+                    !$class->isAbstract()) {
                     $suiteClassName = $loadedClass;
                     $testCaseClass  = $loadedClass;
 
-                    if ($class->getFileName() == realpath($suiteClassFile)) {
+                    if ($classFile == realpath($suiteClassFile)) {
                         break;
                     }
                 }
@@ -128,9 +133,14 @@ class PHPUnit_Runner_StandardTestSuiteLoader implements PHPUnit_Runner_TestSuite
                 if ($class->hasMethod('suite')) {
                     $method = $class->getMethod('suite');
 
-                    if (!$method->isAbstract() && $method->isPublic() && $method->isStatic()) {
+                    if (!$method->isAbstract() &&
+                        $method->isPublic() &&
+                        $method->isStatic()) {
                         $suiteClassName = $loadedClass;
-                        break;
+
+                        if ($classFile == realpath($suiteClassFile)) {
+                            break;
+                        }
                     }
                 }
             }
@@ -144,7 +154,7 @@ class PHPUnit_Runner_StandardTestSuiteLoader implements PHPUnit_Runner_TestSuite
             }
         }
 
-        throw new RuntimeException(
+        throw new PHPUnit_Framework_Exception(
           sprintf(
             'Class %s could not be found in %s.',
 

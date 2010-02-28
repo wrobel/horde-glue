@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Database.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.1.0
  */
@@ -56,9 +55,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.1.0
  */
@@ -147,7 +146,7 @@ class PHPUnit_Util_Log_Database implements PHPUnit_Framework_TestListener
         }
 
         if (empty($revision)) {
-            throw new InvalidArgumentException;
+            throw PHPUnit_Util_InvalidArgumentHelper::factory(1, 'non-empty string');
         }
 
         self::$instance = new PHPUnit_Util_Log_Database(
@@ -350,8 +349,9 @@ class PHPUnit_Util_Log_Database implements PHPUnit_Framework_TestListener
 
         $stmt = $this->dbh->prepare(
           'INSERT INTO test
-                       (run_id, test_name, node_left, node_right, node_is_leaf)
-                 VALUES(:runId, :testName, 1, 2, 0);'
+                       (run_id, test_name, node_left, node_right, node_is_leaf,
+                        node_parent, node_depth)
+                 VALUES(:runId, :testName, 1, 2, 0, 0, 0);'
         );
 
         $stmt->bindParam(':runId', $this->runId, PDO::PARAM_INT);
@@ -428,17 +428,21 @@ class PHPUnit_Util_Log_Database implements PHPUnit_Framework_TestListener
         $stmt = $this->dbh->prepare(
           'INSERT INTO test
                        (run_id, test_name, test_result, test_message,
-                        test_execution_time, node_root, node_left, node_right,
-                        node_is_leaf)
-                 VALUES(:runId, :testName, 0, "", 0, :root, :left, :right,
+                        test_execution_time, node_root, node_parent, node_left,
+                        node_right, node_depth, node_is_leaf)
+                 VALUES(:runId, :testName, 0, "", 0, :root, :parent, :left, :right, :depth,
                         :isLeaf);'
         );
+
+        $currentTestDepth = count($this->testSuites);
 
         $stmt->bindParam(':runId', $this->runId, PDO::PARAM_INT);
         $stmt->bindParam(':testName', $testName, PDO::PARAM_STR);
         $stmt->bindParam(':root', $this->testSuites[0]['id'], PDO::PARAM_INT);
+        $stmt->bindParam(':parent', $this->testSuites[(count($this->testSuites)-1)]['id'], PDO::PARAM_INT);
         $stmt->bindParam(':left', $left, PDO::PARAM_INT);
         $stmt->bindParam(':right', $right, PDO::PARAM_INT);
+        $stmt->bindPAram(':depth', $currentTestDepth, PDO::PARAM_INT);
         $stmt->bindParam(':isLeaf', $isLeaf, PDO::PARAM_INT);
         $stmt->execute();
 

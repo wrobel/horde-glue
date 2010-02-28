@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,9 +38,8 @@
  * @package    PHPUnit
  * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Invocation.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
@@ -62,23 +61,41 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @package    PHPUnit
  * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.0.0
  */
 class PHPUnit_Framework_MockObject_Invocation implements PHPUnit_Framework_SelfDescribing
 {
+    /**
+     * @var object
+     */
     public $object;
 
+    /**
+     * @var string
+     */
     public $className;
 
+    /**
+     * @var string
+     */
     public $methodName;
 
+    /**
+     * @var array
+     */
     public $parameters;
 
-    public function __construct($object, $className, $methodName, $parameters)
+    /**
+     * @param string $className
+     * @param string $methodname
+     * @param array  $parameters
+     * @param object $object
+     */
+    public function __construct($object, $className, $methodName, array $parameters)
     {
         $this->object     = $object;
         $this->className  = $className;
@@ -92,6 +109,9 @@ class PHPUnit_Framework_MockObject_Invocation implements PHPUnit_Framework_SelfD
         }
     }
 
+    /**
+     * @return string
+     */
     public function toString()
     {
         return sprintf(
@@ -102,16 +122,17 @@ class PHPUnit_Framework_MockObject_Invocation implements PHPUnit_Framework_SelfD
           join(
             ', ',
             array_map(
-              create_function(
-                '$a',
-                'return PHPUnit_Util_Type::shortenedExport($a);'
-              ),
+              array('PHPUnit_Util_Type', 'shortenedExport'),
               $this->parameters
             )
           )
         );
     }
 
+    /**
+     * @param  object $original
+     * @return object
+     */
     protected function cloneObject($original)
     {
         $object = new ReflectionObject($original);

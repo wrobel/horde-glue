@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Mike Lively <m@digitalsandwich.com>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: TableMetaDataFilter.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.2.0
  */
@@ -52,15 +51,18 @@ require_once 'PHPUnit/Extensions/Database/DataSet/AbstractTableMetaData.php';
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
 
 /**
- * A TableMetaData decorator that allows filtering out columns from another
+ * A TableMetaData decorator that allows filtering columns from another
  * metaData object.
+ *
+ * The if a whitelist (include) filter is specified, then only those columns
+ * will be included.
  *
  * @category   Testing
  * @package    PHPUnit
  * @author     Mike Lively <m@digitalsandwich.com>
- * @copyright  2009 Mike Lively <m@digitalsandwich.com>
+ * @copyright  2010 Mike Lively <m@digitalsandwich.com>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.2.0
  */
@@ -77,19 +79,25 @@ class PHPUnit_Extensions_Database_DataSet_TableMetaDataFilter extends PHPUnit_Ex
      * The columns to exclude from the meta data.
      * @var Array
      */
-    protected $excludeColumns;
+    protected $excludeColumns = array();
+
+    /**
+     * The columns to include from the meta data.
+     * @var Array
+     */
+    protected $includeColumns = array();
 
     /**
      * Creates a new filtered table meta data object filtering out
      * $excludeColumns.
      *
      * @param PHPUnit_Extensions_Database_DataSet_ITableMetaData $originalMetaData
-     * @param array $excludeColumns
+     * @param array $excludeColumns - Deprecated. Use the set* methods instead.
      */
-    public function __construct(PHPUnit_Extensions_Database_DataSet_ITableMetaData $originalMetaData, Array $excludeColumns)
+    public function __construct(PHPUnit_Extensions_Database_DataSet_ITableMetaData $originalMetaData, Array $excludeColumns = array())
     {
         $this->originalMetaData = $originalMetaData;
-        $this->excludeColumns = $excludeColumns;
+        $this->addExcludeColumns($excludeColumns);
     }
 
     /**
@@ -99,7 +107,15 @@ class PHPUnit_Extensions_Database_DataSet_TableMetaDataFilter extends PHPUnit_Ex
      */
     public function getColumns()
     {
-        return array_values(array_diff($this->originalMetaData->getColumns(), $this->excludeColumns));
+        if (!empty($this->includeColumns)) {
+            return array_values(array_intersect($this->originalMetaData->getColumns(), $this->includeColumns));
+        }
+        elseif (!empty($this->excludeColumns)) {
+            return array_values(array_diff($this->originalMetaData->getColumns(), $this->excludeColumns));
+        }
+        else {
+            return $this->originalMetaData->getColumns();
+        }
     }
 
     /**
@@ -120,6 +136,40 @@ class PHPUnit_Extensions_Database_DataSet_TableMetaDataFilter extends PHPUnit_Ex
     public function getTableName()
     {
         return $this->originalMetaData->getTableName();
+    }
+
+    /**
+     * Sets the columns to include in the table.
+     * @param Array $includeColumns
+     */
+    public function addIncludeColumns(Array $includeColumns)
+    {
+        $this->includeColumns = array_unique(array_merge($this->includeColumns, $includeColumns));
+    }
+
+    /**
+     * Clears the included columns.
+     */
+    public function clearIncludeColumns()
+    {
+        $this->includeColumns = array();
+    }
+
+    /**
+     * Sets the columns to exclude from the table.
+     * @param Array $excludeColumns
+     */
+    public function addExcludeColumns(Array $excludeColumns)
+    {
+        $this->excludeColumns = array_unique(array_merge($this->excludeColumns, $excludeColumns));
+    }
+
+    /**
+     * Clears the excluded columns.
+     */
+    public function clearExcludeColumns()
+    {
+        $this->excludeColumns = array();
     }
 }
 ?>

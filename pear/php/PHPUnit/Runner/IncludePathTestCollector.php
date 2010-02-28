@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: IncludePathTestCollector.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 2.1.0
  */
@@ -66,34 +65,40 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 2.1.0
  */
 class PHPUnit_Runner_IncludePathTestCollector implements PHPUnit_Runner_TestCollector
 {
     /**
-     * @var    string
+     * @var string
      */
     protected $filterIterator;
 
     /**
-     * @var    array
+     * @var array
      */
     protected $paths;
 
     /**
-     * @var    string
+     * @var mixed
      */
-    protected $suffix;
+    protected $suffixes;
 
     /**
-     * @param  array  $paths
-     * @param  string $suffix
+     * @var mixed
      */
-    public function __construct(array $paths = array(), $suffix = 'Test.php')
+    protected $prefixes;
+
+    /**
+     * @param array $paths
+     * @param mixed $suffixes
+     * @param mixed $prefixes
+     */
+    public function __construct(array $paths = array(), $suffixes = array('Test.php', '.phpt'), $prefixes = array())
     {
         if (!empty($paths)) {
             $this->paths = $paths;
@@ -101,7 +106,8 @@ class PHPUnit_Runner_IncludePathTestCollector implements PHPUnit_Runner_TestColl
             $this->paths = explode(PATH_SEPARATOR, get_include_path());
         }
 
-        $this->suffix = $suffix;
+        $this->suffixes = $suffixes;
+        $this->prefixes = $prefixes;
     }
 
     /**
@@ -121,7 +127,7 @@ class PHPUnit_Runner_IncludePathTestCollector implements PHPUnit_Runner_TestColl
         }
 
         $filterIterator = new PHPUnit_Util_FilterIterator(
-          $pathIterator, $this->suffix
+          $pathIterator, $this->suffixes, $this->prefixes
         );
 
         if ($this->filterIterator !== NULL) {
@@ -141,19 +147,13 @@ class PHPUnit_Runner_IncludePathTestCollector implements PHPUnit_Runner_TestColl
     public function setFilterIterator($filterIterator)
     {
         if (is_string($filterIterator) && class_exists($filterIterator)) {
-            try {
-                $class = new ReflectionClass($filterIterator);
+            $class = new ReflectionClass($filterIterator);
 
-                if ($class->isSubclassOf('FilterIterator')) {
-                    $this->filterIterator = $filterIterator;
-                }
-            }
-
-            catch (ReflectionException $e) {
-                throw new InvalidArgumentException;
+            if ($class->isSubclassOf('FilterIterator')) {
+                $this->filterIterator = $filterIterator;
             }
         } else {
-            throw new InvalidArgumentException;
+            throw PHPUnit_Util_InvalidArgumentHelper::factory(1, 'class name');
         }
     }
 }

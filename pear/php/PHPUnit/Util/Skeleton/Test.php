@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,16 +37,16 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Test.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.3.0
  */
 
+require_once 'PHPUnit/Util/Filesystem.php';
 require_once 'PHPUnit/Util/Filter.php';
-require_once 'PHPUnit/Util/Template.php';
 require_once 'PHPUnit/Util/Skeleton.php';
+require_once 'PHPUnit/Util/Template.php';
 
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
 
@@ -56,9 +56,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.3.0
  */
@@ -72,67 +72,83 @@ class PHPUnit_Util_Skeleton_Test extends PHPUnit_Util_Skeleton
     /**
      * Constructor.
      *
-     * @param  string  $inClassName
-     * @param  string  $inSourceFile
+     * @param string $inClassName
+     * @param string $inSourceFile
+     * @param string $outClassName
+     * @param string $outSourceFile
      * @throws RuntimeException
      */
-    public function __construct($inClassName, $inSourceFile = '')
+    public function __construct($inClassName, $inSourceFile = '', $outClassName = '', $outSourceFile = '')
     {
-        $this->inClassName  = $inClassName;
-        $this->outClassName = $inClassName . 'Test';
-
         if (class_exists($inClassName)) {
-            $this->inSourceFile = '<internal>';
-        }
+            $reflector    = new ReflectionClass($inClassName);
+            $inSourceFile = $reflector->getFileName();
 
-        else if (empty($inSourceFile) && is_file($inClassName . '.php')) {
-            $this->inSourceFile = $inClassName . '.php';
-        }
+            if ($inSourceFile === FALSE) {
+                $inSourceFile = '<internal>';
+            }
 
-        else if (empty($inSourceFile) ||
-                 is_file(str_replace('_', '/', $inClassName) . '.php')) {
-            $this->inSourceFile  = str_replace('_', '/', $inClassName) . '.php';
-            $this->outSourceFile = str_replace('_', '/', $inClassName) . 'Test.php';
-        }
-
-        else if (empty($inSourceFile)) {
-            throw new RuntimeException(
-              sprintf(
-                'Neither "%s.php" nor "%s.php" could be opened.',
-                $inClassName,
-                str_replace('_', '/', $inClassName)
-              )
-            );
-        }
-
-        else if (!is_file($inSourceFile)) {
-            throw new RuntimeException(
-              sprintf(
-                '"%s" could not be opened.',
-
-                $inSourceFile
-              )
-            );
+            unset($reflector);
         } else {
-            $this->inSourceFile = $inSourceFile;
+            if (empty($inSourceFile)) {
+                $possibleFilenames = array(
+                  $inClassName . '.php',
+                  PHPUnit_Util_Filesystem::classNameToFilename($inClassName)
+                );
+
+                foreach ($possibleFilenames as $possibleFilename) {
+                    if (is_file($possibleFilename)) {
+                        $inSourceFile = $possibleFilename;
+                    }
+                }
+            }
+
+            if (empty($inSourceFile)) {
+                throw new PHPUnit_Framework_Exception(
+                  sprintf(
+                    'Neither "%s" nor "%s" could be opened.',
+                    $possibleFilenames[0],
+                    $possibleFilenames[1]
+                  )
+                );
+            }
+
+            if (!is_file($inSourceFile)) {
+                throw new PHPUnit_Framework_Exception(
+                  sprintf(
+                    '"%s" could not be opened.',
+
+                    $inSourceFile
+                  )
+                );
+            }
+
+            $inSourceFile = realpath($inSourceFile);
+            include_once $inSourceFile;
+
+            if (!class_exists($inClassName)) {
+                throw new PHPUnit_Framework_Exception(
+                  sprintf(
+                    'Could not find class "%s" in "%s".',
+
+                    $inClassName,
+                    $inSourceFile
+                  )
+                );
+            }
         }
 
-        if ($this->inSourceFile != '<internal>') {
-            include_once $this->inSourceFile;
+        if (empty($outClassName)) {
+            $outClassName = $inClassName . 'Test';
         }
 
-        if (!class_exists($inClassName)) {
-            throw new RuntimeException(
-              sprintf(
-                'Could not find class "%s" in "%s".',
-
-                $inClassName,
-                realpath($this->inSourceFile)
-              )
-            );
+        if (empty($outSourceFile)) {
+            $outSourceFile = dirname($inSourceFile) . DIRECTORY_SEPARATOR . $outClassName . '.php';
         }
 
-        $this->outSourceFile = dirname($this->inSourceFile) . DIRECTORY_SEPARATOR . $this->inClassName . 'Test.php';
+        parent::__construct(
+          $inClassName, $inSourceFile, $outClassName, $outSourceFile
+        );
     }
 
     /**
@@ -143,7 +159,9 @@ class PHPUnit_Util_Skeleton_Test extends PHPUnit_Util_Skeleton
      */
     public function generate($verbose = FALSE)
     {
-        $class             = new ReflectionClass($this->inClassName);
+        $class             = new ReflectionClass(
+                               $this->inClassName['fullyQualifiedClassName']
+                             );
         $methods           = '';
         $incompleteMethods = '';
 
@@ -151,7 +169,7 @@ class PHPUnit_Util_Skeleton_Test extends PHPUnit_Util_Skeleton
             if (!$method->isConstructor() &&
                 !$method->isAbstract() &&
                  $method->isPublic() &&
-                 $method->getDeclaringClass()->getName() == $this->inClassName) {
+                 $method->getDeclaringClass()->getName() == $this->inClassName['fullyQualifiedClassName']) {
                 $assertAnnotationFound = FALSE;
 
                 if (preg_match_all('/@assert(.*)$/Um', $method->getDocComment(), $annotations)) {
@@ -204,7 +222,12 @@ class PHPUnit_Util_Skeleton_Test extends PHPUnit_Util_Skeleton
                                 break;
 
                                 default: {
-                                    throw new RuntimeException;
+                                    throw new PHPUnit_Framework_Exception(
+                                      sprintf(
+                                        'Token "%s" could not be parsed in @assert annotation.',
+                                        $matches[2]
+                                      )
+                                    );
                                 }
                             }
 
@@ -212,22 +235,26 @@ class PHPUnit_Util_Skeleton_Test extends PHPUnit_Util_Skeleton
                                 $template = 'TestMethodException';
                             }
 
-                            else if ($assertion == 'Equals' && strtolower($matches[3]) == 'true') {
+                            else if ($assertion == 'Equals' &&
+                                     strtolower($matches[3]) == 'true') {
                                 $assertion = 'True';
                                 $template  = 'TestMethodBool';
                             }
 
-                            else if ($assertion == 'NotEquals' && strtolower($matches[3]) == 'true') {
+                            else if ($assertion == 'NotEquals' &&
+                                     strtolower($matches[3]) == 'true') {
                                 $assertion = 'False';
                                 $template  = 'TestMethodBool';
                             }
 
-                            else if ($assertion == 'Equals' && strtolower($matches[3]) == 'false') {
+                            else if ($assertion == 'Equals' &&
+                                     strtolower($matches[3]) == 'false') {
                                 $assertion = 'False';
                                 $template  = 'TestMethodBool';
                             }
 
-                            else if ($assertion == 'NotEquals' && strtolower($matches[3]) == 'false') {
+                            else if ($assertion == 'NotEquals' &&
+                                     strtolower($matches[3]) == 'false') {
                                 $assertion = 'True';
                                 $template  = 'TestMethodBool';
                             }
@@ -271,7 +298,7 @@ class PHPUnit_Util_Skeleton_Test extends PHPUnit_Util_Skeleton
                                 'assertion'      => isset($assertion) ? $assertion : '',
                                 'expected'       => $matches[3],
                                 'origMethodName' => $origMethodName,
-                                'className'      => $this->inClassName,
+                                'className'      => $this->inClassName['fullyQualifiedClassName'],
                                 'methodName'     => $methodName
                               )
                             );
@@ -325,13 +352,23 @@ class PHPUnit_Util_Skeleton_Test extends PHPUnit_Util_Skeleton
             $requireClassFile = '';
         }
 
+        if ($this->outClassName['namespace'] != '') {
+            $namespace = "\nnamespace " .
+                         $this->outClassName['namespace'] . ";\n";
+        } else {
+            $namespace = '';
+        }
+
         $classTemplate->setVar(
           array(
-            'className'        => $this->inClassName,
-            'requireClassFile' => $requireClassFile,
-            'methods'          => $methods . $incompleteMethods,
-            'date'             => date('Y-m-d'),
-            'time'             => date('H:i:s')
+            'namespace'          => $namespace,
+            'namespaceSeparator' => !empty($namespace) ? '\\' : '',
+            'className'          => $this->inClassName['className'],
+            'testClassName'      => $this->outClassName['className'],
+            'requireClassFile'   => $requireClassFile,
+            'methods'            => $methods . $incompleteMethods,
+            'date'               => date('Y-m-d'),
+            'time'               => date('H:i:s')
           )
         );
 

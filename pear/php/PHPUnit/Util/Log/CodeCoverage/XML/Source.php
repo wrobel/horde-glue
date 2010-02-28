@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,15 +37,13 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Source.php 4708 2009-03-08 14:45:40Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.3.0
  */
 
 require_once 'PHPUnit/Runner/Version.php';
-require_once 'PHPUnit/Util/Metrics/File.php';
 require_once 'PHPUnit/Util/Class.php';
 require_once 'PHPUnit/Util/CodeCoverage.php';
 require_once 'PHPUnit/Util/Filter.php';
@@ -61,9 +59,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.3.0
  */
@@ -146,12 +144,7 @@ class PHPUnit_Util_Log_CodeCoverage_XML_Source
 
                     $xmlLine->appendChild(
                       $document->createElement(
-                        'body',
-                        htmlspecialchars(
-                          PHPUnit_Util_XML::convertToUtf8($line),
-                          ENT_COMPAT,
-                          'UTF-8'
-                        )
+                        'body', PHPUnit_Util_XML::prepareString($line)
                       )
                     );
 
@@ -172,10 +165,8 @@ class PHPUnit_Util_Log_CodeCoverage_XML_Source
                                     $xmlTest->appendChild(
                                       $document->createElement(
                                         'message',
-                                        htmlspecialchars(
-                                          PHPUnit_Util_XML::convertToUtf8($test->getStatusMessage()),
-                                          ENT_COMPAT,
-                                          'UTF-8'
+                                        PHPUnit_Util_XML::prepareString(
+                                          $test->getStatusMessage()
                                         )
                                       )
                                     );
@@ -254,12 +245,7 @@ class PHPUnit_Util_Log_CodeCoverage_XML_Source
 
                     $xmlLine->appendChild(
                       $document->createElement(
-                        'body',
-                        htmlspecialchars(
-                          PHPUnit_Util_XML::convertToUtf8($line),
-                          ENT_COMPAT,
-                          'UTF-8'
-                        )
+                        'body', PHPUnit_Util_XML::prepareString($line)
                       )
                     );
 

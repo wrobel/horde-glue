@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: append.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.2.10
  */
@@ -56,10 +55,16 @@ if ( isset($_COOKIE['PHPUNIT_SELENIUM_TEST_ID']) &&
         unset($data[$file]);
     }
 
+    if (is_string($GLOBALS['PHPUNIT_COVERAGE_DATA_DIRECTORY']) &&
+        is_dir($GLOBALS['PHPUNIT_COVERAGE_DATA_DIRECTORY'])) {
+        $file = $GLOBALS['PHPUNIT_COVERAGE_DATA_DIRECTORY'] .
+                DIRECTORY_SEPARATOR . md5($_SERVER['SCRIPT_FILENAME']);
+    } else {
+        $file = $_SERVER['SCRIPT_FILENAME'];
+    }
+
     file_put_contents(
-      $_SERVER['SCRIPT_FILENAME'] . '.' .
-      md5(uniqid(rand(), TRUE)) . '.' .
-      $_COOKIE['PHPUNIT_SELENIUM_TEST_ID'],
+      $file . '.' . md5(uniqid(rand(), TRUE)) . '.' . $_COOKIE['PHPUNIT_SELENIUM_TEST_ID'],
       serialize($data)
     );
 }

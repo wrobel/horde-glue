@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Trond Hansen <trond@xait.no>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Oci.php 4784 2009-04-10 09:56:39Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.2.3
  */
@@ -56,9 +55,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Trond Hansen <trond@xait.no>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.2.3
  */
@@ -68,6 +67,11 @@ class PHPUnit_Extensions_Database_DB_MetaData_Oci extends PHPUnit_Extensions_Dat
      * No character used to quote schema objects.
      */
     protected $schemaObjectQuoteChar = '';
+
+    /**
+     * The command used to perform a TRUNCATE operation.
+     */
+    protected $truncateCommand = 'TRUNCATE TABLE';
 
     protected $columns = array();
     protected $keys = array();
@@ -134,12 +138,23 @@ class PHPUnit_Extensions_Database_DB_MetaData_Oci extends PHPUnit_Extensions_Dat
      */
     protected function loadColumnInfo($tableName)
     {
+        $ownerQuery    = '';
+        $conOwnerQuery = '';
+        $tableParts    = $this->splitTableName($tableName);
+
         $this->columns[$tableName] = array();
         $this->keys[$tableName]    = array();
 
+        if (!empty($tableParts['schema']))
+        {
+            $ownerQuery = " AND OWNER = '{$tableParts['schema']}'";
+            $conOwnerQuery = " AND a.owner = '{$tableParts['schema']}'";
+        }
+
         $query = "SELECT DISTINCT COLUMN_NAME
                     FROM USER_TAB_COLUMNS
-                   WHERE TABLE_NAME='".$tableName."'
+                   WHERE TABLE_NAME='".$tableParts['table']."'
+                    $ownerQuery
                    ORDER BY COLUMN_NAME";
 
         $result = $this->pdo->query($query);
@@ -152,7 +167,8 @@ class PHPUnit_Extensions_Database_DB_MetaData_Oci extends PHPUnit_Extensions_Dat
                        FROM user_constraints a, user_cons_columns b
                       WHERE a.constraint_type='P'
                         AND a.constraint_name=b.constraint_name
-                        AND a.table_name = '".$tableName."' ";
+                        $conOwnerQuery
+                        AND a.table_name = '".$tableParts['table']."' ";
 
         $result = $this->pdo->query($keyQuery);
 

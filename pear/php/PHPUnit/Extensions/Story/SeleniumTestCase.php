@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,9 +38,8 @@
  * @package    PHPUnit
  * @author     Mattis Stordalen Flister <mattis@xait.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: SeleniumTestCase.php 4507 2009-01-19 16:16:21Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.3.0
  */
@@ -56,9 +55,9 @@ require_once 'PHPUnit/Extensions/Story/TestCase.php';
  * @package    PHPUnit
  * @author     Mattis Stordalen Flister <mattis@xait.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.3.0
  * @abstract
@@ -161,6 +160,7 @@ abstract class PHPUnit_Extensions_Story_SeleniumTestCase extends PHPUnit_Extensi
     /**
      * Run this test's scenario.
      *
+     * @return mixed
      * @throws RuntimeException
      */
     protected function runTest()
@@ -169,7 +169,7 @@ abstract class PHPUnit_Extensions_Story_SeleniumTestCase extends PHPUnit_Extensi
         $this->autoStop = FALSE;
 
         try {
-            parent::runTest();
+            $testResult = parent::runTest();
             $this->scenario->run($this->world);
             $this->autoStop = $autostop;
         }
@@ -178,6 +178,8 @@ abstract class PHPUnit_Extensions_Story_SeleniumTestCase extends PHPUnit_Extensi
             $this->autoStop = $autostop;
             throw $e;
         }
+
+        return $testResult;
     }
 
     /**

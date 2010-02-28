@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Mike Lively <m@digitalsandwich.com>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id:DataSet.php 1254 2009-09-02 04:36:15Z mlively $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.2.0
  */
@@ -60,9 +59,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Mike Lively <m@digitalsandwich.com>
- * @copyright  2009 Mike Lively <m@digitalsandwich.com>
+ * @copyright  2010 Mike Lively <m@digitalsandwich.com>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.2.0
  */
@@ -99,7 +98,7 @@ class PHPUnit_Extensions_Database_DB_DataSet extends PHPUnit_Extensions_Database
      * @param PHPUnit_Extensions_Database_DataSet_ITableMetaData $tableMetaData
      * @return unknown
      */
-    public static function buildTableSelect(PHPUnit_Extensions_Database_DataSet_ITableMetaData $tableMetaData)
+    public static function buildTableSelect(PHPUnit_Extensions_Database_DataSet_ITableMetaData $tableMetaData, PHPUnit_Extensions_Database_DB_IDatabaseConnection $databaseConnection = NULL)
     {
         if ($tableMetaData->getTableName() == '') {
             $e = new Exception("Empty Table Name");
@@ -107,16 +106,29 @@ class PHPUnit_Extensions_Database_DB_DataSet extends PHPUnit_Extensions_Database
             throw $e;
         }
 
-        $columnList = implode(', ', $tableMetaData->getColumns());
+        $columns = $tableMetaData->getColumns();
+        if ($databaseConnection) {
+        	$columns = array_map(array($databaseConnection, 'quoteSchemaObject'), $columns);
+        }
+        $columnList = implode(', ', $columns);
+
+        if ($databaseConnection) {
+        	$tableName = $databaseConnection->quoteSchemaObject($tableMetaData->getTableName());
+        } else {
+        	$tableName = $tableMetaData->getTableName();
+        }
 
         $primaryKeys = $tableMetaData->getPrimaryKeys();
+        if ($databaseConnection) {
+        	$primaryKeys = array_map(array($databaseConnection, 'quoteSchemaObject'), $primaryKeys);
+        }
         if (count($primaryKeys)) {
             $orderBy = 'ORDER BY ' . implode(' ASC, ', $primaryKeys) . ' ASC';
         } else {
             $orderBy = '';
         }
 
-        return "SELECT {$columnList} FROM {$tableMetaData->getTableName()} {$orderBy}";
+        return "SELECT {$columnList} FROM {$tableName} {$orderBy}";
     }
 
     /**

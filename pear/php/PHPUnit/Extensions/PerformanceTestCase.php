@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: PerformanceTestCase.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 2.1.0
  */
@@ -57,9 +56,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 2.1.0
  */
@@ -71,11 +70,13 @@ abstract class PHPUnit_Extensions_PerformanceTestCase extends PHPUnit_Framework_
     protected $maxRunningTime = 0;
 
     /**
+     * @return mixed
+     * @throws RuntimeException
      */
     protected function runTest()
     {
         PHPUnit_Util_Timer::start();
-        parent::runTest();
+        $testResult = parent::runTest();
         $time = PHPUnit_Util_Timer::stop();
 
         if ($this->maxRunningTime != 0 &&
@@ -89,6 +90,8 @@ abstract class PHPUnit_Extensions_PerformanceTestCase extends PHPUnit_Framework_
               )
             );
         }
+
+        return $testResult;
     }
 
     /**
@@ -102,7 +105,7 @@ abstract class PHPUnit_Extensions_PerformanceTestCase extends PHPUnit_Framework_
             $maxRunningTime >= 0) {
             $this->maxRunningTime = $maxRunningTime;
         } else {
-            throw new InvalidArgumentException;
+            throw PHPUnit_Util_InvalidArgumentHelper::factory(1, 'positive integer');
         }
     }
 

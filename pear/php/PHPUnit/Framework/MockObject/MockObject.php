@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,9 @@
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: MockObject.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
@@ -59,30 +57,35 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Interface available since Release 3.0.0
  */
-interface PHPUnit_Framework_MockObject_MockObject extends PHPUnit_Framework_MockObject_Verifiable
+interface PHPUnit_Framework_MockObject_MockObject /*extends PHPUnit_Framework_MockObject_Verifiable*/
 {
-    /**
-     * Returns the current invocation mocker which keeps track of expecations
-     * and stubs.
-     * @return PHPUnit_Framework_MockObject_InvocationMocker
-     */
-    public function /*__phpunit_*/getInvocationMocker();
-
     /**
      * Registers a new expectation in the mock object and returns the match
      * object which can be infused with further details.
      *
-     * @param  PHPUnit_Framework_MockObject_Matcher_Invocation $invocation The invocation handler for the method calls.
-     * @return PHPUnit_Framework_MockObject_Builder_MethodNameMatch
+     * @param  PHPUnit_Framework_MockObject_Matcher_Invocation $matcher
+     * @return PHPUnit_Framework_MockObject_Builder_InvocationMocker
      */
-    public function expects(PHPUnit_Framework_MockObject_Matcher_Invocation $invocation);
+    public function expects(PHPUnit_Framework_MockObject_Matcher_Invocation $matcher);
+
+    /**
+     * @return PHPUnit_Framework_MockObject_InvocationMocker
+     */
+    public function __phpunit_getInvocationMocker();
+
+    /**
+     * Verifies that the current expectation is valid. If everything is OK the
+     * code should just return, if not it must throw an exception.
+     *
+     * @throws PHPUnit_Framework_ExpectationFailedException
+     */
+    public function __phpunit_verify();
 }
 ?>

@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,9 @@
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: InvocationMocker.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
@@ -65,25 +63,37 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.0.0
  */
 class PHPUnit_Framework_MockObject_InvocationMocker implements PHPUnit_Framework_MockObject_Stub_MatcherCollection, PHPUnit_Framework_MockObject_Invokable, PHPUnit_Framework_MockObject_Builder_Namespace
 {
+    /**
+     * @var PHPUnit_Framework_MockObject_Matcher_Invocation[]
+     */
     protected $matchers = array();
 
+    /**
+     * @var PHPUnit_Framework_MockObject_Builder_Match[]
+     */
     protected $builderMap = array();
 
+    /**
+     * @param PHPUnit_Framework_MockObject_Matcher_Invocation $matcher
+     */
     public function addMatcher(PHPUnit_Framework_MockObject_Matcher_Invocation $matcher)
     {
         $this->matchers[] = $matcher;
     }
 
+    /**
+     * @param  mixed $id
+     * @return boolean|null
+     */
     public function lookupId($id)
     {
         if (isset($this->builderMap[$id])) {
@@ -93,22 +103,37 @@ class PHPUnit_Framework_MockObject_InvocationMocker implements PHPUnit_Framework
         return NULL;
     }
 
+    /**
+     * @param  mixed                                      $id
+     * @param  PHPUnit_Framework_MockObject_Builder_Match $builder
+     * @throws PHPUnit_Framework_Exception
+     */
     public function registerId($id, PHPUnit_Framework_MockObject_Builder_Match $builder)
     {
         if (isset($this->builderMap[$id])) {
-            throw new RuntimeException("Match builder with id <{$id}> is already registered.");
+            throw new PHPUnit_Framework_Exception(
+              'Match builder with id <' . $id . '> is already registered.'
+            );
         }
 
         $this->builderMap[$id] = $builder;
     }
 
+    /**
+     * @param  PHPUnit_Framework_MockObject_Matcher_Invocation $matcher
+     * @return PHPUnit_Framework_MockObject_Builder_InvocationMocker
+     */
     public function expects(PHPUnit_Framework_MockObject_Matcher_Invocation $matcher)
     {
-        $builder = new PHPUnit_Framework_MockObject_Builder_InvocationMocker($this, $matcher);
-
-        return $builder;
+        return new PHPUnit_Framework_MockObject_Builder_InvocationMocker(
+          $this, $matcher
+        );
     }
 
+    /**
+     * @param  PHPUnit_Framework_MockObject_Invocation $invocation
+     * @return mixed
+     */
     public function invoke(PHPUnit_Framework_MockObject_Invocation $invocation)
     {
         $exception      = NULL;
@@ -144,6 +169,10 @@ class PHPUnit_Framework_MockObject_InvocationMocker implements PHPUnit_Framework
         return $returnValue;
     }
 
+    /**
+     * @param  PHPUnit_Framework_MockObject_Invocation $invocation
+     * @return boolean
+     */
     public function matches(PHPUnit_Framework_MockObject_Invocation $invocation)
     {
         foreach($this->matchers as $matcher) {
@@ -155,6 +184,9 @@ class PHPUnit_Framework_MockObject_InvocationMocker implements PHPUnit_Framework
         return TRUE;
     }
 
+    /**
+     * @return boolean
+     */
     public function verify()
     {
         foreach($this->matchers as $matcher) {

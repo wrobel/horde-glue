@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,16 +36,15 @@
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: String.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
 
 require_once 'PHPUnit/Framework.php';
+require_once 'PHPUnit/Util/Diff.php';
 require_once 'PHPUnit/Util/Filter.php';
 
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
@@ -55,11 +54,10 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.0.0
  */
@@ -73,48 +71,19 @@ class PHPUnit_Framework_ComparisonFailure_String extends PHPUnit_Framework_Compa
     {
         $expected = (string)$this->expected;
         $actual   = (string)$this->actual;
+        $diff     = PHPUnit_Util_Diff::diff($expected, $actual);
 
-        if (strpos($expected, "\n") !== FALSE || strpos($actual, "\n") !== FALSE) {
-            if ($this->hasDiff()) {
-                return $this->diff($expected, $actual);
-            } else {
-                return '';
-            }
+        if ($diff === FALSE) {
+            $diff = '';
         }
 
-        $expectedLen = strlen($expected);
-        $actualLen   = strlen($actual);
-        $minLen      = min($expectedLen, $actualLen);
-        $maxLen      = max($expectedLen, $actualLen);
-
-        for ($i = 0; $i < $minLen; ++$i) {
-            if ($expected[$i] != $actual[$i]) break;
+        if (!empty($this->message)) {
+            $buffer = $this->message . "\n";
+        } else {
+            $buffer = '';
         }
 
-        $startPos = $i;
-        $endPos   = $minLen;
-
-        if ($minLen > 0) {
-            for ($i = $minLen - 1; $i > $startPos; --$i) {
-                if ($expected[$i] != $actual[$i]) break;
-            }
-
-            $endPos = $i + 1;
-        }
-
-        return sprintf(
-          "%s%sexpected string <%s>\n" .
-          "%sdifference      <%s>\n" .
-          '%sgot string      <%s>',
-
-          $this->message,
-          ($this->message != '') ? ' ' : '',
-          $expected,
-          ($this->message != '') ? str_repeat(' ', strlen($this->message) + 1) : '',
-          str_repeat(' ', $startPos) . str_repeat('x', $endPos - $startPos) . str_repeat('?', $maxLen - $minLen),
-          ($this->message != '') ? str_repeat(' ', strlen($this->message) + 1) : '',
-          $actual
-        );
+        return trim($buffer . $diff);
     }
 }
 ?>

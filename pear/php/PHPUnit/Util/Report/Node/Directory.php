@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Directory.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.2.0
  */
@@ -58,9 +57,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.2.0
  */
@@ -104,7 +103,7 @@ class PHPUnit_Util_Report_Node_Directory extends PHPUnit_Util_Report_Node
     /**
      * @var    integer
      */
-    protected $numCalledClasses = -1;
+    protected $numTestedClasses = -1;
 
     /**
      * @var    integer
@@ -114,7 +113,7 @@ class PHPUnit_Util_Report_Node_Directory extends PHPUnit_Util_Report_Node
     /**
      * @var    integer
      */
-    protected $numCalledMethods = -1;
+    protected $numTestedMethods = -1;
 
     /**
      * Adds a new directory.
@@ -159,7 +158,7 @@ class PHPUnit_Util_Report_Node_Directory extends PHPUnit_Util_Report_Node
     /**
      * Returns the directories in this directory.
      *
-     * @return
+     * @return array
      */
     public function getDirectories()
     {
@@ -169,7 +168,7 @@ class PHPUnit_Util_Report_Node_Directory extends PHPUnit_Util_Report_Node
     /**
      * Returns the files in this directory.
      *
-     * @return
+     * @return array
      */
     public function getFiles()
     {
@@ -249,22 +248,21 @@ class PHPUnit_Util_Report_Node_Directory extends PHPUnit_Util_Report_Node
     }
 
     /**
-     * Returns the number of classes of which at least one method
-     * has been called at least once.
+     * Returns the number of tested classes.
      *
      * @return integer
      */
-    public function getNumCalledClasses()
+    public function getNumTestedClasses()
     {
-        if ($this->numCalledClasses == -1) {
-            $this->numCalledClasses = 0;
+        if ($this->numTestedClasses == -1) {
+            $this->numTestedClasses = 0;
 
             foreach ($this->children as $child) {
-                $this->numCalledClasses += $child->getNumCalledClasses();
+                $this->numTestedClasses += $child->getNumTestedClasses();
             }
         }
 
-        return $this->numCalledClasses;
+        return $this->numTestedClasses;
     }
 
     /**
@@ -286,21 +284,21 @@ class PHPUnit_Util_Report_Node_Directory extends PHPUnit_Util_Report_Node
     }
 
     /**
-     * Returns the number of methods that has been called at least once.
+     * Returns the number of tested methods.
      *
      * @return integer
      */
-    public function getNumCalledMethods()
+    public function getNumTestedMethods()
     {
-        if ($this->numCalledMethods == -1) {
-            $this->numCalledMethods = 0;
+        if ($this->numTestedMethods == -1) {
+            $this->numTestedMethods = 0;
 
             foreach ($this->children as $child) {
-                $this->numCalledMethods += $child->getNumCalledMethods();
+                $this->numTestedMethods += $child->getNumTestedMethods();
             }
         }
 
-        return $this->numCalledMethods;
+        return $this->numTestedMethods;
     }
 
     /**

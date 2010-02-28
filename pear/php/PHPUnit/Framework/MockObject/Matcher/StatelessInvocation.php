@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,9 @@
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: StatelessInvocation.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
@@ -52,28 +50,54 @@ require_once 'PHPUnit/Framework/MockObject/Invocation.php';
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
 
 /**
- * Invocation matcher which does not care about previous state from earlier invocations.
+ * Invocation matcher which does not care about previous state from earlier
+ * invocations.
  *
  * This abstract class can be implemented by matchers which does not care about
  * state but only the current run-time value of the invocation itself.
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.0.0
  * @abstract
  */
 abstract class PHPUnit_Framework_MockObject_Matcher_StatelessInvocation implements PHPUnit_Framework_MockObject_Matcher_Invocation
 {
+    /**
+     * Registers the invocation $invocation in the object as being invoked.
+     * This will only occur after matches() returns true which means the
+     * current invocation is the correct one.
+     *
+     * The matcher can store information from the invocation which can later
+     * be checked in verify(), or it can check the values directly and throw
+     * and exception if an expectation is not met.
+     *
+     * If the matcher is a stub it will also have a return value.
+     *
+     * @param  PHPUnit_Framework_MockObject_Invocation $invocation
+     *         Object containing information on a mocked or stubbed method which
+     *         was invoked.
+     * @return mixed
+     */
     public function invoked(PHPUnit_Framework_MockObject_Invocation $invocation)
     {
     }
 
+    /**
+     * Checks if the invocation $invocation matches the current rules. If it does
+     * the matcher will get the invoked() method called which should check if an
+     * expectation is met.
+     *
+     * @param  PHPUnit_Framework_MockObject_Invocation $invocation
+     *         Object containing information on a mocked or stubbed method which
+     *         was invoked.
+     * @return bool
+     */
     public function verify()
     {
     }

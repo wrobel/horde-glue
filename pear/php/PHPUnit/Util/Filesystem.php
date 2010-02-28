@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Filesystem.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
@@ -54,16 +53,42 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.0.0
  * @abstract
  */
 class PHPUnit_Util_Filesystem
 {
+    /**
+     * @var array
+     */
     protected static $buffer = array();
+
+    /**
+     * @var array
+     */
+    protected static $hasBinary = array();
+
+    /**
+     * Maps class names to source file names:
+     *   - PEAR CS:   Foo_Bar_Baz -> Foo/Bar/Baz.php
+     *   - Namespace: Foo\Bar\Baz -> Foo/Bar/Baz.php
+     *
+     * @param  string $className
+     * @return string
+     * @since  Method available since Release 3.4.0
+     */
+    public static function classNameToFilename($className)
+    {
+        return str_replace(
+          array('_', '\\'),
+          DIRECTORY_SEPARATOR,
+          $className
+        ) . '.php';
+    }
 
     /**
      * Starts the collection of loaded files.
@@ -87,6 +112,20 @@ class PHPUnit_Util_Filesystem
         return array_values(
           array_diff(get_included_files(), self::$buffer)
         );
+    }
+
+    /**
+     * Stops the collection of loaded files and adds
+     * the names of the loaded files to the blacklist.
+     *
+     * @return array
+     * @since  Method available since Release 3.4.6
+     */
+    public static function collectEndAndAddToBlacklist()
+    {
+        foreach (self::collectEnd() as $blacklistedFile) {
+            PHPUnit_Util_Filter::addFileToFilter($blacklistedFile, 'PHPUNIT');
+        }
     }
 
     /**
@@ -183,7 +222,7 @@ class PHPUnit_Util_Filesystem
         if (is_dir($directory) || mkdir($directory, 0777, TRUE)) {
             return $directory;
         } else {
-            throw new RuntimeException(
+            throw new PHPUnit_Framework_Exception(
               sprintf(
                 'Directory "%s" does not exist.',
                 $directory
@@ -204,6 +243,66 @@ class PHPUnit_Util_Filesystem
     {
         /* characters allowed: A-Z, a-z, 0-9, _ and . */
         return preg_replace('#[^\w.]#', '_', $filename);
+    }
+
+    /**
+     * @param  string $binary
+     * @return boolean
+     * @since  Method available since Release 3.4.0
+     */
+    public static function hasBinary($binary)
+    {
+        if (!isset(self::$hasBinary[$binary])) {
+            if (substr(php_uname('s'), 0, 7) == 'Windows') {
+                $binary .= '.exe';
+            }
+            
+            self::$hasBinary[$binary] = FALSE;
+
+            $openBaseDir = ini_get('open_basedir');
+
+            if (is_string($openBaseDir) && !empty($openBaseDir)) {
+                $safeModeExecDir = ini_get('safe_mode_exec_dir');
+                $var             = $openBaseDir;
+
+                if (is_string($safeModeExecDir) && !empty($safeModeExecDir)) {
+                    $var .= PATH_SEPARATOR . $safeModeExecDir;
+                }
+            } else {
+                if (isset($_ENV['PATH'])) {
+                    $var = $_ENV['PATH'];
+                }
+
+                else if (isset($_ENV['Path'])) {
+                    $var = $_ENV['Path'];
+                }
+
+                else if (isset($_SERVER['PATH'])) {
+                    $var = $_SERVER['PATH'];
+                }
+
+                else if (isset($_SERVER['Path'])) {
+                    $var = $_SERVER['Path'];
+                }
+            }
+
+            if (isset($var)) {
+                $paths = explode(PATH_SEPARATOR, $var);
+            } else {
+                $paths = array();
+            }
+
+            foreach ($paths as $path) {
+                $_path = $path . DIRECTORY_SEPARATOR . $binary;
+
+                if (file_exists($_path) && is_executable($_path)) {
+                    self::$hasBinary[$binary] = TRUE;
+                    break;
+                }
+            }
+        }
+
+        return self::$hasBinary[$binary];
     }
 
     /**

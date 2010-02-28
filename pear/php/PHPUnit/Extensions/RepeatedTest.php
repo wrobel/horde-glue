@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: RepeatedTest.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 2.0.0
  */
@@ -56,9 +55,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 2.0.0
  */
@@ -92,9 +91,10 @@ class PHPUnit_Extensions_RepeatedTest extends PHPUnit_Extensions_TestDecorator
      * @param  mixed                  $filter
      * @param  array                  $groups
      * @param  array                  $excludeGroups
+     * @param  boolean                $processIsolation
      * @throws InvalidArgumentException
      */
-    public function __construct(PHPUnit_Framework_Test $test, $timesRepeat = 1, $filter = FALSE, array $groups = array(), array $excludeGroups = array())
+    public function __construct(PHPUnit_Framework_Test $test, $timesRepeat = 1, $filter = FALSE, array $groups = array(), array $excludeGroups = array(), $processIsolation = FALSE)
     {
         parent::__construct($test);
 
@@ -107,9 +107,10 @@ class PHPUnit_Extensions_RepeatedTest extends PHPUnit_Extensions_TestDecorator
             );
         }
 
-        $this->filter        = $filter;
-        $this->groups        = $groups;
-        $this->excludeGroups = $excludeGroups;
+        $this->filter           = $filter;
+        $this->groups           = $groups;
+        $this->excludeGroups    = $excludeGroups;
+        $this->processIsolation = $processIsolation;
     }
 
     /**
@@ -140,7 +141,11 @@ class PHPUnit_Extensions_RepeatedTest extends PHPUnit_Extensions_TestDecorator
         for ($i = 0; $i < $this->timesRepeat && !$result->shouldStop(); $i++) {
             if ($this->test instanceof PHPUnit_Framework_TestSuite) {
                 $this->test->run(
-                  $result, $this->filter, $this->groups, $this->excludeGroups
+                  $result,
+                  $this->filter,
+                  $this->groups,
+                  $this->excludeGroups,
+                  $this->processIsolation
                 );
             } else {
                 $this->test->run($result);

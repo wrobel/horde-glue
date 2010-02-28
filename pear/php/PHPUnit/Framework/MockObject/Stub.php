@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,9 @@
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Stub.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
@@ -59,24 +57,23 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Interface available since Release 3.0.0
  */
 interface PHPUnit_Framework_MockObject_Stub extends PHPUnit_Framework_SelfDescribing
 {
     /**
-     * Fakes the processesing of the invocation $invocation by returning a
+     * Fakes the processing of the invocation $invocation by returning a
      * specific value.
      *
+     * @param  PHPUnit_Framework_MockObject_Invocation $invocation
+     *         The invocation which was mocked and matched by the current method
+     *         and argument matchers.
      * @return mixed
-     * @param PHPUnit_Framework_MockObject_Invocation $invocation The invocation which was mocked
-     *                                                  and matched by the current method
-     *                                                  and argument matchers.
      */
     public function invoke(PHPUnit_Framework_MockObject_Invocation $invocation);
 }

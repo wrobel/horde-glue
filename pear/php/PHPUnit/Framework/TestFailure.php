@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,19 +37,15 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: TestFailure.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 2.0.0
  */
 
 require_once 'PHPUnit/Framework.php';
-require_once 'PHPUnit/Util/Filter.php';
 
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
-
-if (!class_exists('PHPUnit_Framework_TestFailure', FALSE)) {
 
 /**
  * A TestFailure collects a failed test together with the caught exception.
@@ -57,9 +53,9 @@ if (!class_exists('PHPUnit_Framework_TestFailure', FALSE)) {
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 2.0.0
  */
@@ -103,26 +99,24 @@ class PHPUnit_Framework_TestFailure
     }
 
     /**
-     * Returns a verbose description of the failure.
+     * Returns a description for the thrown exception.
      *
-     * @param  bool $verbose
      * @return string
-     * @since  Method available since Release 3.2.0
+     * @since  Method available since Release 3.4.0
      */
-    public function toStringVerbose($verbose = FALSE)
+    public function getExceptionAsString()
     {
-        return self::exceptionToString($this->thrownException, $verbose);
+        return self::exceptionToString($this->thrownException);
     }
 
     /**
-     * Returns a verbose description for an exception.
+     * Returns a description for an exception.
      *
      * @param  Exception $e
-     * @param  bool      $verbose
      * @return string
      * @since  Method available since Release 3.2.0
      */
-    public static function exceptionToString(Exception $e, $verbose = FALSE)
+    public static function exceptionToString(Exception $e)
     {
         if ($e instanceof PHPUnit_Framework_SelfDescribing) {
             if ($e instanceof PHPUnit_Framework_ExpectationFailedException) {
@@ -139,17 +133,22 @@ class PHPUnit_Framework_TestFailure
                 if ($comparisonFailure !== NULL) {
                     if ($comparisonFailure->identical()) {
                         if ($comparisonFailure instanceof PHPUnit_Framework_ComparisonFailure_Object) {
-                            $buffer .= "Failed asserting that two variables reference the same object.\n";
+                            $buffer .= 'Failed asserting that two variables ' .
+                                       "reference the same object.\n";
                         } else {
                             $buffer .= $comparisonFailure->toString() . "\n";
                         }
                     } else {
                         if ($comparisonFailure instanceof PHPUnit_Framework_ComparisonFailure_Scalar) {
                             $buffer .= sprintf(
-                              "Failed asserting that %s matches expected value %s.\n",
+                              "Failed asserting that %s matches expected %s.\n",
 
-                              PHPUnit_Util_Type::toString($comparisonFailure->getActual()),
-                              PHPUnit_Util_Type::toString($comparisonFailure->getExpected())
+                              PHPUnit_Util_Type::toString(
+                                $comparisonFailure->getActual()
+                              ),
+                              PHPUnit_Util_Type::toString(
+                                $comparisonFailure->getExpected()
+                              )
                             );
                         }
 
@@ -159,27 +158,21 @@ class PHPUnit_Framework_TestFailure
                             $buffer .= sprintf(
                               "Failed asserting that two %ss are equal.\n%s\n",
 
-                              strtolower(substr(get_class($comparisonFailure), 36)),
+                              strtolower(
+                                substr(get_class($comparisonFailure), 36)
+                              ),
                               $comparisonFailure->toString()
                             );
-                        }
-
-                        if ($verbose &&
-                           !$comparisonFailure instanceof PHPUnit_Framework_ComparisonFailure_Array &&
-                           !$comparisonFailure instanceof PHPUnit_Framework_ComparisonFailure_Object &&
-                           !$comparisonFailure instanceof PHPUnit_Framework_ComparisonFailure_String) {
-                            $buffer .= $comparisonFailure->toString() . "\n";
                         }
                     }
                 } else {
                     $buffer .= $e->toString();
-                    $equal   = $buffer == $description;
 
                     if (!empty($buffer)) {
                         $buffer .= "\n";
                     }
 
-                    if (!$equal) {
+                    if (strpos($buffer, $description) === FALSE) {
                         $buffer .= $description . "\n";
                     }
                 }
@@ -245,7 +238,5 @@ class PHPUnit_Framework_TestFailure
     {
         return ($this->thrownException() instanceof PHPUnit_Framework_AssertionFailedError);
     }
-}
-
 }
 ?>

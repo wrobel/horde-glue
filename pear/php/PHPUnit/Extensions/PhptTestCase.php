@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: PhptTestCase.php 4528 2009-01-21 14:16:59Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.1.4
  */
@@ -50,9 +49,7 @@ if (PHPUnit_Util_Filesystem::fileExistsInIncludePath('PEAR/RunTest.php')) {
     require_once 'PEAR/RunTest.php';
     error_reporting($currentErrorReporting);
 
-    foreach (PHPUnit_Util_Filesystem::collectEnd() as $blacklistedFile) {
-        PHPUnit_Util_Filter::addFileToFilter($blacklistedFile, 'PHPUNIT');
-    }
+    PHPUnit_Util_Filesystem::collectEndAndAddToBlacklist();
 }
 
 require_once 'PHPUnit/Framework.php';
@@ -67,9 +64,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.1.4
  */
@@ -95,23 +92,19 @@ class PHPUnit_Extensions_PhptTestCase implements PHPUnit_Framework_Test, PHPUnit
      * @param  string $filename
      * @param  array  $options
      */
-    public function __construct($filename, $options = array())
+    public function __construct($filename, array $options = array())
     {
         if (!is_string($filename)) {
-            throw new InvalidArgumentException;
+            throw PHPUnit_Util_InvalidArgumentHelper::factory(1, 'string');
         }
 
         if (!is_file($filename)) {
-            throw new RuntimeException(
+            throw new PHPUnit_Framework_Exception(
               sprintf(
                 'File "%s" does not exist.',
                 $filename
               )
             );
-        }
-
-        if (!is_array($options)) {
-            throw new InvalidArgumentException;
         }
 
         $this->filename = $filename;
@@ -135,10 +128,10 @@ class PHPUnit_Extensions_PhptTestCase implements PHPUnit_Framework_Test, PHPUnit
      * @param  array                        $options
      * @return PHPUnit_Framework_TestResult
      */
-    public function run(PHPUnit_Framework_TestResult $result = NULL, $options = array())
+    public function run(PHPUnit_Framework_TestResult $result = NULL, array $options = array())
     {
         if (!class_exists('PEAR_RunTest', FALSE)) {
-            throw new RuntimeException('Class PEAR_RunTest not found.');
+            throw new PHPUnit_Framework_Exception('Class PEAR_RunTest not found.');
         }
 
         if (isset($GLOBALS['_PEAR_destructor_object_list']) &&
@@ -151,10 +144,6 @@ class PHPUnit_Extensions_PhptTestCase implements PHPUnit_Framework_Test, PHPUnit
 
         if ($result === NULL) {
             $result = new PHPUnit_Framework_TestResult;
-        }
-
-        if (!is_array($options)) {
-            throw new InvalidArgumentException;
         }
 
         $coverage = $result->getCollectCodeCoverageInformation();
@@ -193,6 +182,10 @@ class PHPUnit_Extensions_PhptTestCase implements PHPUnit_Framework_Test, PHPUnit
         $logFile      = $path . DIRECTORY_SEPARATOR . str_replace('.phpt', '.log', $base);
         $outFile      = $path . DIRECTORY_SEPARATOR . str_replace('.phpt', '.out', $base);
         $phpFile      = $path . DIRECTORY_SEPARATOR . str_replace('.phpt', '.php', $base);
+
+        if (file_exists($phpFile)) {
+            PHPUnit_Util_Filter::addFileToFilter($phpFile, 'TESTS');
+        }
 
         if (is_object($buffer) && $buffer instanceof PEAR_Error) {
             $result->addError(

@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,16 +37,15 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: File.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.2.0
  */
 
-require_once 'PHPUnit/Util/Class.php';
-require_once 'PHPUnit/Util/Metrics.php';
+require_once 'PHPUnit/Util/File.php';
 require_once 'PHPUnit/Util/Filter.php';
+require_once 'PHPUnit/Util/Metrics.php';
 
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
 
@@ -56,9 +55,9 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.2.0
  */
@@ -74,8 +73,6 @@ class PHPUnit_Util_Metrics_File extends PHPUnit_Util_Metrics
     protected $filename;
     protected $classes = array();
     protected $functions = array();
-    protected $lines = array();
-    protected $tokens = array();
 
     protected static $cache = array();
 
@@ -98,18 +95,23 @@ class PHPUnit_Util_Metrics_File extends PHPUnit_Util_Metrics
         }
 
         $this->filename = $filename;
-        $this->lines    = file($filename);
-        $this->tokens   = token_get_all(file_get_contents($filename));
 
-        $this->countLines();
-        $this->setCoverage($codeCoverage);
-
-        foreach (PHPUnit_Util_Class::getClassesInFile($filename) as $class) {
-            $this->classes[$class->getName()] = PHPUnit_Util_Metrics_Class::factory($class, $codeCoverage);
+        foreach (PHPUnit_Util_File::countLines($this->filename) as $name => $value) {
+            $this->$name = $value;
         }
 
-        foreach (PHPUnit_Util_Class::getFunctionsInFile($filename) as $function) {
-            $this->functions[$function->getName()] = PHPUnit_Util_Metrics_Function::factory($function, $codeCoverage);
+        $this->setCoverage($codeCoverage);
+
+        foreach (PHPUnit_Util_File::getClassesInFile($filename) as $className => $class) {
+            $this->classes[$className] = PHPUnit_Util_Metrics_Class::factory(
+              new ReflectionClass($className), $codeCoverage
+            );
+        }
+
+        foreach (PHPUnit_Util_File::getFunctionsInFile($filename) as $functionName => $function) {
+            $this->functions[$functionName] = PHPUnit_Util_Metrics_Function::factory(
+              new ReflectionFunction($functionName), $codeCoverage
+            );
         }
     }
 
@@ -210,7 +212,7 @@ class PHPUnit_Util_Metrics_File extends PHPUnit_Util_Metrics
      */
     public function getLines()
     {
-        return $this->lines;
+        return file($this->filename);
     }
 
     /**
@@ -220,7 +222,7 @@ class PHPUnit_Util_Metrics_File extends PHPUnit_Util_Metrics
      */
     public function getTokens()
     {
-        return $this->tokens;
+        return token_get_all(file_get_contents($this->filename));
     }
 
     /**
@@ -294,35 +296,13 @@ class PHPUnit_Util_Metrics_File extends PHPUnit_Util_Metrics
           $codeCoverage,
           $this->filename,
           1,
-          count($this->lines)
+          $this->loc
         );
 
         $this->coverage      = $statistics['coverage'];
         $this->loc           = $statistics['loc'];
         $this->locExecutable = $statistics['locExecutable'];
         $this->locExecuted   = $statistics['locExecuted'];
-    }
-
-    /**
-     */
-    protected function countLines()
-    {
-        $this->loc  = count($this->lines);
-        $this->cloc = 0;
-
-        foreach ($this->tokens as $i => $token) {
-            if (is_string($token)) {
-                continue;
-            }
-
-            list ($token, $value) = $token;
-
-            if ($token == T_COMMENT || $token == T_DOC_COMMENT) {
-                $this->cloc += count(explode("\n", $value));
-            }
-        }
-
-        $this->ncloc = $this->loc - $this->cloc;
     }
 }
 ?>

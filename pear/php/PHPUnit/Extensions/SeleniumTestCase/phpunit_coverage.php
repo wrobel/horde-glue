@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: phpunit_coverage.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.2.10
  */
@@ -47,12 +46,18 @@
 require_once 'PHPUnit/Util/CodeCoverage.php';
 require_once 'PHPUnit/Util/FilterIterator.php';
 
+// Set this to the directory that contains the code coverage files.
+// It defaults to getcwd(). If you have configured a different directory
+// in prepend.php, you need to configure the same directory here.
+$GLOBALS['PHPUNIT_COVERAGE_DATA_DIRECTORY'] = getcwd();
+
 if (isset($_GET['PHPUNIT_SELENIUM_TEST_ID'])) {
     $files = new PHPUnit_Util_FilterIterator(
       new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator(dirname(__FILE__))
-      ),
-      $_GET['PHPUNIT_SELENIUM_TEST_ID']
+        new RecursiveDirectoryIterator(
+          $GLOBALS['PHPUNIT_COVERAGE_DATA_DIRECTORY']
+        )
+      )
     );
 
     $coverage = array();

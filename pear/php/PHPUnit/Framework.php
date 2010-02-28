@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Framework.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
@@ -48,6 +47,7 @@ require_once 'PHPUnit/Util/Filter.php';
 
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
 
+require 'PHPUnit/Framework/Exception.php';
 require 'PHPUnit/Framework/SelfDescribing.php';
 require 'PHPUnit/Framework/AssertionFailedError.php';
 require 'PHPUnit/Framework/Assert.php';
@@ -66,6 +66,7 @@ require 'PHPUnit/Framework/SkippedTestError.php';
 require 'PHPUnit/Framework/SkippedTestSuiteError.php';
 require 'PHPUnit/Framework/TestCase.php';
 require 'PHPUnit/Framework/TestSuite.php';
+require 'PHPUnit/Framework/TestSuite/DataProvider.php';
 require 'PHPUnit/Framework/Warning.php';
 require 'PHPUnit/Framework/Constraint.php';
 require 'PHPUnit/Framework/ComparisonFailure.php';

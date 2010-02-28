@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,18 +36,15 @@
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: StringContains.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.0.0
  */
 
 require_once 'PHPUnit/Framework.php';
 require_once 'PHPUnit/Util/Filter.php';
-require_once 'PHPUnit/Util/Type.php';
 
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
 
@@ -62,24 +59,33 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  *
  * @category   Testing
  * @package    PHPUnit
- * @author     Jan Borsodi <jb@ez.no>
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.0.0
  */
 class PHPUnit_Framework_Constraint_StringContains extends PHPUnit_Framework_Constraint
 {
+    /**
+     * @var string
+     */
     protected $string;
 
-    protected $case;
+    /**
+     * @var boolean
+     */
+    protected $ignoreCase;
 
-    public function __construct($string, $case = TRUE)
+    /**
+     * @param string  $string
+     * @param boolean $ignoreCase
+     */
+    public function __construct($string, $ignoreCase = FALSE)
     {
-        $this->string = $string;
-        $this->case   = $case;
+        $this->string     = $string;
+        $this->ignoreCase = $ignoreCase;
     }
 
     /**
@@ -91,10 +97,10 @@ class PHPUnit_Framework_Constraint_StringContains extends PHPUnit_Framework_Cons
      */
     public function evaluate($other)
     {
-        if ($this->case) {
-            return strpos($other, $this->string) !== FALSE;
-        } else {
+        if ($this->ignoreCase) {
             return stripos($other, $this->string) !== FALSE;
+        } else {
+            return strpos($other, $this->string) !== FALSE;
         }
     }
 
@@ -105,10 +111,10 @@ class PHPUnit_Framework_Constraint_StringContains extends PHPUnit_Framework_Cons
      */
     public function toString()
     {
-        if ($this->case) {
-            $string = $this->string;
-        } else {
+        if ($this->ignoreCase) {
             $string = strtolower($this->string);
+        } else {
+            $string = $this->string;
         }
 
         return sprintf(

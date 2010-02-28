@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,14 +37,18 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: Class.php 4897 2009-05-31 07:58:13Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.1.0
  */
 
+if (!defined('T_NAMESPACE')) {
+    define('T_NAMESPACE', 377);
+}
+
 require_once 'PHPUnit/Util/Filter.php';
+require_once 'PHPUnit/Util/InvalidArgumentHelper.php';
 
 PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
 
@@ -54,17 +58,15 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.1.0
  */
 class PHPUnit_Util_Class
 {
     protected static $buffer = array();
-    protected static $fileClassMap = array();
-    protected static $fileFunctionMap = array();
 
     /**
      * Starts the collection of loaded classes.
@@ -117,92 +119,6 @@ class PHPUnit_Util_Class
     }
 
     /**
-     * Returns the names of the classes declared in a sourcefile.
-     *
-     * @param  string  $filename
-     * @param  string  $commonPath
-     * @param  boolean $clearCache
-     * @return array
-     */
-    public static function getClassesInFile($filename, $commonPath = '', $clearCache = FALSE)
-    {
-        if ($commonPath != '') {
-            $filename = str_replace($commonPath, '', $filename);
-        }
-
-        if ($clearCache) {
-            self::$fileClassMap = array();
-        }
-
-        if (empty(self::$fileClassMap)) {
-            $classes = array_merge(get_declared_classes(), get_declared_interfaces());
-
-            foreach ($classes as $className) {
-                $class = new ReflectionClass($className);
-
-                if ($class->isUserDefined()) {
-                    $file = $class->getFileName();
-
-                    if ($commonPath != '') {
-                        $file = str_replace($commonPath, '', $file);
-                    }
-
-                    if (!isset(self::$fileClassMap[$file])) {
-                        self::$fileClassMap[$file] = array($class);
-                    } else {
-                        self::$fileClassMap[$file][] = $class;
-                    }
-                }
-            }
-        }
-
-        return isset(self::$fileClassMap[$filename]) ? self::$fileClassMap[$filename] : array();
-    }
-
-    /**
-     * Returns the names of the classes declared in a sourcefile.
-     *
-     * @param  string  $filename
-     * @param  string  $commonPath
-     * @param  boolean $clearCache
-     * @return array
-     * @since  Method available since Release 3.2.0
-     * @todo   Find a better place for this method.
-     */
-    public static function getFunctionsInFile($filename, $commonPath = '', $clearCache = FALSE)
-    {
-        if ($commonPath != '') {
-            $filename = str_replace($commonPath, '', $filename);
-        }
-
-        if ($clearCache) {
-            self::$fileFunctionMap = array();
-        }
-
-        if (empty(self::$fileFunctionMap)) {
-            $functions = get_defined_functions();
-
-            foreach ($functions['user'] as $functionName) {
-                $function = new ReflectionFunction($functionName);
-
-                $file = $function->getFileName();
-
-                if ($commonPath != '') {
-                    $file = str_replace($commonPath, '', $file);
-                }
-
-                if (!isset(self::$fileFunctionMap[$file])) {
-                    self::$fileFunctionMap[$file] = array($function);
-                } else {
-                    self::$fileFunctionMap[$file][] = $function;
-                }
-            }
-        }
-
-        return isset(self::$fileFunctionMap[$filename]) ? self::$fileFunctionMap[$filename] : array();
-    }
-
-    /**
      * Returns the class hierarchy for a given class.
      *
      * @param  string  $className
@@ -217,11 +133,13 @@ class PHPUnit_Util_Class
             $classes = array($className);
         }
 
-        $done    = FALSE;
+        $done = FALSE;
 
         while (!$done) {
             if ($asReflectionObjects) {
-                $class = new ReflectionClass($classes[count($classes)-1]->getName());
+                $class = new ReflectionClass(
+                  $classes[count($classes)-1]->getName()
+                );
             } else {
                 $class = new ReflectionClass($classes[count($classes)-1]);
             }
@@ -240,72 +158,6 @@ class PHPUnit_Util_Class
         }
 
         return $classes;
-    }
-
-    /**
-     * Returns the signature of a function.
-     *
-     * @param  ReflectionFunction $function
-     * @return string
-     * @since  Method available since Release 3.3.2
-     * @todo   Find a better place for this method.
-     */
-    public static function getFunctionSignature(ReflectionFunction $function)
-    {
-        if ($function->returnsReference()) {
-            $reference = '&';
-        } else {
-            $reference = '';
-        }
-
-        return sprintf(
-          'function %s%s(%s)',
-
-          $reference,
-          $function->getName(),
-          self::getMethodParameters($function)
-        );
-    }
-
-    /**
-     * Returns the signature of a method.
-     *
-     * @param  ReflectionMethod $method
-     * @return string
-     * @since  Method available since Release 3.2.0
-     */
-    public static function getMethodSignature(ReflectionMethod $method)
-    {
-        if ($method->isPrivate()) {
-            $modifier = 'private';
-        }
-
-        else if ($method->isProtected()) {
-            $modifier = 'protected';
-        }
-
-        else {
-            $modifier = 'public';
-        }
-
-        if ($method->isStatic()) {
-            $modifier .= ' static';
-        }
-
-        if ($method->returnsReference()) {
-            $reference = '&';
-        } else {
-            $reference = '';
-        }
-
-        return sprintf(
-          '%s function %s%s(%s)',
-
-          $modifier,
-          $reference,
-          $method->getName(),
-          self::getMethodParameters($method)
-        );
     }
 
     /**
@@ -404,9 +256,10 @@ class PHPUnit_Util_Class
      * Returns the package information of a user-defined class.
      *
      * @param  string $className
+     * @param  string $docComment
      * @return array
      */
-    public static function getPackageInformation($className)
+    public static function getPackageInformation($className, $docComment)
     {
         $result = array(
           'namespace'   => '',
@@ -416,14 +269,11 @@ class PHPUnit_Util_Class
           'subpackage'  => ''
         );
 
-        if (strpos($className, ':') !== FALSE) {
+        if (strpos($className, '\\') !== FALSE) {
             $result['namespace'] = self::arrayToName(
-              explode('\\', $className), '\\'
+              explode('\\', $className)
             );
         }
-
-        $class      = new ReflectionClass($className);
-        $docComment = $class->getDocComment();
 
         if (preg_match('/@category[\s]+([\.\w]+)/', $docComment, $matches)) {
             $result['category'] = $matches[1];
@@ -435,7 +285,7 @@ class PHPUnit_Util_Class
         }
 
         if (preg_match('/@subpackage[\s]+([\.\w]+)/', $docComment, $matches)) {
-            $result['subpackage'] = $matches[1];
+            $result['subpackage']   = $matches[1];
             $result['fullPackage'] .= '.' . $matches[1];
         }
 
@@ -449,14 +299,187 @@ class PHPUnit_Util_Class
     }
 
     /**
+     * Returns the value of a static attribute.
+     * This also works for attributes that are declared protected or private.
+     *
+     * @param  string  $className
+     * @param  string  $attributeName
+     * @return mixed
+     * @throws InvalidArgumentException
+     * @since  Method available since Release 3.4.0
+     */
+    public static function getStaticAttribute($className, $attributeName)
+    {
+        if (!is_string($className)) {
+            throw PHPUnit_Util_InvalidArgumentHelper::factory(1, 'string');
+        }
+
+        if (!class_exists($className)) {
+            throw PHPUnit_Util_InvalidArgumentHelper::factory(1, 'class name');
+        }
+
+        if (!is_string($attributeName)) {
+            throw PHPUnit_Util_InvalidArgumentHelper::factory(2, 'string');
+        }
+
+        $class = new ReflectionClass($className);
+
+        while ($class) {
+            $attributes = $class->getStaticProperties();
+
+            $key = $attributeName;
+
+            if (isset($attributes[$key])) {
+                return $attributes[$key];
+            }
+
+            $key = "\0*\0" . $attributeName;
+
+            if (isset($attributes[$key])) {
+                return $attributes[$key];
+            }
+
+            $key = "\0" . $class->getName() . "\0" . $attributeName;
+
+            if (isset($attributes[$key])) {
+                return $attributes[$key];
+            }
+
+            $class = $class->getParentClass();
+        }
+
+        throw new PHPUnit_Framework_Exception(
+          sprintf(
+            'Attribute "%s" not found in class.',
+
+            $attributeName
+          )
+        );
+    }
+
+    /**
+     * Returns the value of an object's attribute.
+     * This also works for attributes that are declared protected or private.
+     *
+     * @param  object  $object
+     * @param  string  $attributeName
+     * @return mixed
+     * @throws InvalidArgumentException
+     * @since  Method available since Release 3.4.0
+     */
+    public static function getObjectAttribute($object, $attributeName)
+    {
+        if (!is_object($object)) {
+            throw PHPUnit_Util_InvalidArgumentHelper::factory(1, 'object');
+        }
+
+        if (!is_string($attributeName)) {
+            throw PHPUnit_Util_InvalidArgumentHelper::factory(2, 'string');
+        }
+
+        PHPUnit_Framework_Assert::assertObjectHasAttribute(
+          $attributeName, $object
+        );
+
+        try {
+            $attribute = new ReflectionProperty($object, $attributeName);
+        }
+
+        catch (ReflectionException $e) {
+            // Workaround for http://bugs.php.net/46064
+            if (version_compare(PHP_VERSION, '5.2.7', '<')) {
+                $reflector  = new ReflectionObject($object);
+                $attributes = $reflector->getProperties();
+
+                foreach ($attributes as $_attribute) {
+                    if ($_attribute->getName() == $attributeName) {
+                        $attribute = $_attribute;
+                        break;
+                    }
+                }
+            }
+
+            $reflector = new ReflectionObject($object);
+
+            while ($reflector = $reflector->getParentClass()) {
+                try {
+                    $attribute = $reflector->getProperty($attributeName);
+                    break;
+                }
+
+                catch(ReflectionException $e) {
+                }
+            }
+        }
+
+        if ($attribute->isPublic()) {
+            return $object->$attributeName;
+        } else {
+            $array         = (array)$object;
+            $protectedName = "\0*\0" . $attributeName;
+
+            if (array_key_exists($protectedName, $array)) {
+                return $array[$protectedName];
+            } else {
+                $classes = self::getHierarchy(get_class($object));
+
+                foreach ($classes as $class) {
+                    $privateName = sprintf(
+                      "\0%s\0%s",
+
+                      $class,
+                      $attributeName
+                    );
+
+                    if (array_key_exists($privateName, $array)) {
+                        return $array[$privateName];
+                    }
+                }
+            }
+        }
+
+        throw new PHPUnit_Framework_Exception(
+          sprintf(
+            'Attribute "%s" not found in object.',
+
+            $attributeName
+          )
+        );
+    }
+
+    /**
+     *
+     *
+     * @param  string $className
+     * @return array
+     * @since  Method available since Release 3.4.0
+     */
+    public static function parseFullyQualifiedClassName($className)
+    {
+        $result = array(
+          'namespace'               => '',
+          'className'               => $className,
+          'fullyQualifiedClassName' => $className
+        );
+
+        if (strpos($className, '\\') !== FALSE) {
+            $tmp                 = explode('\\', $className);
+            $result['className'] = $tmp[count($tmp)-1];
+            $result['namespace'] = self::arrayToName($tmp);
+        }
+
+        return $result;
+    }
+
+    /**
      * Returns the package information of a user-defined class.
      *
-     * @param  array $parts
+     * @param  array  $parts
      * @param  string $join
      * @return string
      * @since  Method available since Release 3.2.12
      */
-    protected static function arrayToName(array $parts, $join)
+    protected static function arrayToName(array $parts, $join = '\\')
     {
         $result = '';
 

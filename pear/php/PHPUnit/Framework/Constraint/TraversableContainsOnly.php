@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2009, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    SVN: $Id: TraversableContainsOnly.php 4404 2008-12-31 09:27:18Z sb $
  * @link       http://www.phpunit.de/
  * @since      File available since Release 3.1.4
  */
@@ -57,23 +56,36 @@ PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
  * @category   Testing
  * @package    PHPUnit
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2009 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.3.17
+ * @version    Release: 3.4.10
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.1.4
  */
 class PHPUnit_Framework_Constraint_TraversableContainsOnly extends PHPUnit_Framework_Constraint
 {
+    /**
+     * @var PHPUnit_Framework_Constraint
+     */
     protected $constraint;
+
+    /**
+     * @var string
+     */
     protected $type;
 
+    /**
+     * @param string  $type
+     * @param boolean $isNativeType
+     */
     public function __construct($type, $isNativeType = TRUE)
     {
         if ($isNativeType) {
             $this->constraint = new PHPUnit_Framework_Constraint_IsType($type);
         } else {
-            $this->constraint = new PHPUnit_Framework_Constraint_IsInstanceOf($type);
+            $this->constraint = new PHPUnit_Framework_Constraint_IsInstanceOf(
+              $type
+            );
         }
 
         $this->type = $type;
