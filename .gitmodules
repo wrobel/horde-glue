@@ -25,3 +25,6 @@
 [submodule "php-hudson-tools"]
 	path = php-hudson-tools
 	url = git@github.com:wrobel/php-hudson-tools.git
+[submodule "php-hudson-template"]
+	path = php-hudson-template
+	url = git@github.com:wrobel/php-hudson-template.git
