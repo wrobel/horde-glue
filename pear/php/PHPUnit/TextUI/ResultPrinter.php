@@ -2,7 +2,7 @@
 /**
  * PHPUnit
  *
- * Copyright (c) 2002-2010, Sebastian Bergmann <sb@sebastian-bergmann.de>.
+ * Copyright (c) 2002-2010, Sebastian Bergmann <sebastian@phpunit.de>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,32 +34,26 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @category   Testing
  * @package    PHPUnit
- * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @subpackage TextUI
+ * @author     Sebastian Bergmann <sebastian@phpunit.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sebastian@phpunit.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
  * @link       http://www.phpunit.de/
  * @since      File available since Release 2.0.0
  */
 
-require_once 'PHPUnit/Framework.php';
-require_once 'PHPUnit/Util/Filter.php';
-require_once 'PHPUnit/Util/Printer.php';
-require_once 'PHPUnit/Util/Test.php';
-require_once 'PHPUnit/Util/Timer.php';
-
-PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
+require_once 'PHP/Timer.php';
 
 /**
  * Prints the result of a TextUI TestRunner run.
  *
- * @category   Testing
  * @package    PHPUnit
- * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
- * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
+ * @subpackage TextUI
+ * @author     Sebastian Bergmann <sebastian@phpunit.de>
+ * @copyright  2002-2010 Sebastian Bergmann <sebastian@phpunit.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.4.10
+ * @version    Release: 3.5.5
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 2.0.0
  */
@@ -163,7 +157,7 @@ class PHPUnit_TextUI_ResultPrinter extends PHPUnit_Util_Printer implements PHPUn
      */
     public function printResult(PHPUnit_Framework_TestResult $result)
     {
-        $this->printHeader($result->time());
+        $this->printHeader();
 
         if ($result->errorCount() > 0) {
             $this->printErrors($result);
@@ -325,38 +319,10 @@ class PHPUnit_TextUI_ResultPrinter extends PHPUnit_Util_Printer implements PHPUn
         );
     }
 
-    /**
-     * @param float $timeElapsed
-     */
-    protected function printHeader($timeElapsed)
+    protected function printHeader()
     {
-        if (isset($_SERVER['REQUEST_TIME'])) {
-            $timeElapsed = PHPUnit_Util_Timer::secondsToTimeString(
-              time() - $_SERVER['REQUEST_TIME']
-            );
-        } else {
-            $timeElapsed = PHPUnit_Util_Timer::secondsToTimeString(
-              $timeElapsed
-            );
-        }
-
-        if (function_exists('memory_get_peak_usage')) {
-            $memory = sprintf(
-              ', Memory: %4.2fMb',
-              memory_get_peak_usage(TRUE) / 1048576
-            );
-        } else {
-            $memory = '';
-        }
-
-        $this->write(
-          sprintf(
-            "%sTime: %s%s\n\n",
-            $this->verbose ? "\n" : "\n\n",
-            $timeElapsed,
-            $memory
-          )
-        );
+        $this->write($this->verbose ? "\n" : "\n\n");
+        $this->write(PHP_Timer::resourceUsage() . "\n\n");
     }
 
     /**
@@ -611,8 +577,6 @@ class PHPUnit_TextUI_ResultPrinter extends PHPUnit_Util_Printer implements PHPUn
               )
             );
         }
-
-        $this->numTestsRun++;
     }
 
     /**
@@ -642,12 +606,13 @@ class PHPUnit_TextUI_ResultPrinter extends PHPUnit_Util_Printer implements PHPUn
     {
         $this->write($progress);
         $this->column++;
+        $this->numTestsRun++;
 
         if ($this->column == 60) {
             if (!$this->verbose) {
                 $this->write(
                   sprintf(
-                    ' %' . $this->numTestsWidth . 'd / %' . 
+                    ' %' . $this->numTestsWidth . 'd / %' .
                            $this->numTestsWidth . "d",
 
                     $this->numTestsRun,
@@ -672,4 +637,3 @@ class PHPUnit_TextUI_ResultPrinter extends PHPUnit_Util_Printer implements PHPUn
         }
     }
 }
-?>

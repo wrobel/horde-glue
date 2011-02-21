@@ -34,8 +34,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @category   Testing
- * @package    PHPUnit
+ * @package    PHPUnit_Selenium
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
@@ -43,19 +42,14 @@
  * @since      File available since Release 3.3.0
  */
 
-require_once 'PHPUnit/Util/Filter.php';
-
-PHPUnit_Util_Filter::addFileToFilter(__FILE__, 'PHPUNIT');
-
 /**
  * Implementation of the Selenium RC client/server protocol.
  *
- * @category   Testing
- * @package    PHPUnit
+ * @package    PHPUnit_Selenium
  * @author     Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @copyright  2002-2010 Sebastian Bergmann <sb@sebastian-bergmann.de>
  * @license    http://www.opensource.org/licenses/bsd-license.php  BSD License
- * @version    Release: 3.4.10
+ * @version    Release: 1.0.1
  * @link       http://www.phpunit.de/
  * @since      Class available since Release 3.3.0
  */
@@ -112,7 +106,7 @@ class PHPUnit_Extensions_SeleniumTestCase_Driver
     protected $seleniumTimeout = 30;
 
     /**
-     * @var    array
+     * @var    string
      */
     protected $sessionId;
 
@@ -596,9 +590,7 @@ class PHPUnit_Extensions_SeleniumTestCase_Driver
             case 'attachFile':
             case 'break':
             case 'captureEntirePageScreenshot':
-            case 'captureEntirePageScreenshotToString':
             case 'captureScreenshot':
-            case 'captureScreenshotToString':
             case 'check':
             case 'chooseCancelOnNextConfirmation':
             case 'chooseOkOnNextConfirmation':
@@ -707,8 +699,7 @@ class PHPUnit_Extensions_SeleniumTestCase_Driver
                     case 'allowNativeXpath':
                     case 'assignId':
                     case 'captureEntirePageScreenshot':
-                    case 'captureScreenshot':
-                    case 'captureScreenshotToString': {
+                    case 'captureScreenshot': {
                         // intentionally empty
                     }
                     break;
@@ -787,6 +778,8 @@ class PHPUnit_Extensions_SeleniumTestCase_Driver
             case 'getTable':
             case 'getText':
             case 'getTitle':
+            case 'captureEntirePageScreenshotToString':
+            case 'captureScreenshotToString':
             case 'getValue': {
                 $result = $this->getString($command, $arguments);
 
@@ -1090,9 +1083,14 @@ class PHPUnit_Extensions_SeleniumTestCase_Driver
                     PHPUnit_Framework_Assert::assertNotEquals($expected, $result);
                 }
             } else {
+                $caseInsensitive = FALSE;
+
                 if (strpos($expected, 'regexp:') === 0) {
                     $expected = substr($expected, strlen('regexp:'));
-                } else {
+                } else if (strpos($expected, 'regexpi:') === 0) {
+                    $expected        = substr($expected, strlen('regexpi:'));
+                    $caseInsensitive = TRUE;
+                } else  {
                     if (strpos($expected, 'glob:') === 0) {
                         $expected = substr($expected, strlen('glob:'));
                     }
@@ -1102,15 +1100,19 @@ class PHPUnit_Extensions_SeleniumTestCase_Driver
                     );
                 }
 
-                $expected = str_replace('/', '\/', $expected);
+                $expected = '/' . str_replace('/', '\/', $expected) . '/';
+
+                if ($caseInsensitive) {
+                    $expected .= 'i';
+                }
 
                 if (!isset($info['negative']) || !$info['negative']) {
                     PHPUnit_Framework_Assert::assertRegExp(
-                      '/' . $expected . '/', $result
+                      $expected, $result
                     );
                 } else {
                     PHPUnit_Framework_Assert::assertNotRegExp(
-                      '/' . $expected . '/', $result
+                      $expected, $result
                     );
                 }
             }
@@ -1216,4 +1218,3 @@ class PHPUnit_Extensions_SeleniumTestCase_Driver
         }
     }
 }
-?>
