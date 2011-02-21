@@ -22,9 +22,6 @@
 [submodule "horde-support"]
 	path = horde-support
 	url = git@github.com:wrobel/horde-support.git
-[submodule "php-hudson-tools"]
-	path = php-hudson-tools
-	url = git@github.com:wrobel/php-hudson-tools.git
-[submodule "php-hudson-template"]
-	path = php-hudson-template
-	url = git@github.com:wrobel/php-hudson-template.git
+[submodule "php-ci-tools"]
+	path = php-ci-tools
+	url = git@github.com:wrobel/php-ci-tools.git
